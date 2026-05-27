@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATC Inventory — Documentation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2230;
+    --border: #2a3444;
+    --accent: #4fa3e0;
+    --accent2: #3ddc97;
+    --warn: #e6a817;
+    --danger: #e05c5c;
+    --text: #cdd9e5;
+    --muted: #768a9e;
+    --code: #a8d1f0;
+    --white: #f0f6fc;
+  }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.65;
+  }
+
+  .page {
+    max-width: 1060px;
+    margin: 0 auto;
+    padding: 0 0 80px;
+  }
+
+  /* ── Header ── */
+  .doc-header {
+    padding: 52px 56px 44px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .doc-header::before {
+    content: "";
+    position: absolute;
+    top: 0; right: 0;
+    width: 520px; height: 100%;
+    background: radial-gradient(ellipse at 80% 40%, rgba(79,163,224,0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .doc-header::after {
+    content: "";
+    position: absolute;
+    bottom: 0; right: 120px;
+    width: 280px; height: 60%;
+    background: radial-gradient(ellipse at 60% 80%, rgba(61,220,151,0.04) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .doc-header .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .doc-header h1 {
+    font-size: 42px;
+    font-weight: 800;
+    color: var(--white);
+    line-height: 1.1;
+    margin-bottom: 8px;
+  }
+  .doc-header .subtitle {
+    font-size: 15px;
+    color: var(--muted);
+    margin-bottom: 32px;
+    max-width: 600px;
+  }
+  .meta-strip {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    width: fit-content;
+  }
+  .meta-cell {
+    padding: 10px 20px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .meta-cell:last-child { border-right: none; }
+  .meta-cell .lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .meta-cell .val {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--white);
+  }
+  .meta-cell .val.green { color: var(--accent2); }
+
+  /* ── Section ── */
+  .content { padding: 0 56px; }
+
+  .section {
+    padding: 44px 0 0;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 44px;
+  }
+  .section:last-child { border-bottom: none; }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .sn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 2px;
+    background: rgba(79,163,224,0.08);
+    border: 1px solid rgba(79,163,224,0.2);
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .section-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--white);
+  }
+  .section-desc {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 24px;
+    max-width: 700px;
+  }
+
+  /* ── Doc Cards ── */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+  }
+
+  .doc-card {
+    display: block;
+    text-decoration: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    transition: border-color 0.15s, background 0.15s, transform 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .doc-card::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .doc-card:hover {
+    border-color: rgba(79,163,224,0.4);
+    background: var(--surface2);
+    transform: translateY(-1px);
+  }
+  .doc-card:hover::before { opacity: 1; }
+
+  .doc-card.dev {
+    border-top: 2px solid transparent;
+  }
+  .doc-card.dev::before {
+    background: linear-gradient(90deg, var(--accent2), transparent);
+  }
+  .doc-card.dev:hover {
+    border-color: rgba(61,220,151,0.4);
+  }
+
+  .card-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+    display: block;
+  }
+  .doc-card.dev .card-tag { color: var(--accent2); }
+
+  .card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+  .card-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .card-arrow {
+    position: absolute;
+    bottom: 18px;
+    right: 18px;
+    font-size: 16px;
+    color: var(--border);
+    transition: color 0.15s, transform 0.15s;
+  }
+  .doc-card:hover .card-arrow {
+    color: var(--accent);
+    transform: translateX(2px);
+  }
+  .doc-card.dev:hover .card-arrow { color: var(--accent2); }
+
+  /* ── Footer ── */
+  .doc-footer {
+    margin-top: 60px;
+    padding: 20px 56px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ── HEADER ── -->
+<div class="doc-header">
+  <div class="eyebrow">ATC Inventory Application</div>
+  <h1>Documentation</h1>
+  <p class="subtitle">Architecture references, developer guides, project standards, and operational procedures for the ATC Inventory Application.</p>
+  <div class="meta-strip">
+    <div class="meta-cell">
+      <span class="lbl">Status</span>
+      <span class="val green">Active</span>
+    </div>
+    <div class="meta-cell">
+      <span class="lbl">Updated</span>
+      <span class="val">May 2026</span>
+    </div>
+    <div class="meta-cell">
+      <span class="lbl">Repos</span>
+      <span class="val">inventory_pwa · inventory_api · inventory_functions</span>
+    </div>
+    <div class="meta-cell">
+      <span class="lbl">Audience</span>
+      <span class="val">Developers · IT Staff</span>
+    </div>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- §01 ARCHITECTURE & PROJECT -->
+<div class="section" id="architecture">
+  <div class="section-header">
+    <span class="sn">01</span>
+    <h2>Architecture &amp; Project</h2>
+  </div>
+  <p class="section-desc">System design, data schema, project standards, access management, and operational procedures that apply across all three repositories.</p>
+  <div class="card-grid">
+
+    <a class="doc-card" href="docs/architecture.html">
+      <span class="card-tag">Architecture</span>
+      <div class="card-title">Application Architecture</div>
+      <div class="card-desc">Three-repo system design, service boundaries, Azure infrastructure, auth flow, SignalR, and cross-cutting constraints.</div>
+      <span class="card-arrow">→</span>
+    </a>
+
+    <a class="doc-card" href="docs/schema.html">
+      <span class="card-tag">Data</span>
+      <div class="card-title">Database Schema</div>
+      <div class="card-desc">Full table definitions, column types, constraints, indexes, relationships, and the transaction ledger model.</div>
+      <span class="card-arrow">→</span>
+    </a>
+
+    <a class="doc-card" href="docs/project_rules.html">
+      <span class="card-tag">Standards</span>
+      <div class="card-title">Project Rules</div>
+      <div class="card-desc">Architectural boundaries, repo responsibilities, security rules, CI/CD requirements, and required documentation per repo.</div>
+      <span class="card-arrow">→</span>
+    </a>
+
+    <a class="doc-card" href="docs/entra_property_access_management.html">
+      <span class="card-tag">Access</span>
+      <div class="card-title">Entra Property Access Management</div>
+      <div class="card-desc">App role definitions, M365 group assignments, property warehouse roles, and token behavior for all user tiers.</div>
+      <span class="card-arrow">→</span>
+    </a>
+
+    <a class="doc-card" href="docs/azure_functions_side_effects.html">
+      <span class="card-tag">Functions</span>
+      <div class="card-title">Azure Functions Side Effects</div>
+      <div class="card-desc">Queue-triggered notification pipeline, Power Automate flows, channel failure handling, and side-effect boundaries.</div>
+      <span class="card-arrow">→</span>
+    </a>
+
+    <a class="doc-card" href="docs/database_change_procedure.html">
+      <span class="card-tag">Procedure</span>
+      <div class="card-title">Database Change Procedure</div>
+      <div class="card-desc">Step-by-step migration procedure for keeping SQLite (local) and Azure SQL (production) in sync across all schema changes.</div>
+      <span class="card-arrow">→</span>
+    </a>
+
+    <a class="doc-card" href="docs/product_backlog.html">
+      <span class="card-tag">Planning</span>
+      <div class="card-title">Product Backlog</div>
+      <div class="card-desc">Outstanding features, improvements, bugs, and cross-system infrastructure items across all repos.</div>
+      <span class="card-arrow">→</span>
+    </a>
+
+  </div>
+</div>
+
+<!-- §02 DEVELOPER GUIDES -->
+<div class="section" id="dev-guides">
+  <div class="section-header">
+    <span class="sn">02</span>
+    <h2>Developer Guides</h2>
+  </div>
+  <p class="section-desc">Repo-specific developer references covering local setup, authentication, business rules, deployment, and maintenance procedures.</p>
+  <div class="card-grid">
+
+    <a class="doc-card dev" href="docs/API_DEVELOPER_GUIDE.html">
+      <span class="card-tag">inventory_api</span>
+      <div class="card-title">API Developer Guide</div>
+      <div class="card-desc">Startup pipeline, authentication, authorization, EF Core, business rules, endpoint inventory, SignalR, testing, and deployment.</div>
+      <span class="card-arrow">→</span>
+    </a>
+
+    <a class="doc-card dev" href="docs/API_CONTRACT.html">
+      <span class="card-tag">inventory_api</span>
+      <div class="card-title">API Contract</div>
+      <div class="card-desc">Full endpoint reference — request shapes, response DTOs, status codes, error codes, and auth labels for every route.</div>
+      <span class="card-arrow">→</span>
+    </a>
+
+    <a class="doc-card dev" href="docs/PWA_DEVELOPER_GUIDE.html">
+      <span class="card-tag">inventory_pwa</span>
+      <div class="card-title">PWA Developer Guide</div>
+      <div class="card-desc">MSAL auth, TanStack Query conventions, SignalR client, dual desktop/mobile architecture, scan workflows, and deployment.</div>
+      <span class="card-arrow">→</span>
+    </a>
+
+    <a class="doc-card dev" href="docs/PWA_API_USAGE.html">
+      <span class="card-tag">inventory_pwa</span>
+      <div class="card-title">PWA API Usage</div>
+      <div class="card-desc">Route-to-data matrix, API and Functions usage by feature, query key ownership, SignalR events, and role/UI visibility.</div>
+      <span class="card-arrow">→</span>
+    </a>
+
+    <a class="doc-card dev" href="docs/FUNCTIONS_DEVELOPER_GUIDE.html">
+      <span class="card-tag">inventory_functions</span>
+      <div class="card-title">Functions Developer Guide</div>
+      <div class="card-desc">Function inventory, report generation pipeline, notification pipeline, invoice analysis, local setup, and deployment.</div>
+      <span class="card-arrow">→</span>
+    </a>
+
+    <a class="doc-card dev" href="docs/azure_sql_queryeditor_access.html">
+      <span class="card-tag">Operations</span>
+      <div class="card-title">Azure SQL Query Editor Access</div>
+      <div class="card-desc">Procedures for granting and revoking database access, auditing current users, and managing the dev and production databases.</div>
+      <span class="card-arrow">→</span>
+    </a>
+
+    <a class="doc-card dev" href="docs/graph_obo_certificate_setup.html">
+      <span class="card-tag">Infrastructure</span>
+      <div class="card-title">Graph OBO Certificate Setup</div>
+      <div class="card-desc">F-10 quote request email infrastructure — OBO auth flow, Key Vault certificate, Entra permissions, and renewal procedure.</div>
+      <span class="card-arrow">→</span>
+    </a>
+
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<!-- ── FOOTER ── -->
+<div class="doc-footer">
+  <span>ATC Inventory Application</span>
+  <span>Documentation Hub · May 2026</span>
+  <span>Internal Use Only</span>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>
