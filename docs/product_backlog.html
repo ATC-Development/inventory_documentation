@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ATC Inventory — Product Backlog</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
+
+    :root {
+      --navy: #0F2B4E;
+      --blue: #1565C0;
+      --blue-mid: #1976D2;
+      --blue-light: #E3F0FB;
+      --accent: #0097A7;
+      --accent-light: #E0F7FA;
+      --green: #1B7A3E;
+      --green-light: #E8F5E9;
+      --amber: #B45309;
+      --amber-light: #FEF3C7;
+      --red: #B91C1C;
+      --red-light: #FEF2F2;
+      --gray-dark: #1E293B;
+      --gray-mid: #475569;
+      --gray-line: #CBD5E1;
+      --gray-bg: #F8FAFC;
+      --white: #FFFFFF;
+      --font: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+      --mono: 'IBM Plex Mono', 'Courier New', monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      font-size: 11pt;
+      color: var(--gray-dark);
+      background: #F0F4F8;
+      line-height: 1.5;
+    }
+
+    .page {
+      max-width: 960px;
+      margin: 32px auto;
+      background: var(--white);
+      box-shadow: 0 4px 32px rgba(15,43,78,0.12);
+    }
+
+    .doc-header {
+      background: var(--navy);
+      padding: 36px 48px 28px;
+      position: relative;
+      overflow: hidden;
+    }
+    .doc-header::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--blue-mid) 100%);
+    }
+    .doc-header .app-label {
+      font-family: var(--mono);
+      font-size: 8.5pt;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+    .doc-header h1 {
+      font-size: 22pt;
+      font-weight: 700;
+      color: var(--white);
+      letter-spacing: -0.3px;
+      line-height: 1.2;
+      margin-bottom: 6px;
+    }
+    .doc-header .subtitle {
+      font-size: 10pt;
+      color: rgba(255,255,255,0.6);
+      font-weight: 300;
+    }
+    .doc-meta {
+      margin-top: 20px;
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .meta-item { display: flex; align-items: center; gap: 7px; }
+    .meta-label {
+      font-family: var(--mono);
+      font-size: 7.5pt;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.45);
+    }
+    .meta-value { font-size: 8.5pt; font-weight: 500; color: rgba(255,255,255,0.75); }
+
+    .doc-body { padding: 40px 48px 48px; }
+
+    .summary-bar {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 1px;
+      background: var(--gray-line);
+      border: 1px solid var(--gray-line);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 36px;
+    }
+    .summary-cell { background: var(--white); padding: 14px 16px; text-align: center; }
+    .summary-cell .num {
+      font-family: var(--mono);
+      font-size: 22pt;
+      font-weight: 700;
+      color: var(--navy);
+      line-height: 1;
+      margin-bottom: 3px;
+    }
+    .summary-cell .lbl {
+      font-size: 7.5pt;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--gray-mid);
+    }
+
+    .section { margin-bottom: 40px; }
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--navy);
+    }
+    .section-num {
+      font-family: var(--mono);
+      font-size: 8pt;
+      font-weight: 700;
+      color: var(--white);
+      background: var(--navy);
+      padding: 3px 8px;
+      border-radius: 3px;
+      letter-spacing: 1px;
+    }
+    .section-title h2 {
+      font-size: 13pt;
+      font-weight: 700;
+      color: var(--navy);
+      letter-spacing: -0.2px;
+    }
+    .section-intro {
+      font-size: 9.5pt;
+      color: var(--gray-mid);
+      margin-bottom: 16px;
+      line-height: 1.6;
+      font-style: italic;
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin-bottom: 0; }
+    thead tr { background: var(--navy); }
+    thead th {
+      padding: 9px 12px;
+      text-align: left;
+      font-family: var(--mono);
+      font-size: 7.5pt;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.85);
+      border: none;
+    }
+    tbody tr { border-bottom: 1px solid var(--gray-line); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:nth-child(even) { background: var(--gray-bg); }
+    tbody tr:hover { background: var(--blue-light); }
+    td { padding: 10px 12px; vertical-align: top; line-height: 1.45; }
+    td:first-child {
+      font-family: var(--mono);
+      font-size: 8pt;
+      font-weight: 600;
+      color: var(--navy);
+      white-space: nowrap;
+    }
+    .td-name { font-weight: 600; color: var(--gray-dark); }
+    .td-notes { font-size: 8.5pt; color: var(--gray-mid); line-height: 1.5; }
+
+    .badge {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 7pt;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 3px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .badge-live      { background: var(--green);        color: var(--white);  }
+    .badge-complete  { background: var(--green-light);  color: var(--green);  }
+    .badge-partial   { background: var(--amber-light);  color: var(--amber);  }
+    .badge-open      { background: #F1F5F9;             color: #64748B;       }
+    .badge-blocked   { background: var(--red-light);    color: var(--red);    }
+    .badge-pwa       { background: #EDE9FE; color: #5B21B6; }
+    .badge-api       { background: #DBEAFE; color: #1E40AF; }
+    .badge-functions { background: var(--accent-light); color: var(--accent); }
+    .badge-infra     { background: #FEF3C7; color: #92400E; }
+    .badge-mobile    { background: #FCE7F3; color: #9D174D; }
+    .badge-desktop   { background: #E0F2FE; color: #075985; }
+    .badge-both      { background: #F0FDF4; color: #166534; }
+
+    .info-note {
+      background: var(--blue-light);
+      border-left: 4px solid var(--blue-mid);
+      border-radius: 0 6px 6px 0;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      font-size: 9pt;
+      color: var(--blue);
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      line-height: 1.6;
+    }
+    .note-icon { font-size: 11pt; line-height: 1; flex-shrink: 0; }
+
+    .legend {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+      padding: 14px 16px;
+      background: var(--gray-bg);
+      border: 1px solid var(--gray-line);
+      border-radius: 6px;
+      align-items: center;
+    }
+    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 8.5pt; color: var(--gray-mid); }
+    .legend-title {
+      font-family: var(--mono);
+      font-size: 7.5pt;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--gray-dark);
+      text-transform: uppercase;
+      margin-right: 2px;
+    }
+
+    .doc-footer {
+      background: var(--gray-bg);
+      border-top: 1px solid var(--gray-line);
+      padding: 16px 48px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 8pt;
+      color: var(--gray-mid);
+    }
+    .doc-footer .footer-mono { font-family: var(--mono); font-size: 7.5pt; color: var(--gray-line); }
+
+    @media print {
+      body { background: white; }
+      .page { box-shadow: none; margin: 0; max-width: 100%; }
+      .section { page-break-inside: avoid; }
+    }
+    @page { margin: 0.5in; size: letter landscape; }
+  </style>
+</head>
+<body>
+  <!-- ── NAV BAR ── -->
+<div style="display:flex;align-items:center;gap:12px;padding:12px 56px;background:#161b22;border-bottom:1px solid #2a3444;position:sticky;top:0;z-index:100;">
+  <a href="../index.html" style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:#768a9e;text-decoration:none;letter-spacing:1px;">← Home</a>
+  <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#2a3444;">/</span>
+  <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#cdd9e5;">Product Backlog</span>
+</div>
+<div class="page">
+
+  <div class="doc-header">
+    <div class="app-label">ATC Inventory Application — All Repos</div>
+    <h1>Product Backlog</h1>
+    <div class="subtitle">Outstanding features, improvements, bugs, and cross-system infrastructure items</div>
+    <div class="doc-meta">
+      <div class="meta-item">
+        <span class="meta-label">Version</span>
+        <span class="meta-value">1.6</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Date</span>
+        <span class="meta-value">May 17, 2026</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Repos</span>
+        <span class="meta-value">inventory_pwa · inventory_api · inventory_functions · cross-app</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="doc-body">
+
+    <div class="summary-bar">
+      <div class="summary-cell"><div class="num">16</div><div class="lbl">Total Items</div></div>
+      <div class="summary-cell"><div class="num">15</div><div class="lbl">Complete</div></div>
+      <div class="summary-cell"><div class="num">0</div><div class="lbl">Open</div></div>
+      <div class="summary-cell"><div class="num">1</div><div class="lbl">Blocked</div></div>
+      <div class="summary-cell"><div class="num">0</div><div class="lbl">Partial</div></div>
+    </div>
+
+    <div class="legend">
+      <span class="legend-title">Status:</span>
+      <div class="legend-item"><span class="badge badge-complete">Complete</span> Shipped to production</div>
+      <div class="legend-item"><span class="badge badge-open">Open</span> Not yet started or ready to implement</div>
+      <div class="legend-item"><span class="badge badge-partial">Partial</span> In design or partially built</div>
+      <div class="legend-item"><span class="badge badge-blocked">Blocked</span> Waiting on external dependency</div>
+      <span class="legend-title" style="margin-left:8px">Scope:</span>
+      <div class="legend-item"><span class="badge badge-mobile">Mobile</span></div>
+      <div class="legend-item"><span class="badge badge-desktop">Desktop</span></div>
+      <div class="legend-item"><span class="badge badge-both">Both</span></div>
+      <div class="legend-item"><span class="badge badge-functions">Functions</span></div>
+      <div class="legend-item"><span class="badge badge-infra">Infra</span></div>
+    </div>
+
+    <!-- SECTION 1: Completed Items -->
+    <div class="section">
+      <div class="section-title">
+        <span class="section-num">§01</span>
+        <h2>Completed</h2>
+      </div>
+      <p class="section-intro">Items shipped to production as of May 17, 2026.</p>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:52px">#</th>
+            <th style="width:220px">Item</th>
+            <th style="width:80px">Scope</th>
+            <th style="width:90px">Status</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>B-01</td>
+            <td class="td-name">Scan Invoice — 502 Bad Gateway in Production</td>
+            <td><span class="badge badge-both">Both</span></td>
+            <td><span class="badge badge-complete">Complete</span></td>
+            <td class="td-notes">Resolved. Missing Key Vault secret references in Azure Function App configuration corrected. Production verified.</td>
+          </tr>
+          <tr>
+            <td>B-02</td>
+            <td class="td-name">DM Hub + Add Identifier Mobile Flow</td>
+            <td><span class="badge badge-mobile">Mobile</span></td>
+            <td><span class="badge badge-complete">Complete</span></td>
+            <td class="td-notes">
+              DatabaseManager-only mobile flow. New DM Hub screen (<code>/dm</code>) with action buttons. <code>AddIdentifierPage</code> (<code>/dm/add-identifier</code>) supports two modes:<br><br>
+              <strong>Barcode-first:</strong> Scan unknown barcode → already-linked warning with re-link offer → pick target part → confirm.<br>
+              <strong>Part-first:</strong> Pick part first → scan barcode → confirm.<br><br>
+              <code>PartsPickerModal</code> reused for part search. <code>PATCH /identifiers/{id}</code> used for re-link. <code>POST /identifiers/create</code> used for new links. <code>submittingRef</code> race guard and <code>try/finally</code> form reset in place.
+            </td>
+          </tr>
+          <tr>
+            <td>B-03</td>
+            <td class="td-name">PDF Reports — Desktop Export</td>
+            <td><span class="badge badge-desktop">Desktop</span></td>
+            <td><span class="badge badge-complete">Complete</span></td>
+            <td class="td-notes">All six report types now support PDF export alongside existing Excel. Delivered as part of B-08. ExportButtons wired into Transactions, Part Trend, Order History, On Order, Parts Catalog, and Cross Reference pages.</td>
+          </tr>
+          <tr>
+            <td>B-04</td>
+            <td class="td-name">On Order Page — Real-Time Updates via SignalR</td>
+            <td><span class="badge badge-desktop">Desktop</span></td>
+            <td><span class="badge badge-complete">Complete</span></td>
+            <td class="td-notes"><code>orders.updated</code> SignalR event broadcast by the API on <code>POST /orders</code> and <code>PATCH /orders/{id}/status</code>. PWA <code>useInventorySync</code> subscribed and invalidating orders cache. Confirmed working across simultaneous sessions.</td>
+          </tr>
+          <tr>
+            <td>B-05</td>
+            <td class="td-name">Label Printing — Multiple Copies Selector</td>
+            <td><span class="badge badge-desktop">Desktop</span></td>
+            <td><span class="badge badge-complete">Complete</span></td>
+            <td class="td-notes">Per-part copies selector modal added to the label flow (1–30, ceiling enforced). Azure Function F-04 expanded with fetch-then-expand pattern — each label repeated N times in the PDF. Browser print dialog handles physical printing.</td>
+          </tr>
+          <tr>
+            <td>B-06</td>
+            <td class="td-name">Scan Invoice — Drag and Drop File Upload</td>
+            <td><span class="badge badge-desktop">Desktop</span></td>
+            <td><span class="badge badge-complete">Complete</span></td>
+            <td class="td-notes">Drag-and-drop upload zone wired on desktop Scan Invoice page. <code>onDragOver</code> / <code>onDrop</code> handlers connected to existing file input logic. Mobile camera capture flow unaffected.</td>
+          </tr>
+          <tr>
+            <td>B-07</td>
+            <td class="td-name">In-App Low Stock Notification</td>
+            <td><span class="badge badge-both">Both</span></td>
+            <td><span class="badge badge-complete">Complete</span></td>
+            <td class="td-notes">API <code>ApplySupplyChangeAsync</code> expanded <code>supply.low_stock</code> broadcast to include <code>partName</code> and <code>warehouseName</code>. <code>useLowStockToasts</code> hook and <code>LowStockToastStack</code> render real-time toasts. Manual dismiss. Top of screen on mobile, bottom-right on desktop.</td>
+          </tr>
+          <tr>
+            <td>B-08</td>
+            <td class="td-name">PDF Report Generation (F-09)</td>
+            <td><span class="badge badge-functions">Functions</span></td>
+            <td><span class="badge badge-complete">Complete</span></td>
+            <td class="td-notes">
+              <strong>Library decision:</strong> PdfSharpCore (MIT licensed) used throughout — QuestPDF evaluated and rejected due to commercial licensing requirements at PAX8's revenue level. No QuestPDF dependency in any repo.<br><br>
+              <strong>Functions:</strong> <code>ReportDataService</code> (SQL data fetch via Managed Identity), <code>ExcelReportService</code> (ClosedXML), <code>PdfReportService</code> (PdfSharpCore, coordinate-based layout), <code>TabularReportFunction</code> (HTTP trigger, dispatches Excel or PDF by format param). NotoSans custom font resolver in place for Linux.<br><br>
+              <strong>PWA:</strong> <code>exportReport.ts</code> payload builders per report type, <code>ExportButtons</code> component, <code>triggerExport()</code> POSTs directly to the Function and receives a binary blob response. PWA calls <code>response.blob()</code>, creates an object URL, and triggers a browser download via a temporary anchor element.<br><br>
+              <strong>All 6 report types working (Excel + PDF):</strong> Transactions, Part Trend, Order History, On Order, Parts Catalog, Cross Reference.
+            </td>
+          </tr>
+          <tr>
+            <td>B-09</td>
+            <td class="td-name">Label Printing — Browser Print Approach</td>
+            <td><span class="badge badge-functions">Functions</span></td>
+            <td><span class="badge badge-complete">Complete</span></td>
+            <td class="td-notes">Sheet label printing via browser PDF confirmed working. F-04 returns a PDF; browser print dialog handles printer selection and routing. Dedicated label printer hardware (Dymo, Zebra) is a future decision — deferred indefinitely, not a current backlog item.</td>
+          </tr>
+          <tr>
+            <td>B-11</td>
+            <td class="td-name">PropertyChannels + ManagedProperties Schema, API &amp; PWA</td>
+            <td><span class="badge badge-infra">Infra</span></td>
+            <td><span class="badge badge-complete">Complete</span></td>
+            <td class="td-notes">
+              Two tables deployed to production.<br><br>
+              <strong>PropertyChannels:</strong> <code>Id</code>, <code>WarehouseId</code> (FK), <code>ChannelType</code> (nvarchar 50), <code>TeamId</code> (nvarchar 100), <code>ChannelId</code> (nvarchar 200), <code>IsActive</code> (bit), <code>LastFailedAt</code> (datetime2, nullable). Note: original <code>WebhookUrl</code> design replaced with <code>TeamId</code> + <code>ChannelId</code> — modern Teams uses team/channel routing, not incoming webhook URLs.<br><br>
+              <strong>ManagedProperties:</strong> <code>Id</code>, <code>PropCode</code> (unique), <code>DisplayName</code>, <code>ManagedByWarehouseId</code> (FK), <code>Notes</code> (nullable), <code>CreatedDt</code>.<br><br>
+              Full CRUD API endpoints (DatabaseManager only). <code>PATCH /property-channels/{id}/failure</code> gated to <code>PropertyChannelFailure.Write</code> App Role assigned to <code>atc-inventory-functions</code> Managed Identity.<br><br>
+              PWA: Manage Warehouses page extended with expandable rows showing Managed Properties and Notification Channels sub-sections with add/edit/delete inline UI.
+            </td>
+          </tr>
+          <tr>
+            <td>B-13</td>
+            <td class="td-name">Desktop Re-Link Identifier</td>
+            <td><span class="badge badge-desktop">Desktop</span></td>
+            <td><span class="badge badge-complete">Complete</span></td>
+            <td class="td-notes">
+              Manage Identifiers page (DatabaseManager only). Non-ATC_MASTER identifier rows now include a re-link button alongside delete.<br><br>
+              <strong>Flow:</strong> Click re-link → <code>PartsPickerModal</code> opens (new <code>variant="modal"</code> prop — centered overlay, not full-screen) → select target part → amber warning confirmation → <code>PATCH /identifiers/{id}</code> with new <code>part_id</code>.<br><br>
+              <strong>Also fixed:</strong> <code>IdentifierSubRow</code> layout — UOM now sits adjacent to identifier value; action buttons grouped right. <code>PartsPickerModal</code> extended with <code>variant</code> prop (<code>"fullscreen"</code> default preserves existing mobile behavior).
+            </td>
+          </tr>
+
+          <tr>
+            <td>F-10</td>
+            <td class="td-name">Vendor Quote Request — Graph OBO Send</td>
+            <td><span class="badge badge-both">Both</span></td>
+            <td><span class="badge badge-complete">Complete</span></td>
+            <td class="td-notes">
+              Implemented, tested, and production verified (May 2026). Replaces the original <code>mailto:</code> flow which was not viable in the ATC environment (New Outlook web wrapper, delayed/unreliable sends).<br><br>
+              <strong>Architecture:</strong> API sends email on behalf of the logged-in user via Microsoft Graph On-Behalf-Of (OBO) flow. OBO is required (vs. app-only) so vendor replies route to the user's mailbox, not a shared mailbox.<br><br>
+              <strong>API:</strong> <code>POST /quote-requests/{token}/send</code>. OBO exchange uses <code>ATC-InventoryAPI-GraphOBO</code> certificate from Key Vault. On success: sets <code>Graph_sent_dt</code>, <code>Email_detected_dt</code>, status → <code>email_detected</code>; creates <code>QuoteRequestEmailEvent</code>; fires SignalR <code>orders.updated</code>.<br><br>
+              <strong>PWA:</strong> <code>QuotePreflightPanel</code> full rewrite — preview → create → compose (editable To/CC tag inputs) → send. Resend flow passes <code>existingQuote</code> prop to skip preview/create steps. Removed: <code>buildMailtoUrl</code>, <code>ResendOverflowModal</code>, clipboard fallback.<br><br>
+              <strong>Retired:</strong> <code>new_quote_email_detected</code> PA flow turned off. <code>QuoteEmailDetectedFunction</code> removed from Functions repo. <code>email-detected</code> API endpoint retained (gated by <code>FunctionAppQuote</code> auth policy).<br><br>
+              <strong>Schema additions:</strong> <code>Graph_sent_dt</code>, <code>Graph_message_id</code>, <code>Graph_send_error</code> on <code>QuoteRequests</code> table (migration <code>20260516130729_AddQuoteRequestGraphFields</code>).<br><br>
+              <strong>Config:</strong> <code>QuoteTracking__TestMode</code> — flip to <code>false</code> in App Service when ready to go fully live with real vendor addresses.
+            </td>
+          </tr>
+
+          <tr>
+            <td>—</td>
+            <td class="td-name">Invoice Scan (F-01)</td>
+            <td><span class="badge badge-both">Both</span></td>
+            <td><span class="badge badge-complete">Complete</span></td>
+            <td class="td-notes">
+              Implemented, tested, and production verified. Allows users to photograph or upload a vendor invoice; system extracts line items, matches to known parts, and writes stock-in transactions after user verification.<br><br>
+              <strong>Pipeline:</strong> Image/PDF → <code>AnalyzeInvoiceFunction</code> (<code>POST invoice/analyze</code>) → ADI <code>prebuilt-invoice</code> model → <code>VendorAliases</code> lookup → GPT-4.1-mini matching for unresolved items → <code>InvoiceVerificationModal</code> → <code>POST /supplies/scan/stockin</code> batch + <code>POST /vendor-aliases</code> alias learning.<br><br>
+              <strong>Azure resources:</strong> Azure Document Intelligence (S0, East US), Azure AI Foundry GPT-4.1-mini (Global Standard). 5 Key Vault secrets: <code>AzureDocIntelligence--Endpoint/ApiKey</code>, <code>AzureOpenAI--Endpoint/ApiKey/DeploymentName</code>.<br><br>
+              <strong>Schema:</strong> <code>VendorAliases</code> table. Alias uniqueness for vendor-agnostic records (<code>Vendor_id = NULL</code>) enforced via API existence check — not a DB unique constraint.<br><br>
+              <strong>PWA routes:</strong> <code>/scan/invoice</code> (ScanInvoicePage), <code>/manage/invoice-aliases</code> (ManageInvoiceAliases — DatabaseManager only).
+            </td>
+          </tr>
+
+          <tr>
+            <td>—</td>
+            <td class="td-name">Equipment Tracking</td>
+            <td><span class="badge badge-both">Both</span></td>
+            <td><span class="badge badge-complete">Complete</span></td>
+            <td class="td-notes">
+              Implemented, tested, and production verified. Tracks discrete tools and equipment across properties — separate domain from consumable inventory.<br><br>
+              <strong>Schema:</strong> <code>Equipment</code>, <code>EquipmentIdentifiers</code>, <code>EquipmentStatuses</code> (current truth, upserted on movement), <code>EquipmentTransactions</code> (immutable ledger). TOOL_MASTER barcodes start at sequence 8000001; scan routing: value ≥ 8000000 → EquipmentIdentifiers, value &lt; 8000000 → Identifiers.<br><br>
+              <strong>API:</strong> Full CRUD (<code>/equipment</code>, <code>/equipment/{id}</code>), identifiers (<code>/equipment/identifiers</code>), scan operations (<code>/equipment/scan/resolve</code>, <code>checkout</code>, <code>checkin</code>, <code>locationupdate</code>), transactions (<code>/equipment/transactions</code>). SignalR <code>equipment.changed</code> broadcast on all writes.<br><br>
+              <strong>PWA — Mobile:</strong> Tools section on home screen, <code>/equipment/search</code> (MobileEquipmentSearchPage with detail modal + in-place action phase machine), <code>/equipment/scan</code> (ScanToolPage — two-phase resolve then action).<br><br>
+              <strong>PWA — Desktop:</strong> <code>/equipment</code> (EquipmentPage — table-first, filter by status/category/scope), <code>/equipment/:id</code> (EquipmentDetailPage — full record + transaction history + DM edit). Equipment management (create/edit/soft-delete) is handled through the main equipment pages — no separate /manage/equipment route.<br><br>
+              <strong>Authorization:</strong> Create/edit/delete/permanent transfer = DatabaseManager. Checkout/checkin/location update = any authenticated user.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- SECTION 2: Active / Next Up -->
+    <div class="section">
+      <div class="section-title">
+        <span class="section-num">§02</span>
+        <h2>Active &amp; Next Up</h2>
+      </div>
+      <p class="section-intro">All active items complete as of May 17, 2026. B-10 remains blocked on external dependencies.</p>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:52px">#</th>
+            <th style="width:220px">Item</th>
+            <th style="width:80px">Scope</th>
+            <th style="width:90px">Status</th>
+            <th>Details &amp; Decisions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>B-12</td>
+            <td class="td-name">Power Automate — Teams Notification Flow</td>
+            <td><span class="badge badge-infra">Infra</span></td>
+            <td><span class="badge badge-complete">Complete</span></td>
+            <td class="td-notes">
+              Complete and production verified. 7 PA flows live — one per event type. Functions code (<code>PowerAutomateService</code>, <code>DailyPendingOrdersFunction</code>, <code>WeeklyOrderedItemsFunction</code>, <code>DailyChannelFailuresFunction</code>, <code>NotificationQueueFunction</code>) deployed and running.<br><br>
+              <strong>PA event flows live:</strong><br>
+              — <code>new_part_created</code> ✓ production verified<br>
+              — <code>new_part_in_warehouse</code> ✓ production verified<br>
+              — <code>bulk_parts_created</code> ✓ production verified<br>
+              — <code>bulk_supplies_created</code> ✓ production verified<br>
+              — <code>daily_pending_orders</code> — pending natural schedule (daily 6:00 AM)<br>
+              — <code>weekly_warehouse_report</code> — pending natural schedule (Fridays 6:00 AM)<br>
+              — <code>daily_channel_failures</code> — pending natural schedule<br><br>
+              Per-event PA flow URLs stored as <code>PA__{event_type}</code> Azure App Settings. Test override (<code>NotificationOverride__TeamId</code> / <code>NotificationOverride__ChannelId</code>) confirmed working. <code>SanitizeForNotification</code> applied at all notification body construction points to prevent PA Adaptive Card JSON failures on user-entered strings containing special characters.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- SECTION 3: Infrastructure / Cross-App -->
+    <div class="section">
+      <div class="section-title">
+        <span class="section-num">§03</span>
+        <h2>Infrastructure &amp; Cross-App</h2>
+      </div>
+      <p class="section-intro">Items that span multiple systems or require coordination outside the inventory app repositories.</p>
+
+      <div class="info-note">
+        <span class="note-icon">ℹ️</span>
+        <span>These items involve systems outside the three inventory repos (YARDI, CrisisApp, SharePoint). They require cross-team coordination and cannot be fully delivered within the inventory app alone.</span>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width:52px">#</th>
+            <th style="width:220px">Item</th>
+            <th style="width:80px">Scope</th>
+            <th style="width:90px">Status</th>
+            <th>Details &amp; Dependencies</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>B-10</td>
+            <td class="td-name">Shared Property Master Record</td>
+            <td><span class="badge badge-infra">Infra</span></td>
+            <td><span class="badge badge-blocked">Blocked</span></td>
+            <td class="td-notes">
+              Both the Inventory app and CrisisApp maintain their own copies of property data (propCode, name, address, GPS coordinates). These will drift without a shared source of truth. B-12 makes this easier — once the notification channel is live, the DM can be automatically alerted to property changes rather than needing to manually reconcile.<br><br>
+              <strong>Proposed architecture:</strong><br>
+              — <strong>SharePoint List</strong> as the master property record. Fields: PropCode, DisplayName, Address, Latitude, Longitude, YardiStatus, LastVerifiedDt.<br>
+              — <strong>YARDI scheduled report</strong> → Power Automate flow → compare against SharePoint List → update if changed → notify DatabaseManager via F-20 for inventory app review.<br>
+              — <strong>CrisisApp</strong> reads SharePoint List directly.<br>
+              — <strong>Inventory app</strong> DM reviews and approves changes to Warehouses and ManagedProperties tables.<br><br>
+              <strong>Blocked on:</strong> YARDI report format and delivery mechanism (email, blob, SFTP). Power Automate reconciliation flow design. Field mapping between YARDI columns and SharePoint List columns.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- SECTION 4: Sequencing -->
+    <div class="section">
+      <div class="section-title">
+        <span class="section-num">§04</span>
+        <h2>Suggested Sequencing</h2>
+      </div>
+      <p class="section-intro">Updated May 17, 2026. 15 of 16 items complete.</p>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:80px">Order</th>
+            <th style="width:120px">Item</th>
+            <th>Rationale</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Done</strong></td>
+            <td class="td-notes">
+              <span class="badge badge-complete">B-01</span>
+              <span class="badge badge-complete">B-02</span>
+              <span class="badge badge-complete">B-03</span>
+              <span class="badge badge-complete">B-04</span>
+              <span class="badge badge-complete">B-05</span>
+              <span class="badge badge-complete">B-06</span>
+              <span class="badge badge-complete">B-07</span>
+              <span class="badge badge-complete">B-08</span>
+              <span class="badge badge-complete">B-09</span>
+              <span class="badge badge-complete">B-11</span>
+              <span class="badge badge-complete">B-12</span>
+              <span class="badge badge-complete">B-13</span>
+              <span class="badge badge-complete">F-10</span>
+              <span class="badge badge-complete">Invoice Scan</span>
+              <span class="badge badge-complete">Equipment Tracking</span>
+            </td>
+            <td class="td-notes">All production incidents resolved. Full report suite (Excel + PDF) live. Label printing (sheet, browser). Real-time SignalR updates. Low stock toasts. DM mobile identifier flow. Desktop re-link identifier. PropertyChannels + ManagedProperties schema, API, and PWA complete. Teams notification infrastructure live — 7 PA flows, 4 event types production verified, timer flows pending natural schedule. Vendor quote request Graph OBO send live. Invoice scan (ADI + GPT-4.1-mini + VendorAliases learning loop) live. Equipment tracking (mobile + desktop) live.</td>
+          </tr>
+          <tr>
+            <td><strong>Next</strong></td>
+            <td class="td-notes">B-10</td>
+            <td class="td-notes">B-12 complete makes B-10 more valuable — YARDI reconciliation alerts can now be delivered automatically to the DM via the live notification infrastructure. Blocked on YARDI report format and SharePoint List design decisions.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <div class="doc-footer">
+    <span>ATC Inventory Application — Product Backlog</span>
+    <span>v1.6 · May 17, 2026 · All Repos</span>
+    <span class="footer-mono">CONFIDENTIAL · INTERNAL USE ONLY</span>
+  </div>
+
+</div>
+</body>
+</html>

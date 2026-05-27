@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATC Inventory — Graph OBO Certificate Setup</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2230;
+    --border: #2a3444;
+    --accent: #4fa3e0;
+    --accent2: #3ddc97;
+    --warn: #e6a817;
+    --danger: #e05c5c;
+    --text: #cdd9e5;
+    --muted: #768a9e;
+    --code: #a8d1f0;
+    --white: #f0f6fc;
+  }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.65;
+  }
+
+  /* ── Nav Bar ── */
+  .nav-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 56px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-bar a {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-decoration: none;
+    letter-spacing: 1px;
+    transition: color 0.15s;
+  }
+  .nav-bar a:hover { color: var(--accent); }
+  .nav-sep {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--border);
+  }
+  .nav-current {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+  }
+
+  .page {
+    max-width: 1060px;
+    margin: 0 auto;
+    padding: 0 0 80px;
+  }
+
+  /* ── Header ── */
+  .doc-header {
+    padding: 52px 56px 44px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .doc-header::before {
+    content: "";
+    position: absolute;
+    top: 0; right: 0;
+    width: 420px; height: 100%;
+    background: radial-gradient(ellipse at 80% 40%, rgba(79,163,224,0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .doc-header .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .doc-header h1 {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--white);
+    line-height: 1.1;
+    margin-bottom: 8px;
+  }
+  .doc-header .subtitle {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 32px;
+  }
+  .meta-strip {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    width: fit-content;
+  }
+  .meta-cell {
+    padding: 10px 20px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .meta-cell:last-child { border-right: none; }
+  .meta-cell .lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .meta-cell .val {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--white);
+  }
+  .meta-cell .val.green  { color: var(--accent2); }
+  .meta-cell .val.warn   { color: var(--warn); }
+  .meta-cell .val.accent { color: var(--accent); }
+
+  /* ── TOC ── */
+  .toc {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 20px 56px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .toc a {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    transition: all 0.15s;
+  }
+  .toc a:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ── Content ── */
+  .content { padding: 0 56px; }
+
+  .section {
+    padding: 44px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .section:last-child { border-bottom: none; }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .sn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 2px;
+    background: rgba(79,163,224,0.08);
+    border: 1px solid rgba(79,163,224,0.2);
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .section-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--white);
+  }
+
+  h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--white);
+    margin: 28px 0 12px;
+  }
+
+  p {
+    color: var(--text);
+    margin-bottom: 14px;
+    max-width: 800px;
+  }
+
+  ul {
+    margin: 12px 0 16px 20px;
+    max-width: 800px;
+  }
+  ul li {
+    color: var(--text);
+    font-size: 13px;
+    margin-bottom: 6px;
+    line-height: 1.6;
+  }
+  ul li strong { color: var(--white); }
+
+  /* ── Steps ── */
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 24px 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .step {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    border-bottom: 1px solid var(--border);
+  }
+  .step:last-child { border-bottom: none; }
+  .step-num {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+  }
+  .step-body {
+    padding: 18px 22px;
+    background: var(--surface2);
+  }
+  .step-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 6px;
+  }
+  .step-desc {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    max-width: 680px;
+    line-height: 1.6;
+  }
+  .step-desc:last-child { margin-bottom: 0; }
+  .step-desc strong { color: var(--white); }
+
+  /* ── Auth flow ── */
+  .flow {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin: 16px 0;
+    max-width: 800px;
+  }
+  .flow-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .flow-step:last-child { border-bottom: none; }
+  .flow-arrow {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .flow-step code { font-size: 11px; }
+
+  /* ── Code blocks ── */
+  pre {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--code);
+    overflow-x: auto;
+    margin: 10px 0 16px;
+    line-height: 1.7;
+  }
+  .pre-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 16px;
+    margin-bottom: 4px;
+  }
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--code);
+    background: rgba(79,163,224,0.08);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+
+  /* ── Callouts ── */
+  .callout {
+    display: flex;
+    gap: 14px;
+    padding: 14px 18px;
+    border-radius: 8px;
+    margin: 16px 0;
+    max-width: 800px;
+  }
+  .callout.c-info  { background: rgba(79,163,224,0.07);  border: 1px solid rgba(79,163,224,0.2);  }
+  .callout.c-warn  { background: rgba(230,168,23,0.07);  border: 1px solid rgba(230,168,23,0.2);  }
+  .callout.c-ok    { background: rgba(61,220,151,0.07);  border: 1px solid rgba(61,220,151,0.2);  }
+  .callout .icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .callout .body { font-size: 13px; color: var(--text); line-height: 1.6; }
+  .callout .body strong { color: var(--white); }
+
+  /* ── Tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+  thead tr {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    padding: 10px 16px;
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+  }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface); }
+  .t-accent  { color: var(--accent); }
+  .t-accent2 { color: var(--accent2); }
+  .t-warn    { color: var(--warn); }
+  .t-muted   { color: var(--muted); }
+
+  /* ── Gap items ── */
+  .gap-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 16px 0;
+    max-width: 800px;
+  }
+  .gap-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .gap-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--warn);
+    flex-shrink: 0;
+    margin-top: 5px;
+  }
+
+  /* ── Footer ── */
+  .doc-footer {
+    margin-top: 60px;
+    padding: 20px 56px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── NAV BAR ── -->
+<div class="nav-bar">
+  <a href="../index.html">← Home</a>
+  <span class="nav-sep">/</span>
+  <span class="nav-current">Graph OBO Certificate Setup</span>
+</div>
+
+<div class="page">
+
+<!-- ── HEADER ── -->
+<div class="doc-header">
+  <div class="eyebrow">ATC Inventory Application — Infrastructure</div>
+  <h1>Graph OBO Certificate Setup</h1>
+  <p class="subtitle">F-10 Quote Request email infrastructure — On-Behalf-Of auth flow, Key Vault certificate, Entra permissions, and renewal procedure.</p>
+  <div class="meta-strip">
+    <div class="meta-cell">
+      <span class="lbl">Feature</span>
+      <span class="val">F-10 — Quote Request Email Send</span>
+    </div>
+    <div class="meta-cell">
+      <span class="lbl">Status</span>
+      <span class="val warn">Infrastructure Complete — Code Pending</span>
+    </div>
+    <div class="meta-cell">
+      <span class="lbl">Author</span>
+      <span class="val">Jamie Latiolais</span>
+    </div>
+    <div class="meta-cell">
+      <span class="lbl">Updated</span>
+      <span class="val">May 2026</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOC ── -->
+<div class="toc">
+  <a href="#s1">01 Overview</a>
+  <a href="#s2">02 Why OBO</a>
+  <a href="#s3">03 Auth Flow</a>
+  <a href="#s4">04 What Was Configured</a>
+  <a href="#s5">05 Certificate Renewal</a>
+  <a href="#s6">06 API Configuration</a>
+  <a href="#s7">07 Related Files</a>
+  <a href="#s8">08 Known Gaps</a>
+</div>
+
+<div class="content">
+
+<!-- §01 OVERVIEW -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <span class="sn">01</span>
+    <h2>Overview</h2>
+  </div>
+  <p>The F-10 quote request email send was originally implemented using <code>mailto:</code> links. Production testing confirmed <code>mailto:</code> is not viable in the organization's New Outlook (web wrapper) environment — sends were delayed 10+ minutes, inconsistent, and unreliable.</p>
+  <p>The replacement is <strong style="color:var(--white)">Microsoft Graph API delegated send via On-Behalf-Of (OBO) flow.</strong> The user reviews a confirmation panel in the PWA, clicks Send, and the API sends the email on their behalf via Graph immediately. The email appears in the user's Sent Items and the vendor can reply directly to the user.</p>
+</div>
+
+<!-- §02 WHY OBO -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <span class="sn">02</span>
+    <h2>Why OBO — Not App-Only</h2>
+  </div>
+  <p>Graph <code>Mail.Send</code> can be granted as either a delegated (OBO) or application (app-only) permission.</p>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>App-only was rejected.</strong> The email <code>From</code> address would be the shared mailbox (<code>inventory-quotes@atcdevelopment.com</code>), not the user. If the vendor clicks Reply instead of Reply All, the response goes to the shared mailbox and the user never sees it directly.
+    </div>
+  </div>
+  <div class="callout c-ok">
+    <span class="icon">✅</span>
+    <div class="body">
+      <strong>OBO is required</strong> so the email is sent as the logged-in user:<br><br>
+      <strong>From:</strong> the user's M365 mailbox<br>
+      <strong>CC:</strong> <code>inventory-quotes@atcdevelopment.com</code> (tracking mailbox) + the user themselves (immediate send confirmation)<br><br>
+      Email appears in the user's Sent Items. Vendor reply goes directly back to the user. All ATC users have full M365 Business licenses — OBO delegated send is supported for all users.
+    </div>
+  </div>
+</div>
+
+<!-- §03 AUTH FLOW -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <span class="sn">03</span>
+    <h2>Auth Flow</h2>
+  </div>
+  <div class="flow">
+    <div class="flow-step">
+      <span class="flow-arrow">1 →</span>
+      <span>PWA acquires API-scoped Bearer token (<code>access_as_user → ATC_InventoryAPI</code>)</span>
+    </div>
+    <div class="flow-step">
+      <span class="flow-arrow">2 →</span>
+      <span>PWA calls <code>POST /quote-requests/{token}/send</code> with Bearer token</span>
+    </div>
+    <div class="flow-step">
+      <span class="flow-arrow">3 →</span>
+      <span>API validates inbound token (existing <code>Microsoft.Identity.Web</code> pattern)</span>
+    </div>
+    <div class="flow-step">
+      <span class="flow-arrow">4 →</span>
+      <span>API performs OBO exchange using <code>ATC_InventoryAPI</code> client ID + certificate from Key Vault. Scope: <code>https://graph.microsoft.com/Mail.Send</code></span>
+    </div>
+    <div class="flow-step">
+      <span class="flow-arrow">5 →</span>
+      <span>API calls Microsoft Graph <code>sendMail</code> on behalf of the user</span>
+    </div>
+    <div class="flow-step">
+      <span class="flow-arrow">6 →</span>
+      <span>Email sent from user's mailbox → vendor To, tracking mailbox CC, user CC</span>
+    </div>
+  </div>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>Critical:</strong> The PWA Bearer token is scoped to <code>api://ATC_InventoryAPI/access_as_user</code>. This token cannot be passed directly to Graph — its audience is the API, not Microsoft Graph. The API must perform the OBO exchange before calling Graph. Do not skip this step.
+    </div>
+  </div>
+</div>
+
+<!-- §04 WHAT WAS CONFIGURED -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <span class="sn">04</span>
+    <h2>What Was Configured</h2>
+  </div>
+
+  <h3>1. Key Vault Certificate — <code>ATC-InventoryAPI-GraphOBO</code></h3>
+  <table>
+    <thead>
+      <tr><th>Setting</th><th>Value</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="t-muted">Key Vault</td><td class="t-accent">atc-inventory-keyvault</td></tr>
+      <tr><td class="t-muted">Certificate Name</td><td class="t-accent">ATC-InventoryAPI-GraphOBO</td></tr>
+      <tr><td class="t-muted">Type</td><td>Self-signed</td></tr>
+      <tr><td class="t-muted">Subject</td><td>CN=ATC-InventoryAPI-GraphOBO</td></tr>
+      <tr><td class="t-muted">Validity</td><td>24 months</td></tr>
+      <tr><td class="t-muted">Content Type</td><td>PKCS #12</td></tr>
+    </tbody>
+  </table>
+  <p>The certificate's public key (<code>.cer</code>) was uploaded to the <code>ATC_InventoryAPI</code> Entra app registration under <strong style="color:var(--white)">Certificates &amp; Secrets → Certificates</strong>.</p>
+
+  <h3>2. Entra App Registration — <code>ATC_InventoryAPI</code></h3>
+  <p>Navigate to: <strong style="color:var(--white)">Entra ID → App Registrations → ATC_InventoryAPI → API Permissions</strong></p>
+  <table>
+    <thead>
+      <tr><th>Permission</th><th>Type</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="t-accent">Mail.Send</td>
+        <td>Delegated</td>
+        <td class="t-accent2">Admin consent granted ✅</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>3. Key Vault Secrets Added</h3>
+  <table>
+    <thead>
+      <tr><th>Secret Name</th><th>Purpose</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="t-accent">GraphOBO-TenantId</td><td class="t-muted">Entra tenant ID — used by API for OBO token exchange</td></tr>
+      <tr><td class="t-accent">GraphOBO-ClientId</td><td class="t-muted">ATC_InventoryAPI client ID — used by API for OBO token exchange</td></tr>
+    </tbody>
+  </table>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      The certificate itself is retrieved from Key Vault by name (<code>ATC-InventoryAPI-GraphOBO</code>) at runtime — it is not stored as a secret.
+    </div>
+  </div>
+
+  <h3>4. Certificate Expiry Notification</h3>
+  <p>Navigate to configure: <strong style="color:var(--white)">atc-inventory-keyvault → Certificates → Certificate Contacts</strong><br>
+  Per-certificate: <strong style="color:var(--white)">ATC-InventoryAPI-GraphOBO → current version → Issuance Policy → Lifetime Actions</strong></p>
+  <table>
+    <thead>
+      <tr><th>Setting</th><th>Value</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="t-muted">Certificate Contacts</td><td class="t-accent">IT.Department@atcdevelopment.com</td></tr>
+      <tr><td class="t-muted">Lifetime Action</td><td>Email all contacts at 80% of lifetime (~19 months into 24 month cert)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §05 CERTIFICATE RENEWAL -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <span class="sn">05</span>
+    <h2>Certificate Renewal Procedure</h2>
+  </div>
+  <p>When IT receives the expiry notification email, follow these steps.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Generate a new certificate version in Key Vault</div>
+        <div class="step-desc"><strong>atc-inventory-keyvault → Certificates → ATC-InventoryAPI-GraphOBO → New Version</strong></div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Download the new public key</div>
+        <div class="step-desc">Select the new version → Download in CER format.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Upload to Entra app registration</div>
+        <div class="step-desc"><strong>Entra ID → App Registrations → ATC_InventoryAPI → Certificates &amp; Secrets → Certificates → Upload certificate</strong><br>Description: <code>Graph OBO - Mail.Send</code></div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Remove the old certificate</div>
+        <div class="step-desc">Remove the old certificate entry from the app registration after confirming the new one is active.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-title">Verify</div>
+        <div class="step-desc">Confirm the API is still sending quote emails successfully after the next deployment or app restart. The API loads the certificate at startup via Key Vault.</div>
+      </div>
+    </div>
+  </div>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>Do not skip step 4.</strong> The old certificate entry in the app registration does no harm while valid, but must be cleaned up before it expires to avoid confusion during future renewals.
+    </div>
+  </div>
+</div>
+
+<!-- §06 API CONFIGURATION -->
+<div class="section" id="s6">
+  <div class="section-header">
+    <span class="sn">06</span>
+    <h2>API Configuration Required</h2>
+  </div>
+  <p>The API (<code>inventory_api</code>) must be configured to retrieve the certificate from Key Vault at runtime for the OBO exchange. The following App Service configuration keys are required.</p>
+  <table>
+    <thead>
+      <tr><th>App Service Key</th><th>Source</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="t-accent">GraphOBO__TenantId</td>
+        <td>Key Vault secret <code>GraphOBO-TenantId</code></td>
+        <td class="t-muted">Double-underscore for nested config</td>
+      </tr>
+      <tr>
+        <td class="t-accent">GraphOBO__ClientId</td>
+        <td>Key Vault secret <code>GraphOBO-ClientId</code></td>
+        <td class="t-muted">Double-underscore for nested config</td>
+      </tr>
+      <tr>
+        <td class="t-accent">GraphOBO__CertificateName</td>
+        <td><code>ATC-InventoryAPI-GraphOBO</code></td>
+        <td class="t-muted">Name of the Key Vault certificate</td>
+      </tr>
+      <tr>
+        <td class="t-accent">GraphOBO__KeyVaultUri</td>
+        <td><code>https://atc-inventory-keyvault.vault.azure.net/</code></td>
+        <td class="t-muted">Key Vault URI</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      The App Service Managed Identity must have <strong>Key Vault Secrets User</strong> and <strong>Key Vault Certificate User</strong> access policies on <code>atc-inventory-keyvault</code> to retrieve both the secrets and the certificate at runtime.
+    </div>
+  </div>
+</div>
+
+<!-- §07 RELATED FILES -->
+<div class="section" id="s7">
+  <div class="section-header">
+    <span class="sn">07</span>
+    <h2>Related Files</h2>
+  </div>
+  <table>
+    <thead>
+      <tr><th>File</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="t-accent">quote_request_spec_v5.html</td><td class="t-muted">Full F-10 feature spec</td></tr>
+      <tr><td class="t-accent">f10_email_turnover_20260514.html</td><td class="t-muted">Session turnover doc — context for mailto abandonment</td></tr>
+      <tr><td class="t-accent"><a href="architecture.html" style="color:var(--accent);text-decoration:none;">architecture.html</a></td><td class="t-muted">Auth flow, MSAL config, bearer token pattern</td></tr>
+      <tr><td class="t-accent"><a href="schema.html" style="color:var(--accent);text-decoration:none;">schema.html</a></td><td class="t-muted">QuoteRequests, QuoteRequestItems, QuoteRequestEmailEvents tables</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §08 KNOWN GAPS -->
+<div class="section" id="s8">
+  <div class="section-header">
+    <span class="sn">08</span>
+    <h2>Known Gaps — Pending Implementation</h2>
+  </div>
+  <p>Infrastructure is complete. The following code items remain pending.</p>
+  <div class="gap-list">
+    <div class="gap-item"><div class="gap-dot"></div><span><code>POST /quote-requests/{token}/send</code> endpoint not yet implemented</span></div>
+    <div class="gap-item"><div class="gap-dot"></div><span>OBO token exchange code not yet written in <code>inventory_api</code></span></div>
+    <div class="gap-item"><div class="gap-dot"></div><span>Schema migration for <code>Graph_sent_dt</code>, <code>Graph_message_id</code>, <code>Graph_send_error</code> not yet applied</span></div>
+    <div class="gap-item"><div class="gap-dot"></div><span>PWA send button still calls <code>buildMailtoUrl</code> — to be replaced with API call to send endpoint</span></div>
+    <div class="gap-item"><div class="gap-dot"></div><span><code>buildMailtoUrl</code> and <code>postMailtoOpened</code> still present in codebase — to be removed</span></div>
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<!-- ── FOOTER ── -->
+<div class="doc-footer">
+  <span>ATC Inventory Application</span>
+  <span>Graph OBO Certificate Setup · May 2026</span>
+  <span>Infrastructure · Internal Use Only</span>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATC Inventory — Database Schema</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2230;
+    --border: #2a3444;
+    --accent: #4fa3e0;
+    --accent2: #3ddc97;
+    --warn: #e6a817;
+    --danger: #e05c5c;
+    --text: #cdd9e5;
+    --muted: #768a9e;
+    --code: #a8d1f0;
+    --white: #f0f6fc;
+  }
+
+  body { font-family: 'Syne', sans-serif; font-size: 14px; color: var(--text); background: var(--bg); line-height: 1.65; }
+
+  /* ── Nav Bar ── */
+  .nav-bar { display: flex; align-items: center; gap: 12px; padding: 12px 56px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+  .nav-bar a { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: var(--muted); text-decoration: none; letter-spacing: 1px; transition: color 0.15s; }
+  .nav-bar a:hover { color: var(--accent); }
+  .nav-sep { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--border); }
+  .nav-current { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text); }
+
+  .page { max-width: 1060px; margin: 0 auto; padding: 0 0 80px; }
+
+  /* ── Header ── */
+  .doc-header { padding: 52px 56px 44px; border-bottom: 1px solid var(--border); position: relative; overflow: hidden; }
+  .doc-header::before { content: ""; position: absolute; top: 0; right: 0; width: 420px; height: 100%; background: radial-gradient(ellipse at 80% 40%, rgba(79,163,224,0.07) 0%, transparent 70%); pointer-events: none; }
+  .doc-header .eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 14px; }
+  .doc-header h1 { font-size: 36px; font-weight: 800; color: var(--white); line-height: 1.1; margin-bottom: 8px; }
+  .doc-header .subtitle { font-size: 14px; color: var(--muted); margin-bottom: 32px; }
+  .meta-strip { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; width: fit-content; }
+  .meta-cell { padding: 10px 20px; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 3px; }
+  .meta-cell:last-child { border-right: none; }
+  .meta-cell .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+  .meta-cell .val { font-size: 13px; font-weight: 600; color: var(--white); }
+  .meta-cell .val.green { color: var(--accent2); }
+
+  /* ── TOC ── */
+  .toc { display: flex; gap: 6px; flex-wrap: wrap; padding: 20px 56px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .toc a { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); text-decoration: none; padding: 5px 12px; border: 1px solid var(--border); border-radius: 20px; transition: all 0.15s; }
+  .toc a:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ── Content ── */
+  .content { padding: 0 56px; }
+  .section { padding: 44px 0; border-bottom: 1px solid var(--border); }
+  .section:last-child { border-bottom: none; }
+  .section-header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px; }
+  .sn { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 2px; background: rgba(79,163,224,0.08); border: 1px solid rgba(79,163,224,0.2); padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
+  .section-header h2 { font-size: 20px; font-weight: 700; color: var(--white); }
+
+  h3 { font-size: 14px; font-weight: 700; color: var(--accent); margin: 24px 0 10px; font-family: 'JetBrains Mono', monospace; letter-spacing: 1px; text-transform: uppercase; }
+
+  p { color: var(--text); margin-bottom: 14px; max-width: 800px; }
+
+  /* ── Column list ── */
+  .col-list { display: flex; flex-direction: column; gap: 4px; margin: 12px 0 20px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .col-row { display: grid; grid-template-columns: 220px 140px 1fr; gap: 0; border-bottom: 1px solid var(--border); }
+  .col-row:last-child { border-bottom: none; }
+  .col-row:hover { background: var(--surface); }
+  .col-name { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent); padding: 9px 14px; border-right: 1px solid var(--border); font-weight: 600; }
+  .col-type { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent2); padding: 9px 14px; border-right: 1px solid var(--border); }
+  .col-notes { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); padding: 9px 14px; }
+  .col-row.pk .col-name { color: var(--warn); }
+  .col-row.fk .col-name { color: var(--code); }
+  .col-row.legacy .col-name { color: var(--danger); text-decoration: line-through; }
+  .col-row.legacy .col-notes { color: var(--danger); }
+
+  /* ── Code ── */
+  pre { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--code); overflow-x: auto; margin: 10px 0 16px; line-height: 1.7; }
+  .pre-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-top: 16px; margin-bottom: 4px; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--code); background: rgba(79,163,224,0.08); padding: 1px 6px; border-radius: 3px; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+
+  /* ── Callouts ── */
+  .callout { display: flex; gap: 14px; padding: 14px 18px; border-radius: 8px; margin: 16px 0; max-width: 800px; }
+  .callout.c-info  { background: rgba(79,163,224,0.07);  border: 1px solid rgba(79,163,224,0.2);  }
+  .callout.c-warn  { background: rgba(230,168,23,0.07);  border: 1px solid rgba(230,168,23,0.2);  }
+  .callout.c-ok    { background: rgba(61,220,151,0.07);  border: 1px solid rgba(61,220,151,0.2);  }
+  .callout .icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .callout .body { font-size: 13px; color: var(--text); line-height: 1.6; }
+  .callout .body strong { color: var(--white); }
+
+  /* ── Tables ── */
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  thead tr { background: var(--surface); border-bottom: 1px solid var(--border); }
+  th { padding: 10px 16px; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  td { padding: 10px 16px; border-bottom: 1px solid var(--border); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface); }
+  .t-accent { color: var(--accent); }
+  .t-accent2 { color: var(--accent2); }
+  .t-warn { color: var(--warn); }
+  .t-muted { color: var(--muted); }
+  .t-danger { color: var(--danger); }
+
+  /* ── Guarantees ── */
+  .guarantees { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; max-width: 800px; }
+  .guarantee-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; background: var(--surface); border: 1px solid rgba(61,220,151,0.15); border-radius: 6px; font-size: 13px; color: var(--text); line-height: 1.5; }
+  .guarantee-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); flex-shrink: 0; margin-top: 5px; }
+
+  /* ── Legend ── */
+  .legend { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 24px; padding: 12px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+  /* ── Footer ── */
+  .doc-footer { margin-top: 60px; padding: 20px 56px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 0.5px; }
+</style>
+</head>
+<body>
+
+<!-- ── NAV BAR ── -->
+<div class="nav-bar">
+  <a href="../index.html">← Home</a>
+  <span class="nav-sep">/</span>
+  <span class="nav-current">Database Schema</span>
+</div>
+
+<div class="page">
+
+<!-- ── HEADER ── -->
+<div class="doc-header">
+  <div class="eyebrow">ATC Inventory Application — Data</div>
+  <h1>Database Schema</h1>
+  <p class="subtitle">Full table definitions, column types, constraints, indexes, and relationships for the live production schema.</p>
+  <div class="meta-strip">
+    <div class="meta-cell"><span class="lbl">Source of Truth</span><span class="val">InventoryDbModelSnapshot</span></div>
+    <div class="meta-cell"><span class="lbl">Dev DB</span><span class="val">SQLite</span></div>
+    <div class="meta-cell"><span class="lbl">Production DB</span><span class="val">Azure SQL</span></div>
+    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">May 2026</span></div>
+    <div class="meta-cell"><span class="lbl">ORM</span><span class="val green">EF Core + Migrations</span></div>
+  </div>
+</div>
+
+<!-- ── TOC ── -->
+<div class="toc">
+  <a href="#s1">01 Warehouses</a>
+  <a href="#s2">02 Categories</a>
+  <a href="#s3">03 Parts</a>
+  <a href="#s4">04 Identifiers</a>
+  <a href="#s5">05 Vendors</a>
+  <a href="#s6">06 VendorParts</a>
+  <a href="#s7">07 VendorAliases</a>
+  <a href="#s8">08 Supplies</a>
+  <a href="#s9">09 Transactions</a>
+  <a href="#s10">10 InventoryOrders</a>
+  <a href="#s11">11 IdentifierLookups</a>
+  <a href="#s12">12 ManagedProperties</a>
+  <a href="#s13">13 PropertyChannels</a>
+  <a href="#s14">14 PropertyChannelFailureLogs</a>
+  <a href="#s15">15 Equipment</a>
+  <a href="#s16">16 EquipmentIdentifiers</a>
+  <a href="#s17">17 EquipmentStatuses</a>
+  <a href="#s18">18 EquipmentTransactions</a>
+  <a href="#s19">19 QuoteRequests</a>
+  <a href="#s20">20 QuoteRequestItems</a>
+  <a href="#s21">21 QuoteRequestEmailEvents</a>
+  <a href="#s22">22 Core Guarantees</a>
+</div>
+
+<div class="content">
+
+<!-- Column legend -->
+<div style="padding: 24px 0 0;">
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--warn)"></div><span style="color:var(--warn)">PK — Primary Key</span></div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--code)"></div><span style="color:var(--code)">FK — Foreign Key</span></div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div><span style="color:var(--accent)">Standard column</span></div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--danger)"></div><span style="color:var(--danger)">Legacy / deprecated</span></div>
+  </div>
+</div>
+
+<!-- §01 WAREHOUSES -->
+<div class="section" id="s1">
+  <div class="section-header"><span class="sn">01</span><h2>Warehouses</h2></div>
+  <p>Represent inventory locations — typically properties. The <code>PropCode</code> drives property role naming convention.</p>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row"><div class="col-name">PropCode</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Property code — drives role naming (e.g. ms → ms_wh)</div></div>
+    <div class="col-row"><div class="col-name">Name</div><div class="col-type">nvarchar, required</div><div class="col-notes">Warehouse display name</div></div>
+    <div class="col-row"><div class="col-name">Address</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Latitude</div><div class="col-type">float</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Longitude</div><div class="col-type">float</div><div class="col-notes"></div></div>
+  </div>
+  <div class="callout c-info"><span class="icon">ℹ️</span><div class="body"><strong>Unique constraint:</strong> UNIQUE composite index on <code>(PropCode, Name)</code> — enforced at the DB level.</div></div>
+</div>
+
+<!-- §02 CATEGORIES -->
+<div class="section" id="s2">
+  <div class="section-header"><span class="sn">02</span><h2>Categories</h2></div>
+  <p>Classify parts. Each part has a required primary category and an optional secondary category.</p>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row"><div class="col-name">Name</div><div class="col-type">nvarchar, required</div><div class="col-notes">UNIQUE</div></div>
+    <div class="col-row"><div class="col-name">Description</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">GL_Account</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">General ledger account code</div></div>
+  </div>
+</div>
+
+<!-- §03 PARTS -->
+<div class="section" id="s3">
+  <div class="section-header"><span class="sn">03</span><h2>Parts</h2></div>
+  <p>Catalog inventory items. Names are normalized and similarity-checked before hitting the UNIQUE constraint.</p>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row"><div class="col-name">Name</div><div class="col-type">nvarchar, required</div><div class="col-notes">UNIQUE — similarity checked before insert (threshold 0.85)</div></div>
+    <div class="col-row"><div class="col-name">Description</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row fk"><div class="col-name">Primary_category_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Categories.Id</div></div>
+    <div class="col-row fk"><div class="col-name">Secondary_category_id</div><div class="col-type">int, nullable</div><div class="col-notes">FK → Categories.Id</div></div>
+    <div class="col-row"><div class="col-name">Min_level</div><div class="col-type">int</div><div class="col-notes">Low-stock threshold; triggers supply.low_stock SignalR event</div></div>
+    <div class="col-row"><div class="col-name">Max_level</div><div class="col-type">int</div><div class="col-notes">Reorder target level</div></div>
+    <div class="col-row"><div class="col-name">Created_by_oid</div><div class="col-type">nvarchar, required</div><div class="col-notes">Entra OID of creator</div></div>
+    <div class="col-row"><div class="col-name">Created_by_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Email snapshot at creation time</div></div>
+    <div class="col-row"><div class="col-name">Created_dt</div><div class="col-type">datetime2</div><div class="col-notes"></div></div>
+  </div>
+</div>
+
+<!-- §04 IDENTIFIERS -->
+<div class="section" id="s4">
+  <div class="section-header"><span class="sn">04</span><h2>Identifiers</h2></div>
+  <p>Maps barcodes, UPCs, SKUs, and internal ATC codes to a Part. <code>Id_value</code> is globally unique — a barcode cannot point to two parts.</p>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row fk"><div class="col-name">Part_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Parts.Id, cascade delete. IX(Part_id)</div></div>
+    <div class="col-row"><div class="col-name">Id_type</div><div class="col-type">nvarchar, required</div><div class="col-notes">UPC / EAN / SKU / ATC_MASTER / TOOL_MASTER — stored uppercase</div></div>
+    <div class="col-row"><div class="col-name">Id_value</div><div class="col-type">nvarchar, required</div><div class="col-notes">UNIQUE globally — stored lowercase and trimmed</div></div>
+    <div class="col-row"><div class="col-name">Issue_uom</div><div class="col-type">nvarchar, required</div><div class="col-notes">EA / PKG / BOX / CASE / ROLL — defaults to EA</div></div>
+    <div class="col-row"><div class="col-name">Unit_multiplier_to_base</div><div class="col-type">int, required</div><div class="col-notes">1–100, defaults to 1. Stock-in conversion only — never persisted to supply quantity.</div></div>
+  </div>
+
+  <h3>ATC_MASTER Convention</h3>
+  <div class="callout c-info"><span class="icon">ℹ️</span><div class="body">
+    Every Part must have exactly one <code>ATC_MASTER</code> identifier. Auto-generated at Part creation — never manually assigned.<br><br>
+    <strong>Format:</strong> 7-digit zero-padded integer (e.g. <code>0000001</code>, <code>0000042</code>). No prefix stored or scanned.<br>
+    <strong>Hard rules:</strong> <code>Unit_multiplier_to_base</code> must always be <code>1</code>. <code>Issue_uom</code> must always be <code>EA</code>.<br>
+    <strong>Cap:</strong> ATC_MASTER values must remain below <code>8000000</code> to avoid collision with the TOOL_MASTER namespace.
+  </div></div>
+
+  <h3>Unit_multiplier_to_base — Stock-In Conversion Only</h3>
+  <p>Applied at scan time only to compute <code>quantity_change</code>. Never persisted to the Supplies table.</p>
+  <div class="pre-label">formula</div>
+  <pre>quantity_change = qty_packages × unit_multiplier_to_base</pre>
+</div>
+
+<!-- §05 VENDORS -->
+<div class="section" id="s5">
+  <div class="section-header"><span class="sn">05</span><h2>Vendors</h2></div>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row"><div class="col-name">Name</div><div class="col-type">nvarchar, required</div><div class="col-notes">UNIQUE</div></div>
+    <div class="col-row"><div class="col-name">Contact_name</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Contact_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Contact_phone</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Address</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+  </div>
+</div>
+
+<!-- §06 VENDORPARTS -->
+<div class="section" id="s6">
+  <div class="section-header"><span class="sn">06</span><h2>VendorParts</h2></div>
+  <p>Junction table linking parts to vendors with vendor-specific identification data.</p>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row fk"><div class="col-name">Vendor_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Vendors.Id, cascade delete</div></div>
+    <div class="col-row fk"><div class="col-name">Part_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Parts.Id, cascade delete</div></div>
+    <div class="col-row"><div class="col-name">Vendor_sku</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Vendor_stock_number</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Vendor_upc_override</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+  </div>
+  <div class="callout c-info"><span class="icon">ℹ️</span><div class="body"><strong>Unique constraint:</strong> UNIQUE <code>(Vendor_id, Part_id)</code> — one record per vendor-part pair.</div></div>
+</div>
+
+<!-- §07 VENDORALIASES -->
+<div class="section" id="s7">
+  <div class="section-header"><span class="sn">07</span><h2>VendorAliases</h2></div>
+  <p>Maps raw vendor invoice description strings to Parts and Vendors. Used by the Invoice Scan feature to auto-match line items and build a self-improving alias learning loop.</p>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row"><div class="col-name">Raw_description</div><div class="col-type">nvarchar(1000), required</div><div class="col-notes">Raw text from vendor invoice — normalized before store and lookup</div></div>
+    <div class="col-row fk"><div class="col-name">Part_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Parts.Id, cascade delete</div></div>
+    <div class="col-row fk"><div class="col-name">Vendor_id</div><div class="col-type">int, nullable</div><div class="col-notes">FK → Vendors.Id, set null on delete</div></div>
+    <div class="col-row"><div class="col-name">Created_by</div><div class="col-type">nvarchar(900), required</div><div class="col-notes">OID or email of creator</div></div>
+    <div class="col-row"><div class="col-name">Created_dt</div><div class="col-type">datetime2</div><div class="col-notes"></div></div>
+  </div>
+  <div class="callout c-warn"><span class="icon">⚠️</span><div class="body">
+    <strong>Null uniqueness caveat:</strong> SQL Server does not treat two NULLs as equal in a unique index. Uniqueness for vendor-agnostic aliases (<code>Vendor_id = NULL</code>) is enforced by the API via an existence check before insert — not via a DB unique constraint. Do not add a UNIQUE constraint to <code>(Raw_description, Vendor_id)</code>.
+  </div></div>
+  <h3>Normalization Rule</h3>
+  <p><code>Raw_description</code> is normalized before both store and lookup operations. The same logic must be applied in both paths.</p>
+  <div class="pre-label">csharp</div>
+  <pre>private static string Normalize(string input) =>
+    Regex.Replace(input.Trim().ToLowerInvariant(), @"\s+", " ");</pre>
+</div>
+
+<!-- §08 SUPPLIES -->
+<div class="section" id="s8">
+  <div class="section-header"><span class="sn">08</span><h2>Supplies</h2></div>
+  <p>One row per part+warehouse combination. Always stores EA-level (base unit) quantities. Negative inventory is blocked by the API on every write path.</p>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row fk"><div class="col-name">Part_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Parts.Id, cascade delete</div></div>
+    <div class="col-row fk"><div class="col-name">Warehouse_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Warehouses.Id, cascade delete</div></div>
+    <div class="col-row"><div class="col-name">Quantity</div><div class="col-type">int</div><div class="col-notes">Always EA (base unit). Negative values blocked by API.</div></div>
+    <div class="col-row"><div class="col-name">Last_updated_by_oid</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Entra OID of last editor</div></div>
+    <div class="col-row"><div class="col-name">Last_updated_by_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Email snapshot at update time</div></div>
+    <div class="col-row"><div class="col-name">Last_updated_dt</div><div class="col-type">datetime2</div><div class="col-notes"></div></div>
+  </div>
+  <div class="callout c-info"><span class="icon">ℹ️</span><div class="body"><strong>Unique constraint:</strong> UNIQUE <code>(Part_id, Warehouse_id)</code> — one supply row per part per warehouse.</div></div>
+</div>
+
+<!-- §09 TRANSACTIONS -->
+<div class="section" id="s9">
+  <div class="section-header"><span class="sn">09</span><h2>Transactions</h2></div>
+  <p>Append-only inventory ledger. One row per supply change event. Never updated or deleted after insert.</p>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row fk"><div class="col-name">Part_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Parts.Id, cascade delete</div></div>
+    <div class="col-row fk"><div class="col-name">Warehouse_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Warehouses.Id, cascade delete</div></div>
+    <div class="col-row"><div class="col-name">Quantity_change</div><div class="col-type">int</div><div class="col-notes">Signed change (positive = stock in, negative = consume)</div></div>
+    <div class="col-row"><div class="col-name">Quantity_before</div><div class="col-type">int</div><div class="col-notes">Quantity before this change</div></div>
+    <div class="col-row"><div class="col-name">Quantity_after</div><div class="col-type">int</div><div class="col-notes">Quantity after this change</div></div>
+    <div class="col-row"><div class="col-name">Reason</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Human-readable description</div></div>
+    <div class="col-row"><div class="col-name">ReasonType</div><div class="col-type">nvarchar(60), nullable</div><div class="col-notes">Structured type code — null on older records predating this column</div></div>
+    <div class="col-row"><div class="col-name">ReferenceId</div><div class="col-type">int, nullable</div><div class="col-notes">FK to source record (e.g. InventoryOrders.Id for ORDER_RECEIPT)</div></div>
+    <div class="col-row"><div class="col-name">Edited_by_oid</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Entra OID of editor</div></div>
+    <div class="col-row"><div class="col-name">Edited_by_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Email snapshot at write time</div></div>
+    <div class="col-row"><div class="col-name">dt_time</div><div class="col-type">datetime2</div><div class="col-notes">Timestamp of the change</div></div>
+    <div class="col-row"><div class="col-name">Category_id</div><div class="col-type">int, nullable</div><div class="col-notes">Denormalized at write time</div></div>
+    <div class="col-row"><div class="col-name">Category_name</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Denormalized at write time</div></div>
+    <div class="col-row"><div class="col-name">Part_name</div><div class="col-type">nvarchar(max), required</div><div class="col-notes">Denormalized at write time</div></div>
+    <div class="col-row"><div class="col-name">Warehouse_name</div><div class="col-type">nvarchar(max), required</div><div class="col-notes">Denormalized at write time</div></div>
+    <div class="col-row legacy"><div class="col-name">WarehouseId</div><div class="col-type">int, nullable</div><div class="col-notes">Legacy duplicate column — always null. Do not use.</div></div>
+  </div>
+
+  <h3>ReasonType Values</h3>
+  <table>
+    <thead><tr><th>Value</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">SCAN_IN</td><td>Stock added via barcode scan</td></tr>
+      <tr><td class="t-accent">SCAN_CONSUME</td><td>Stock consumed via barcode scan</td></tr>
+      <tr><td class="t-accent">MANUAL_ADJUST</td><td>Manual quantity adjustment (including invoice receipt)</td></tr>
+      <tr><td class="t-accent">INITIAL_STOCK</td><td>First stock entry for a part+warehouse — triggers "New Part in Warehouse" notification</td></tr>
+      <tr><td class="t-accent">ORDER_RECEIPT</td><td>Stock added via order stock-in; <code>ReferenceId</code> = InventoryOrders.Id</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout c-warn"><span class="icon">⚠️</span><div class="body">
+    <strong>Reserved reason string:</strong> <code>"New Part in Warehouse"</code> is written by <code>POST /supplies/scan/stockin</code> when stock-in auto-creates a supply row. Azure Functions monitors for this value to trigger a DatabaseManager alert. Do not use this string for manual adjustments.
+  </div></div>
+</div>
+
+<!-- §10 INVENTORYORDERS -->
+<div class="section" id="s10">
+  <div class="section-header"><span class="sn">10</span><h2>InventoryOrders</h2></div>
+  <p>Tracks purchase orders for parts. Orders are workflow artifacts — they are never the write authority for inventory. Supply changes happen through Transactions only.</p>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row"><div class="col-name">Prop_code</div><div class="col-type">nvarchar, required</div><div class="col-notes">Denormalized property code</div></div>
+    <div class="col-row fk"><div class="col-name">Warehouse_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Warehouses.Id</div></div>
+    <div class="col-row"><div class="col-name">Warehouse_name</div><div class="col-type">nvarchar, required</div><div class="col-notes">Denormalized at write time</div></div>
+    <div class="col-row fk"><div class="col-name">Part_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Parts.Id</div></div>
+    <div class="col-row"><div class="col-name">Part_name</div><div class="col-type">nvarchar, required</div><div class="col-notes">Denormalized at write time</div></div>
+    <div class="col-row fk"><div class="col-name">Primary_category_id</div><div class="col-type">int, nullable</div><div class="col-notes">FK → Categories.Id</div></div>
+    <div class="col-row"><div class="col-name">Category_name</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Denormalized at write time</div></div>
+    <div class="col-row"><div class="col-name">Quantity_ordered</div><div class="col-type">int</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Status</div><div class="col-type">nvarchar, required</div><div class="col-notes">pending → ordered → received | cancelled</div></div>
+    <div class="col-row"><div class="col-name">Report_dt</div><div class="col-type">datetime2</div><div class="col-notes">When the order was reported/created</div></div>
+    <div class="col-row"><div class="col-name">Ordered_dt</div><div class="col-type">datetime2, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Received_dt</div><div class="col-type">datetime2, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Cancelled_dt</div><div class="col-type">datetime2, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Cancelled_reason</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Required on cancellation</div></div>
+    <div class="col-row"><div class="col-name">Requested_by_oid</div><div class="col-type">nvarchar, required</div><div class="col-notes">+ email, ordered_by, received_by, cancelled_by audit fields</div></div>
+  </div>
+
+  <h3>Status Values</h3>
+  <table>
+    <thead><tr><th>Value</th><th>Meaning</th><th>Valid Transitions</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">pending</td><td>Reported, not yet ordered</td><td>→ ordered, received, cancelled</td></tr>
+      <tr><td class="t-accent">ordered</td><td>Order placed with vendor</td><td>→ received, cancelled, pending</td></tr>
+      <tr><td class="t-accent2">received</td><td>Stock received (terminal)</td><td>none</td></tr>
+      <tr><td class="t-danger">cancelled</td><td>Cancelled (terminal)</td><td>none</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §11 IDENTIFIERLOOKUPS -->
+<div class="section" id="s11">
+  <div class="section-header"><span class="sn">11</span><h2>IdentifierLookups</h2></div>
+  <p>Persisted record of a UPC enrichment lookup. Created when an unknown barcode triggers <code>GET /identifiers/resolve/{code}</code>.</p>
+  <div class="callout c-warn"><span class="icon">⚠️</span><div class="body"><strong>Table name typo:</strong> The actual table name in the database is <code>IDENTIFIERLOOKUUPS</code> (double-U) due to the original migration. Do not correct — this is the live schema.</div></div>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row"><div class="col-name">Lookup_id</div><div class="col-type">uniqueidentifier</div><div class="col-notes">UNIQUE — GUID returned to PWA as polling handle</div></div>
+    <div class="col-row"><div class="col-name">Code</div><div class="col-type">nvarchar, required</div><div class="col-notes">Raw barcode that triggered the lookup</div></div>
+    <div class="col-row"><div class="col-name">Status</div><div class="col-type">nvarchar, required</div><div class="col-notes">Pending → Complete | Exhausted | Failed | TimedOut</div></div>
+    <div class="col-row"><div class="col-name">Result_json</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Populated when Status = Complete</div></div>
+    <div class="col-row"><div class="col-name">Provider_attempts_json</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">JSON array: [{provider, outcome, duration_ms}]</div></div>
+    <div class="col-row"><div class="col-name">Created_dt</div><div class="col-type">datetime2</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Completed_dt</div><div class="col-type">datetime2, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Is_deleted</div><div class="col-type">bit, default false</div><div class="col-notes">Soft delete flag — filtered index for standard queries</div></div>
+    <div class="col-row"><div class="col-name">Deleted_dt</div><div class="col-type">datetime2, nullable</div><div class="col-notes"></div></div>
+  </div>
+  <div class="callout c-info"><span class="icon">ℹ️</span><div class="body">Completed lookup records are soft-deleted after <code>Enrichment:RetentionDays</code> (default: 7 days). Hard deletes are not performed.</div></div>
+</div>
+
+<!-- §12 MANAGEDPROPERTIES -->
+<div class="section" id="s12">
+  <div class="section-header"><span class="sn">12</span><h2>ManagedProperties</h2></div>
+  <p>Maps property codes to the warehouse that manages them. Used to resolve which warehouse is responsible for a given <code>prop_code</code>.</p>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row"><div class="col-name">Prop_code</div><div class="col-type">nvarchar(100), required</div><div class="col-notes">UNIQUE</div></div>
+    <div class="col-row"><div class="col-name">Display_name</div><div class="col-type">nvarchar(400), required</div><div class="col-notes"></div></div>
+    <div class="col-row fk"><div class="col-name">Managed_by_warehouse_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Warehouses.Id</div></div>
+    <div class="col-row"><div class="col-name">Notes</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Created_dt</div><div class="col-type">datetime2</div><div class="col-notes"></div></div>
+  </div>
+</div>
+
+<!-- §13 PROPERTYCHANNELS -->
+<div class="section" id="s13">
+  <div class="section-header"><span class="sn">13</span><h2>PropertyChannels</h2></div>
+  <p>Maps warehouses to their Microsoft Teams delivery channels for notifications. Used by Azure Functions via Power Automate to route notifications to the correct Teams channel.</p>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row fk"><div class="col-name">Warehouse_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Warehouses.Id</div></div>
+    <div class="col-row"><div class="col-name">Channel_type</div><div class="col-type">nvarchar(100), required</div><div class="col-notes">PROPERTY (channel notification) or DM (direct message webhook)</div></div>
+    <div class="col-row"><div class="col-name">Is_active</div><div class="col-type">bit, required</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Channel_id</div><div class="col-type">nvarchar(400), required</div><div class="col-notes">Teams channel ID</div></div>
+    <div class="col-row"><div class="col-name">Team_id</div><div class="col-type">nvarchar(200), required</div><div class="col-notes">Teams team ID — DM webhook URL lives in Key Vault, not this table</div></div>
+  </div>
+</div>
+
+<!-- §14 PROPERTYCHANNELFAILURELOGS -->
+<div class="section" id="s14">
+  <div class="section-header"><span class="sn">14</span><h2>PropertyChannelFailureLogs</h2></div>
+  <p>Audit log for Teams notification delivery failures. Written by Azure Functions when a Power Automate dispatch fails.</p>
+  <div class="callout c-info"><span class="icon">ℹ️</span><div class="body">Column ID 2 is absent — gap from a migration that dropped a column. This is expected.</div></div>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row"><div class="col-name">Failed_at</div><div class="col-type">datetime2, required</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Http_status_code</div><div class="col-type">int, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Error_message</div><div class="col-type">nvarchar(2000), nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Event_type</div><div class="col-type">nvarchar(200), required</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Triggered_by</div><div class="col-type">nvarchar(200), required</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Reported_at</div><div class="col-type">datetime2, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Channel_type</div><div class="col-type">nvarchar(100), required</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Failed_channel_id</div><div class="col-type">nvarchar(400), required</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Failed_team_id</div><div class="col-type">nvarchar(200), required</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Warehouse_name</div><div class="col-type">nvarchar(400), nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Recovered_at</div><div class="col-type">datetime2, nullable</div><div class="col-notes"></div></div>
+  </div>
+</div>
+
+<!-- §15 EQUIPMENT -->
+<div class="section" id="s15">
+  <div class="section-header"><span class="sn">15</span><h2>Equipment</h2></div>
+  <p>Master record for a tracked tool or equipment item. Each item has a unique TOOL_MASTER identifier and a current status tracked in EquipmentStatuses.</p>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row"><div class="col-name">Name</div><div class="col-type">nvarchar(900), required</div><div class="col-notes">UNIQUE</div></div>
+    <div class="col-row"><div class="col-name">Description</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row fk"><div class="col-name">Category_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Categories.Id</div></div>
+    <div class="col-row fk"><div class="col-name">Home_warehouse_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Warehouses.Id</div></div>
+    <div class="col-row"><div class="col-name">Serial_number</div><div class="col-type">nvarchar(900), nullable</div><div class="col-notes">UNIQUE when provided</div></div>
+    <div class="col-row"><div class="col-name">Created_by_oid</div><div class="col-type">nvarchar, required</div><div class="col-notes">Entra OID of creator</div></div>
+    <div class="col-row"><div class="col-name">Created_by_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Created_dt</div><div class="col-type">datetime2</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Is_active</div><div class="col-type">bit, required</div><div class="col-notes"></div></div>
+  </div>
+</div>
+
+<!-- §16 EQUIPMENTIDENTIFIERS -->
+<div class="section" id="s16">
+  <div class="section-header"><span class="sn">16</span><h2>EquipmentIdentifiers</h2></div>
+  <p>Barcodes assigned to equipment items. Mirrors the Identifiers table pattern but scoped to equipment.</p>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row fk"><div class="col-name">Equipment_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Equipment.Id, cascade delete</div></div>
+    <div class="col-row"><div class="col-name">Id_type</div><div class="col-type">nvarchar, required</div><div class="col-notes">Always TOOL_MASTER for system-generated barcodes</div></div>
+    <div class="col-row"><div class="col-name">Id_value</div><div class="col-type">nvarchar(900), required</div><div class="col-notes">UNIQUE globally — bare integer, e.g. 8000001</div></div>
+  </div>
+  <div class="callout c-info"><span class="icon">ℹ️</span><div class="body">
+    <strong>TOOL_MASTER convention:</strong> Auto-generated sequence starting at <code>8000001</code>. Storage format is bare integer — no prefix stored or scanned. Display format adds grouping prefix in UI only: <code>8-000001</code>. TOOL_MASTER identifiers cannot be added or deleted manually.
+  </div></div>
+</div>
+
+<!-- §17 EQUIPMENTSTATUSES -->
+<div class="section" id="s17">
+  <div class="section-header"><span class="sn">17</span><h2>EquipmentStatuses</h2></div>
+  <p>Current status record for each equipment item. One row per equipment item (1:1 with Equipment). Updated in place on each status transition.</p>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row fk"><div class="col-name">Equipment_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Equipment.Id — 1:1 relationship</div></div>
+    <div class="col-row fk"><div class="col-name">Current_warehouse_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Warehouses.Id</div></div>
+    <div class="col-row"><div class="col-name">Current_unit</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Unit/apartment currently assigned to</div></div>
+    <div class="col-row"><div class="col-name">Status</div><div class="col-type">nvarchar, required</div><div class="col-notes">Available | CheckedOut</div></div>
+    <div class="col-row"><div class="col-name">Last_moved_dt</div><div class="col-type">datetime2, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Last_moved_by_oid</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Last_moved_by_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+  </div>
+  <table>
+    <thead><tr><th>Status</th><th>Meaning</th><th>Valid Transitions</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent2">Available</td><td>In warehouse, available for checkout</td><td>→ CheckedOut</td></tr>
+      <tr><td class="t-warn">CheckedOut</td><td>Checked out to a unit or technician</td><td>→ Available (check-in), CheckedOut (location update)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §18 EQUIPMENTTRANSACTIONS -->
+<div class="section" id="s18">
+  <div class="section-header"><span class="sn">18</span><h2>EquipmentTransactions</h2></div>
+  <p>Append-only audit log for equipment movement events. One row per status transition.</p>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row fk"><div class="col-name">Equipment_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Equipment.Id, cascade delete</div></div>
+    <div class="col-row"><div class="col-name">Transaction_type</div><div class="col-type">nvarchar, required</div><div class="col-notes">CheckOut | CheckIn | LocationUpdate | PermanentTransfer</div></div>
+    <div class="col-row fk"><div class="col-name">From_warehouse_id</div><div class="col-type">int, nullable</div><div class="col-notes">FK → Warehouses.Id</div></div>
+    <div class="col-row"><div class="col-name">From_unit</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row fk"><div class="col-name">To_warehouse_id</div><div class="col-type">int, nullable</div><div class="col-notes">FK → Warehouses.Id</div></div>
+    <div class="col-row"><div class="col-name">To_unit</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Performed_by_oid</div><div class="col-type">nvarchar, required</div><div class="col-notes">Entra OID</div></div>
+    <div class="col-row"><div class="col-name">Performed_by_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Performed_dt</div><div class="col-type">datetime2</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Notes</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+  </div>
+  <table>
+    <thead><tr><th>Transaction Type</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">CheckOut</td><td>Equipment checked out from warehouse to a unit/technician</td></tr>
+      <tr><td class="t-accent">CheckIn</td><td>Equipment returned to a warehouse</td></tr>
+      <tr><td class="t-accent">LocationUpdate</td><td>Unit/location updated while still checked out</td></tr>
+      <tr><td class="t-accent">PermanentTransfer</td><td>Home warehouse changed permanently</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §19 QUOTEREQUESTS -->
+<div class="section" id="s19">
+  <div class="section-header"><span class="sn">19</span><h2>QuoteRequests</h2></div>
+  <p>Tracks vendor quote request emails sent on behalf of users via Microsoft Graph OBO. One record per quote send. Orthogonal to the order status lifecycle.</p>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row"><div class="col-name">Token</div><div class="col-type">nvarchar(900), required</div><div class="col-notes">UNIQUE — format: QR-YYYYMMDD-{PropCode}-{8 random chars}</div></div>
+    <div class="col-row fk"><div class="col-name">Vendor_id</div><div class="col-type">int, nullable</div><div class="col-notes">FK → Vendors.Id, set null on delete</div></div>
+    <div class="col-row"><div class="col-name">Vendor_name_snapshot</div><div class="col-type">nvarchar, required</div><div class="col-notes">Snapshot at creation</div></div>
+    <div class="col-row"><div class="col-name">Vendor_email_snapshot</div><div class="col-type">nvarchar, required</div><div class="col-notes">Snapshot at creation</div></div>
+    <div class="col-row fk"><div class="col-name">Warehouse_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Warehouses.Id, restrict on delete</div></div>
+    <div class="col-row"><div class="col-name">Warehouse_name_snapshot</div><div class="col-type">nvarchar, required</div><div class="col-notes">Snapshot at creation</div></div>
+    <div class="col-row"><div class="col-name">Prop_code</div><div class="col-type">nvarchar, required</div><div class="col-notes">Denormalized</div></div>
+    <div class="col-row"><div class="col-name">Tracking_cc_email</div><div class="col-type">nvarchar, required</div><div class="col-notes">Always inventory-quotes@atcdevelopment.com — injected by API, never exposed to user</div></div>
+    <div class="col-row"><div class="col-name">Subject_snapshot</div><div class="col-type">nvarchar, required</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Body_snapshot</div><div class="col-type">nvarchar, required</div><div class="col-notes">Used for resend compose pre-population</div></div>
+    <div class="col-row"><div class="col-name">Status</div><div class="col-type">nvarchar(900), required</div><div class="col-notes">draft_created → email_detected | cancelled | expired</div></div>
+    <div class="col-row"><div class="col-name">Created_by_oid</div><div class="col-type">nvarchar, required</div><div class="col-notes">Entra OID of creator</div></div>
+    <div class="col-row"><div class="col-name">Created_by_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Created_dt</div><div class="col-type">datetime2</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Expires_dt</div><div class="col-type">datetime2</div><div class="col-notes">90 days from Created_dt. Configured via QuoteTracking:TokenExpiryDays.</div></div>
+    <div class="col-row"><div class="col-name">Email_detected_dt</div><div class="col-type">datetime2, nullable</div><div class="col-notes">Set when Graph send succeeds</div></div>
+    <div class="col-row"><div class="col-name">Graph_sent_dt</div><div class="col-type">datetime2, nullable</div><div class="col-notes">Set when Graph API accepts the send</div></div>
+    <div class="col-row"><div class="col-name">Graph_message_id</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Message ID returned by Graph sendMail</div></div>
+    <div class="col-row"><div class="col-name">Graph_send_error</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Populated on Graph send failure</div></div>
+    <div class="col-row legacy"><div class="col-name">Mailto_opened_dt</div><div class="col-type">datetime2, nullable</div><div class="col-notes">Legacy — unused under Graph OBO flow</div></div>
+    <div class="col-row legacy"><div class="col-name">Manual_sent_by_oid</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Legacy — unused under Graph OBO flow</div></div>
+    <div class="col-row legacy"><div class="col-name">Manual_sent_by_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Legacy — unused under Graph OBO flow</div></div>
+    <div class="col-row"><div class="col-name">Cancelled_dt</div><div class="col-type">datetime2, nullable</div><div class="col-notes"></div></div>
+  </div>
+  <table>
+    <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td class="t-muted">draft_created</td><td>Record created, send not yet attempted</td></tr>
+      <tr><td class="t-accent2">email_detected</td><td>Graph send accepted — set immediately on successful POST /{token}/send</td></tr>
+      <tr><td class="t-danger">cancelled</td><td>Manually cancelled</td></tr>
+      <tr><td class="t-warn">expired</td><td>Token past Expires_dt</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §20 QUOTEREQUESTITEMS -->
+<div class="section" id="s20">
+  <div class="section-header"><span class="sn">20</span><h2>QuoteRequestItems</h2></div>
+  <p>Line items captured at quote creation time. Snapshots taken so the quote record is stable even if parts or orders are subsequently modified.</p>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row fk"><div class="col-name">Quote_request_id</div><div class="col-type">int, required</div><div class="col-notes">FK → QuoteRequests.Id, cascade delete</div></div>
+    <div class="col-row fk"><div class="col-name">Inventory_order_id</div><div class="col-type">int, nullable</div><div class="col-notes">FK → InventoryOrders.Id, set null on delete</div></div>
+    <div class="col-row fk"><div class="col-name">Part_id</div><div class="col-type">int, nullable</div><div class="col-notes">FK → Parts.Id, set null on delete</div></div>
+    <div class="col-row"><div class="col-name">Part_name_snapshot</div><div class="col-type">nvarchar, required</div><div class="col-notes">Snapshot at creation</div></div>
+    <div class="col-row"><div class="col-name">Vendor_stock_number_snapshot</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Snapshot at creation</div></div>
+    <div class="col-row"><div class="col-name">Vendor_sku_snapshot</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Snapshot at creation</div></div>
+    <div class="col-row"><div class="col-name">Quantity_requested</div><div class="col-type">int, required</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Uom_snapshot</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Snapshot at creation</div></div>
+    <div class="col-row"><div class="col-name">Created_dt</div><div class="col-type">datetime2</div><div class="col-notes"></div></div>
+  </div>
+</div>
+
+<!-- §21 QUOTEREQUESTEMAILEVENTS -->
+<div class="section" id="s21">
+  <div class="section-header"><span class="sn">21</span><h2>QuoteRequestEmailEvents</h2></div>
+  <p>Event log for email activity against a quote request. Currently populated only with <code>quote_detected</code> events on successful Graph send. Remaining event types are reserved.</p>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row fk"><div class="col-name">Quote_request_id</div><div class="col-type">int, required</div><div class="col-notes">FK → QuoteRequests.Id, cascade delete</div></div>
+    <div class="col-row"><div class="col-name">Provider_message_id</div><div class="col-type">nvarchar(900), required</div><div class="col-notes">UNIQUE index</div></div>
+    <div class="col-row"><div class="col-name">Event_type</div><div class="col-type">nvarchar, required</div><div class="col-notes">quote_detected | reply_ignored | duplicate_ignored | expired_ignored | error</div></div>
+    <div class="col-row"><div class="col-name">From_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Subject_snapshot</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Received_dt</div><div class="col-type">datetime2, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Processed_dt</div><div class="col-type">datetime2</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Raw_payload_json</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+  </div>
+</div>
+
+<!-- §22 CORE GUARANTEES -->
+<div class="section" id="s22">
+  <div class="section-header"><span class="sn">22</span><h2>Core Guarantees</h2></div>
+  <div class="guarantees">
+    <div class="guarantee-item"><div class="guarantee-dot"></div><span>One supply row per part+warehouse, enforced by a unique index</span></div>
+    <div class="guarantee-item"><div class="guarantee-dot"></div><span>Barcodes/identifiers are globally unique to a single part</span></div>
+    <div class="guarantee-item"><div class="guarantee-dot"></div><span>Every Part has exactly one ATC_MASTER identifier, auto-generated at creation</span></div>
+    <div class="guarantee-item"><div class="guarantee-dot"></div><span>Every Equipment item has exactly one TOOL_MASTER identifier, auto-generated at creation</span></div>
+    <div class="guarantee-item"><div class="guarantee-dot"></div><span>Name similarity checks run in the service layer before UNIQUE constraints</span></div>
+    <div class="guarantee-item"><div class="guarantee-dot"></div><span>Transactions provide an immutable audit trail for stock changes; negative inventory is blocked in the API</span></div>
+    <div class="guarantee-item"><div class="guarantee-dot"></div><span>Supplies always represent EA-level quantities; multiplier conversion is a stock-in operation only and is never stored</span></div>
+    <div class="guarantee-item"><div class="guarantee-dot"></div><span>IdentifierLookup rows are never hard-deleted; soft delete + retention window governs cleanup</span></div>
+    <div class="guarantee-item"><div class="guarantee-dot"></div><span>Orders are workflow artifacts and are never the write authority for inventory — all supply changes route through Transactions</span></div>
+    <div class="guarantee-item"><div class="guarantee-dot"></div><span>Quote request tracking is orthogonal to the order status lifecycle — quote status does not affect order status</span></div>
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<!-- ── FOOTER ── -->
+<div class="doc-footer">
+  <span>ATC Inventory Application</span>
+  <span>Database Schema · May 2026</span>
+  <span>inventory_api · Internal Use Only</span>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

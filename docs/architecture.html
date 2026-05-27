@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATC Inventory — Application Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2230;
+    --border: #2a3444;
+    --accent: #4fa3e0;
+    --accent2: #3ddc97;
+    --warn: #e6a817;
+    --danger: #e05c5c;
+    --text: #cdd9e5;
+    --muted: #768a9e;
+    --code: #a8d1f0;
+    --white: #f0f6fc;
+  }
+
+  body { font-family: 'Syne', sans-serif; font-size: 14px; color: var(--text); background: var(--bg); line-height: 1.65; }
+
+  /* ── Nav Bar ── */
+  .nav-bar { display: flex; align-items: center; gap: 12px; padding: 12px 56px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+  .nav-bar a { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: var(--muted); text-decoration: none; letter-spacing: 1px; transition: color 0.15s; }
+  .nav-bar a:hover { color: var(--accent); }
+  .nav-sep { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--border); }
+  .nav-current { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text); }
+
+  .page { max-width: 1060px; margin: 0 auto; padding: 0 0 80px; }
+
+  /* ── Header ── */
+  .doc-header { padding: 52px 56px 44px; border-bottom: 1px solid var(--border); position: relative; overflow: hidden; }
+  .doc-header::before { content: ""; position: absolute; top: 0; right: 0; width: 420px; height: 100%; background: radial-gradient(ellipse at 80% 40%, rgba(79,163,224,0.07) 0%, transparent 70%); pointer-events: none; }
+  .doc-header .eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 14px; }
+  .doc-header h1 { font-size: 36px; font-weight: 800; color: var(--white); line-height: 1.1; margin-bottom: 8px; }
+  .doc-header .subtitle { font-size: 14px; color: var(--muted); margin-bottom: 32px; }
+  .meta-strip { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; width: fit-content; }
+  .meta-cell { padding: 10px 20px; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 3px; }
+  .meta-cell:last-child { border-right: none; }
+  .meta-cell .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+  .meta-cell .val { font-size: 13px; font-weight: 600; color: var(--white); }
+  .meta-cell .val.green { color: var(--accent2); }
+
+  /* ── TOC ── */
+  .toc { display: flex; gap: 6px; flex-wrap: wrap; padding: 20px 56px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .toc a { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); text-decoration: none; padding: 5px 12px; border: 1px solid var(--border); border-radius: 20px; transition: all 0.15s; }
+  .toc a:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ── Content ── */
+  .content { padding: 0 56px; }
+  .section { padding: 44px 0; border-bottom: 1px solid var(--border); }
+  .section:last-child { border-bottom: none; }
+  .section-header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px; }
+  .sn { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 2px; background: rgba(79,163,224,0.08); border: 1px solid rgba(79,163,224,0.2); padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
+  .section-header h2 { font-size: 20px; font-weight: 700; color: var(--white); }
+
+  h3 { font-size: 15px; font-weight: 700; color: var(--white); margin: 28px 0 12px; }
+  h4 { font-size: 13px; font-weight: 700; color: var(--accent); margin: 20px 0 8px; font-family: 'JetBrains Mono', monospace; letter-spacing: 1px; text-transform: uppercase; }
+
+  p { color: var(--text); margin-bottom: 14px; max-width: 800px; }
+
+  ul { margin: 12px 0 16px 20px; max-width: 800px; }
+  ul li { color: var(--text); font-size: 13px; margin-bottom: 6px; line-height: 1.6; }
+  ul li strong { color: var(--white); }
+
+  /* ── System diagram ── */
+  .arch-diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px 32px;
+    margin: 20px 0;
+    overflow-x: auto;
+  }
+  .arch-diagram pre {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.8;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    white-space: pre;
+  }
+
+  /* ── Component cards ── */
+  .component-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin: 20px 0; }
+  .component-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 22px; }
+  .component-card .comp-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; display: block; }
+  .component-card .comp-title { font-size: 14px; font-weight: 700; color: var(--white); margin-bottom: 10px; }
+  .component-card ul { margin: 0; }
+  .component-card ul li { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+
+  /* ── Scan lanes ── */
+  .lane-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin: 20px 0; }
+  .lane-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+  .lane-card .lane-num { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+  .lane-card .lane-title { font-size: 14px; font-weight: 700; color: var(--white); margin-bottom: 8px; }
+  .lane-card .lane-endpoint { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--code); background: rgba(79,163,224,0.08); padding: 4px 8px; border-radius: 4px; margin-bottom: 10px; display: block; }
+  .lane-card ul li { font-size: 12px; color: var(--muted); }
+
+  /* ── Pipeline flow ── */
+  .pipeline {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin: 16px 0;
+    max-width: 800px;
+  }
+  .pipeline-step { display: flex; align-items: flex-start; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text); line-height: 1.5; }
+  .pipeline-step:last-child { border-bottom: none; }
+  .pipeline-arrow { font-family: 'JetBrains Mono', monospace; color: var(--accent); flex-shrink: 0; margin-top: 1px; font-size: 12px; }
+  .pipeline-step code { font-size: 11px; }
+
+  /* ── Principles list ── */
+  .principles { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; max-width: 800px; }
+  .principle-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--text); line-height: 1.5; }
+  .principle-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); flex-shrink: 0; margin-top: 5px; }
+
+  /* ── Code ── */
+  pre { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--code); overflow-x: auto; margin: 10px 0 16px; line-height: 1.7; }
+  .pre-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-top: 16px; margin-bottom: 4px; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--code); background: rgba(79,163,224,0.08); padding: 1px 6px; border-radius: 3px; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+
+  /* ── Callouts ── */
+  .callout { display: flex; gap: 14px; padding: 14px 18px; border-radius: 8px; margin: 16px 0; max-width: 800px; }
+  .callout.c-info  { background: rgba(79,163,224,0.07);  border: 1px solid rgba(79,163,224,0.2);  }
+  .callout.c-warn  { background: rgba(230,168,23,0.07);  border: 1px solid rgba(230,168,23,0.2);  }
+  .callout.c-ok    { background: rgba(61,220,151,0.07);  border: 1px solid rgba(61,220,151,0.2);  }
+  .callout .icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .callout .body { font-size: 13px; color: var(--text); line-height: 1.6; }
+  .callout .body strong { color: var(--white); }
+
+  /* ── Tables ── */
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  thead tr { background: var(--surface); border-bottom: 1px solid var(--border); }
+  th { padding: 10px 16px; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  td { padding: 10px 16px; border-bottom: 1px solid var(--border); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface); }
+  .t-accent { color: var(--accent); }
+  .t-accent2 { color: var(--accent2); }
+  .t-warn { color: var(--warn); }
+  .t-muted { color: var(--muted); }
+  .t-danger { color: var(--danger); }
+
+  /* ── Footer ── */
+  .doc-footer { margin-top: 60px; padding: 20px 56px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 0.5px; }
+</style>
+</head>
+<body>
+
+<!-- ── NAV BAR ── -->
+<div class="nav-bar">
+  <a href="../index.html">← Home</a>
+  <span class="nav-sep">/</span>
+  <span class="nav-current">Application Architecture</span>
+</div>
+
+<div class="page">
+
+<!-- ── HEADER ── -->
+<div class="doc-header">
+  <div class="eyebrow">ATC Inventory Application — Architecture</div>
+  <h1>Application Architecture</h1>
+  <p class="subtitle">Three-repo system design, service boundaries, Azure infrastructure, auth flow, SignalR, barcode scan routing, and cross-cutting design principles.</p>
+  <div class="meta-strip">
+    <div class="meta-cell"><span class="lbl">Repos</span><span class="val">inventory_pwa · inventory_api · inventory_functions</span></div>
+    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">May 2026</span></div>
+    <div class="meta-cell"><span class="lbl">Status</span><span class="val green">Current</span></div>
+  </div>
+</div>
+
+<!-- ── TOC ── -->
+<div class="toc">
+  <a href="#s1">01 High-Level Architecture</a>
+  <a href="#s2">02 Component Responsibilities</a>
+  <a href="#s3">03 Identity &amp; Authorization</a>
+  <a href="#s4">04 Real-Time (SignalR)</a>
+  <a href="#s5">05 Barcode Scan Flow</a>
+  <a href="#s6">06 Report Export Flow</a>
+  <a href="#s7">07 Design Principles</a>
+  <a href="#s8">08 Equipment Tracking</a>
+  <a href="#s9">09 Invoice Scan</a>
+  <a href="#s10">10 Quote Request — Graph OBO</a>
+</div>
+
+<div class="content">
+
+<!-- §01 HIGH-LEVEL ARCHITECTURE -->
+<div class="section" id="s1">
+  <div class="section-header"><span class="sn">01</span><h2>High-Level Architecture</h2></div>
+  <p>The Inventory Application is composed of three independently deployed systems across three separate repositories.</p>
+  <div class="arch-diagram">
+    <pre>
+┌───────────────────────────────┐
+│ React PWA Frontend            │
+│ (Desktop + Mobile PWA)        │
+│ - MSAL sign-in                │
+│ - Gets access token           │
+│ - Calls ASP.NET w/ Bearer     │
+│ - Calls Functions w/ Bearer   │
+│ - SignalR client (real-time)  │
+└───────┬───────────────┬───────┘
+        │ Bearer Token  │ SignalR (ws)
+        ▼               ▼
+┌───────────────────────────────┐     ┌───────────────────────────┐
+│ ASP.NET 10 API (minimal)      │────▶│ Azure SignalR Service      │
+│ System of Record + Rules Hub  │     │ - Managed WebSocket relay  │
+│ - JWT validation (Entra ID)   │     │ - /hubs/inventory          │
+│ - CRUD + batch endpoints      │     │ - Warehouse groups         │
+│ - Identifier resolve +        │     │ - Broadcasts to PWA        │
+│   enrichment (ADI + GPT)      │     └───────────────────────────┘
+│ - Transactions ledger         │
+│ - SignalR hub broadcasts      │
+│ - Notification queue producer │
+│ - Graph OBO quote send        │
+└───────────────────────────────┘
+                │ Enqueues notification messages
+                ▼
+┌───────────────────────────────┐
+│ Azure Storage Queue           │
+│ inventory-notifications       │
+│ - API writes fire-and-forget  │
+│ - Functions consume async     │
+│   via QueueTrigger            │
+│ - PWA never writes to queue   │
+└───────────────┬───────────────┘
+                │ Queue trigger
+                ▼
+┌───────────────────────────────┐
+│ Azure Functions (.NET 9)      │
+│ Automations / Side Effects    │
+│ - HTTP: reports, labels,      │
+│   invoice analysis            │
+│ - Queue: DM notifications     │
+│ - Timers: daily/weekly alerts │
+│ - Teams via Power Automate    │
+│ - Reads DB via Managed        │
+│   Identity (read-only)        │
+│ - Calls API for write-backs   │
+└───────────────────────────────┘
+
+         ┌───────────────────────────────┐
+         │   Azure SQL (prod) / SQLite   │
+         │   (dev) — see schema.md       │
+         │   EF Core + auto migrations   │
+         └───────────────▲───────────────┘
+                         │
+                         │ ASP.NET reads/writes (primary)
+                         │ Functions read-only via Managed Identity
+    </pre>
+  </div>
+</div>
+
+<!-- §02 COMPONENT RESPONSIBILITIES -->
+<div class="section" id="s2">
+  <div class="section-header"><span class="sn">02</span><h2>Component Responsibilities</h2></div>
+  <div class="component-grid">
+    <div class="component-card">
+      <span class="comp-tag">inventory_pwa</span>
+      <div class="comp-title">React PWA Frontend</div>
+      <ul>
+        <li>Login via MSAL; adapts UI for mobile and desktop</li>
+        <li>Captures barcode scans; displays inventory and reports</li>
+        <li>Sends access tokens to API and Functions on every request</li>
+        <li>Connects to SignalR hub for real-time cache invalidation (additive, non-blocking)</li>
+        <li>For report exports: sends intent only (filters, IDs, format) — never raw row data</li>
+        <li>Handles binary blob responses from Functions for file downloads</li>
+      </ul>
+    </div>
+    <div class="component-card">
+      <span class="comp-tag">inventory_api</span>
+      <div class="comp-title">ASP.NET Backend</div>
+      <ul>
+        <li>.NET 10 Minimal APIs + EF Core; SQLite in dev, Azure SQL in prod</li>
+        <li>Validates JWTs; enforces all authorization policies</li>
+        <li>Manages inventory with unique constraints throughout</li>
+        <li>Identifier resolution and enrichment workflow</li>
+        <li>Immutable transaction ledger for every quantity change</li>
+        <li>SignalR hub at <code>/hubs/inventory</code>; fire-and-forget broadcasts</li>
+        <li>Enqueues notification messages to storage queue (non-blocking)</li>
+        <li>Graph OBO quote send; Swagger UI in Development</li>
+      </ul>
+    </div>
+    <div class="component-card">
+      <span class="comp-tag">inventory_functions</span>
+      <div class="comp-title">Azure Functions</div>
+      <ul>
+        <li>.NET 9 Isolated Process; Flex Consumption, Linux</li>
+        <li>HTTP-triggered: reports, labels, invoice analysis — called by PWA</li>
+        <li>Timer-triggered: daily/weekly scheduled jobs</li>
+        <li>Queue-triggered: notification delivery via <code>NotificationQueueFunction</code></li>
+        <li>Read-only DB access via Managed Identity; no direct DB writes</li>
+        <li>Calls API endpoints for write-back operations</li>
+        <li>Teams notifications via Power Automate flows</li>
+        <li>PdfSharpCore (PDF) · ClosedXML (Excel) · ZXing.Net (barcodes)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- §03 IDENTITY & AUTHORIZATION -->
+<div class="section" id="s3">
+  <div class="section-header"><span class="sn">03</span><h2>Identity &amp; Authorization Flow</h2></div>
+  <p>Identity is derived entirely from Entra ID JWT token claims. There is no local users table.</p>
+
+  <div class="pipeline">
+    <div class="pipeline-step"><span class="pipeline-arrow">1 →</span><span>User signs in via MSAL</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">2 →</span><span>Access token includes <code>oid</code>, <code>preferred_username</code>, and <code>roles</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">3 →</span><span>PWA calls API with <code>Authorization: Bearer &lt;token&gt;</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">4 →</span><span>API validates token and enforces policies based on <code>roles</code> claim</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">5 →</span><span>Audit fields written on every write: <code>*_by_oid</code> (required), <code>*_by_email</code> (optional)</span></div>
+  </div>
+
+  <table>
+    <thead><tr><th>Role</th><th>Access</th></tr></thead>
+    <tbody>
+      <tr><td class="t-warn">DatabaseManager</td><td>Full access — all properties, all admin and bulk operations</td></tr>
+      <tr><td class="t-accent">propCode_wh (e.g. ms_wh)</td><td>Property staff — read all, write only to their assigned warehouse</td></tr>
+      <tr><td class="t-muted">No role</td><td>Read-only access to inventory data</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      <strong>DatabaseManager overrides all property role checks.</strong> A DatabaseManager can write to any warehouse regardless of property group membership. Role assignments are managed in Azure Portal → Enterprise Applications → <code>ATC_InventoryAPI</code>.
+    </div>
+  </div>
+
+  <h3>Functions Auth Extension</h3>
+  <p>When the PWA calls an HTTP-triggered Function:</p>
+  <div class="pipeline">
+    <div class="pipeline-step"><span class="pipeline-arrow">1 →</span><span>PWA sends the same Bearer token used for API calls (<code>access_as_user</code> scope, <code>ATC_InventoryAPI</code> audience)</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">2 →</span><span><code>JwtValidationMiddleware</code> validates: signature, issuer, audience, expiry</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">3 →</span><span>Middleware extracts <code>oid</code> and <code>preferred_username</code> from token claims</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">4 →</span><span>Middleware cross-validates token <code>oid</code> against <code>requested_by_oid</code> in request body — mismatch returns 403</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">5 →</span><span>Function accesses DB using Managed Identity — user token is never passed downstream</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">6 →</span><span>Timer-triggered functions bypass JWT middleware — no HTTP context</span></div>
+  </div>
+</div>
+
+<!-- §04 REAL-TIME SIGNALR -->
+<div class="section" id="s4">
+  <div class="section-header"><span class="sn">04</span><h2>Real-Time (SignalR)</h2></div>
+  <p>Azure SignalR Service provides the managed WebSocket relay between the API and connected PWA clients. Hub endpoint: <code>/hubs/inventory</code></p>
+
+  <h3>Event Model</h3>
+  <table>
+    <thead><tr><th>Event</th><th>Scope</th><th>Trigger</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">supply.updated</td><td>Warehouse group</td><td>Any supply write — consume, stock-in, adjust, create, batch</td></tr>
+      <tr><td class="t-accent">supply.low_stock</td><td>Warehouse group</td><td>Supply write where <code>quantity_after &lt;= min_level</code></td></tr>
+      <tr><td class="t-accent">warehouses.changed</td><td>All clients</td><td>Warehouse create, update, or delete</td></tr>
+      <tr><td class="t-accent">categories.changed</td><td>All clients</td><td>Category create, update, or delete</td></tr>
+      <tr><td class="t-accent">vendors.changed</td><td>All clients</td><td>Vendor create, update, or delete</td></tr>
+      <tr><td class="t-accent">part.created</td><td>All clients</td><td>Single part created or bulk batch completed</td></tr>
+      <tr><td class="t-accent">part.updated</td><td>All clients</td><td>Part updated or deleted</td></tr>
+      <tr><td class="t-accent">equipment.changed</td><td>All clients</td><td>Any equipment write — create, update, checkout, checkin, location update</td></tr>
+      <tr><td class="t-accent">orders.updated</td><td>All clients</td><td>Order status change or Graph OBO send accepted</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Group Model</h3>
+  <table>
+    <thead><tr><th>Client Type</th><th>Group Membership</th><th>Mechanism</th></tr></thead>
+    <tbody>
+      <tr><td>Standard authenticated user</td><td>Single warehouse group</td><td>Client calls <code>JoinWarehouse(id)</code> on connect and on warehouse selection change</td></tr>
+      <tr><td class="t-warn">DatabaseManager</td><td>All warehouse groups</td><td>Hub adds to every active warehouse group in <code>OnConnectedAsync</code></td></tr>
+      <tr><td>Enrichment notifications</td><td>No group — user-targeted</td><td><code>Clients.User(oid)</code> using OID claim from token</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>All broadcasts are fire-and-forget.</strong> The API sends the event after the response is ready and never awaits client delivery. The PWA must degrade gracefully if the SignalR connection is unavailable — no feature may fail or hang due to a missing hub connection.
+    </div>
+  </div>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      SignalR events are used <strong>exclusively for React Query cache invalidation</strong> — no event payload drives UI state directly. The PWA always re-fetches authoritative state from the API.
+    </div>
+  </div>
+</div>
+
+<!-- §05 BARCODE SCAN FLOW -->
+<div class="section" id="s5">
+  <div class="section-header"><span class="sn">05</span><h2>Barcode Scan Flow</h2></div>
+  <p>Normal scan operations go directly to their dedicated endpoints. <code>/identifiers/resolve</code> is only triggered on <code>404 IDENTIFIER_NOT_FOUND</code> — it is not part of normal scan operations.</p>
+
+  <div class="lane-grid">
+    <div class="lane-card">
+      <div class="lane-num">Lane 1</div>
+      <div class="lane-title">Scan Out (Consume)</div>
+      <span class="lane-endpoint">POST /supplies/scan/consume</span>
+      <ul>
+        <li>Multiplier ignored — decrements by <code>qty_each</code> EA directly</li>
+        <li>Supply row must exist (<code>allowCreate = false</code>)</li>
+        <li><code>404</code> → pivot to Lane 3</li>
+        <li><code>409</code> → part not stocked at this warehouse</li>
+        <li><code>400</code> → negative inventory blocked</li>
+      </ul>
+    </div>
+    <div class="lane-card">
+      <div class="lane-num">Lane 2</div>
+      <div class="lane-title">Scan In (Stock-In)</div>
+      <span class="lane-endpoint">POST /supplies/scan/stockin</span>
+      <ul>
+        <li>Multiplier applied: <code>qty_packages × Unit_multiplier_to_base = qty_change</code></li>
+        <li>Supply row auto-created if missing (<code>allowCreate = true</code>)</li>
+        <li>Auto-create triggers <code>"New Part in Warehouse"</code> transaction → Functions alert DatabaseManagers</li>
+        <li><code>404</code> → pivot to Lane 3</li>
+      </ul>
+    </div>
+    <div class="lane-card">
+      <div class="lane-num">Lane 3</div>
+      <div class="lane-title">Unknown Barcode</div>
+      <span class="lane-endpoint">GET /identifiers/resolve/{code}</span>
+      <ul>
+        <li>Returns <code>Lookup_Started</code> + <code>lookup_id</code></li>
+        <li>Poll <code>GET /identifiers/lookup/{id}</code> every 1–2s</li>
+        <li><code>Complete</code> → pre-fill part form → <code>POST /parts</code></li>
+        <li><code>Exhausted / TimedOut</code> → manual entry → <code>POST /parts</code></li>
+        <li>After part created: stock-in or adjust to set initial stock</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      <strong>Multiplier example:</strong> Toilet Wax Ring 3-Pack UPC, <code>Unit_multiplier_to_base = 3</code>. User scans 2 packages: <code>qty_packages = 2</code>, <code>qty_change = 2 × 3 = 6 EA</code>. Supplies table stores +6. The multiplier is a stock-in conversion only — never persisted to the supply quantity.
+    </div>
+  </div>
+
+  <h3>Quick Reference</h3>
+  <table>
+    <thead><tr><th>Action</th><th>Endpoint</th><th>Uses /resolve?</th><th>Multiplier?</th><th>Creates Supply?</th></tr></thead>
+    <tbody>
+      <tr><td>Scan Out (Consume)</td><td class="t-accent">POST /supplies/scan/consume</td><td class="t-danger">No</td><td class="t-danger">No (qty_each)</td><td class="t-danger">No</td></tr>
+      <tr><td>Scan In (Stock-In)</td><td class="t-accent">POST /supplies/scan/stockin</td><td class="t-danger">No</td><td class="t-accent2">Yes (qty × mult)</td><td class="t-accent2">Yes (auto)</td></tr>
+      <tr><td>Manual Adjust</td><td class="t-accent">POST /supplies/adjust</td><td class="t-danger">No</td><td class="t-danger">No</td><td class="t-accent2">Yes (auto)</td></tr>
+      <tr><td>Unknown Barcode</td><td class="t-accent">GET /identifiers/resolve/{code}</td><td class="t-accent2">Yes</td><td class="t-muted">—</td><td class="t-muted">— (leads to POST /parts)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §06 REPORT EXPORT FLOW -->
+<div class="section" id="s6">
+  <div class="section-header"><span class="sn">06</span><h2>Report Export Flow</h2></div>
+  <p>Report generation is handled by Azure Functions, not the ASP.NET API. The PWA sends intent (filters, IDs, format) — never raw row data.</p>
+  <div class="pipeline">
+    <div class="pipeline-step"><span class="pipeline-arrow">1 →</span><span>User clicks export. Button disables and shows loading state. UI remains fully interactive.</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">2 →</span><span>PWA acquires Bearer token (same <code>access_as_user</code> scope already in use)</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">3 →</span><span>PWA POSTs to <code>VITE_FUNCTIONS_BASE_URL/api/reports/{endpoint}</code> with filters and <code>report_meta</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">4 →</span><span>Function validates token, fetches data from DB via Managed Identity, generates document</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">5 →</span><span>Function returns binary file response (<code>Content-Disposition: attachment</code>)</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">6 →</span><span>PWA calls <code>response.blob()</code>, creates object URL, triggers browser download. Button re-enables.</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">7 →</span><span>If non-2xx, PWA reads JSON error body (check <code>response.ok</code> before calling <code>response.blob()</code>)</span></div>
+  </div>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      Cold start latency on Consumption plan (2–4 seconds) is absorbed by the non-blocking UX pattern. Report generation is not on the scan-submit path.
+    </div>
+  </div>
+</div>
+
+<!-- §07 DESIGN PRINCIPLES -->
+<div class="section" id="s7">
+  <div class="section-header"><span class="sn">07</span><h2>Design Principles</h2></div>
+  <div class="principles">
+    <div class="principle-item"><div class="principle-dot"></div><span>API is the single source of truth — Functions and PWA must not bypass it for writes</span></div>
+    <div class="principle-item"><div class="principle-dot"></div><span>Automation logic never blocks user requests — long work runs in Functions or background tasks</span></div>
+    <div class="principle-item"><div class="principle-dot"></div><span>Queue-based notification delivery must not block user-facing API requests — written fire-and-forget</span></div>
+    <div class="principle-item"><div class="principle-dot"></div><span>Identity comes from Entra ID, not local tables</span></div>
+    <div class="principle-item"><div class="principle-dot"></div><span>Barcode/identifier uniqueness prevents duplicate parts; names are normalized and similarity-checked</span></div>
+    <div class="principle-item"><div class="principle-dot"></div><span>Inventory changes append to a transactions ledger; negative inventory is blocked by the API</span></div>
+    <div class="principle-item"><div class="principle-dot"></div><span>Supplies always store EA-level quantities; <code>Unit_multiplier_to_base</code> is applied at stock-in scan time only — never persisted</span></div>
+    <div class="principle-item"><div class="principle-dot"></div><span>SignalR events are invalidation signals only — the PWA always fetches authoritative state from the API</span></div>
+    <div class="principle-item"><div class="principle-dot"></div><span>Functions are read-only DB consumers — all writes go through the API</span></div>
+    <div class="principle-item"><div class="principle-dot"></div><span>The PWA never writes to Azure Storage Queue — queue messages are produced by the API only</span></div>
+    <div class="principle-item"><div class="principle-dot"></div><span>Secrets never in source control — Key Vault for all sensitive configuration across all three repos</span></div>
+    <div class="principle-item"><div class="principle-dot"></div><span>Equipment is a separate domain from consumable inventory — location vs. quantity semantics</span></div>
+    <div class="principle-item"><div class="principle-dot"></div><span>Quote request tracking is orthogonal to the order status lifecycle</span></div>
+  </div>
+</div>
+
+<!-- §08 EQUIPMENT TRACKING -->
+<div class="section" id="s8">
+  <div class="section-header"><span class="sn">08</span><h2>Equipment Tracking</h2></div>
+  <p>Equipment items (tools, large assets) are a separate domain from consumable inventory. They are not modeled as an extension of Parts/Supplies — the domains have fundamentally different semantics (location vs. quantity).</p>
+
+  <h3>Architecture Pattern</h3>
+  <table>
+    <thead><tr><th>Table</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">EquipmentStatuses</td><td>Current truth — one row per item, upserted on every movement</td></tr>
+      <tr><td class="t-accent">EquipmentTransactions</td><td>Immutable ledger — append-only, full movement history</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Barcode Namespace</h3>
+  <p>Equipment barcodes start at sequence <code>8000001</code>. Scan routing is determined by the scanned value:</p>
+  <ul>
+    <li>Value ≥ <code>8000000</code> (7-digit numeric) → resolves against <code>EquipmentIdentifiers</code></li>
+    <li>Value &lt; <code>8000000</code> → resolves against <code>Identifiers</code> (consumable parts)</li>
+  </ul>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      The ATC_MASTER sequence is hard-capped at <code>7999999</code> (API-enforced) to prevent barcode namespace overlap with equipment identifiers.
+    </div>
+  </div>
+
+  <h3>Implementation Decisions</h3>
+  <table>
+    <thead><tr><th>Decision</th><th>Implementation</th></tr></thead>
+    <tbody>
+      <tr><td>Cross-property scope on <code>GET /equipment</code></td><td>Triggered by omitting <code>warehouse_id</code> entirely — passing <code>"all"</code> returns 400</td></tr>
+      <tr><td><code>POST /equipment/scan/resolve</code> response</td><td>Returns wrapped <code>{ equipment, available_actions[] }</code> — not a flat DTO</td></tr>
+      <tr><td>Check In destination</td><td>Picker defaults to <code>home_warehouse_id</code> — allows check-in to any warehouse</td></tr>
+      <tr><td>Single scan page</td><td><code>ScanToolPage</code> resolves tool first, presents valid actions based on current status</td></tr>
+      <tr><td>Mobile action modal</td><td>In-place phase machine via bottom sheet — no separate page navigation</td></tr>
+      <tr><td>Scope toggle</td><td><code>allPropertiesMode</code> from global warehouse context pill — consistent with all other pages</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §09 INVOICE SCAN -->
+<div class="section" id="s9">
+  <div class="section-header"><span class="sn">09</span><h2>Invoice Scan</h2></div>
+  <p>Allows users to photograph or upload a vendor invoice. The system extracts line items via Azure Document Intelligence, matches them to known parts via a learned alias table and GPT-4.1-mini semantic matching, presents a verification modal, then writes stock-in transactions through the existing API.</p>
+
+  <h3>Processing Pipeline</h3>
+  <div class="pipeline">
+    <div class="pipeline-step"><span class="pipeline-arrow">1 →</span><span>Upload (<code>multipart/form-data</code>) → <code>AnalyzeInvoiceFunction</code> — JWT validated, <code>propCode_wh</code> role required</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">2 →</span><span>ADI <code>prebuilt-invoice</code> model → extracts vendor name, line items, quantities</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">3 →</span><span>VendorAliases lookup → instant resolution if alias exists (no AI call)</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">4 →</span><span>GPT-4.1-mini matching for unresolved items → confidence-scored suggestions</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">5 →</span><span>PWA <code>InvoiceVerificationModal</code> — user reviews all rows, edits matches</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">6 →</span><span>On Confirm: <code>POST /supplies/scan/stockin</code> (batch) → all writes through API</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">7 →</span><span><code>POST /vendor-aliases</code> → persist confirmed mappings (alias learning loop)</span></div>
+  </div>
+
+  <div class="callout c-ok">
+    <span class="icon">✅</span>
+    <div class="body">
+      <strong>Human verification is mandatory.</strong> The Function never writes to the database — all writes occur via the API after user confirmation. There is no auto-commit path.
+    </div>
+  </div>
+
+  <h3>Azure Resources</h3>
+  <table>
+    <thead><tr><th>Resource</th><th>SKU</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">Azure Document Intelligence</td><td>S0, East US</td><td><code>prebuilt-invoice</code> model — extracts vendor name, line items, quantities</td></tr>
+      <tr><td class="t-accent">Azure AI Foundry — GPT-4.1-mini</td><td>Global Standard</td><td>Semantic part matching for unresolved line items</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Key Vault Secrets</h3>
+  <table>
+    <thead><tr><th>Secret</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">AzureDocIntelligence--Endpoint</td><td class="t-muted">ADI resource endpoint</td></tr>
+      <tr><td class="t-accent">AzureDocIntelligence--ApiKey</td><td class="t-muted">ADI Key 1</td></tr>
+      <tr><td class="t-accent">AzureOpenAI--Endpoint</td><td class="t-muted">AI Foundry resource endpoint</td></tr>
+      <tr><td class="t-accent">AzureOpenAI--ApiKey</td><td class="t-muted">AI Foundry Key 1</td></tr>
+      <tr><td class="t-accent">AzureOpenAI--DeploymentName</td><td class="t-muted">Model deployment name (e.g. <code>gpt-4.1-mini</code>)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §10 QUOTE REQUEST GRAPH OBO -->
+<div class="section" id="s10">
+  <div class="section-header"><span class="sn">10</span><h2>Quote Request — Graph OBO Send (F-10)</h2></div>
+  <p>Allows users to send structured vendor quote request emails directly from the application. The API sends the email on behalf of the logged-in user via Microsoft Graph using the On-Behalf-Of (OBO) flow.</p>
+
+  <h3>Auth Flow</h3>
+  <div class="pipeline">
+    <div class="pipeline-step"><span class="pipeline-arrow">1 →</span><span>PWA acquires API-scoped Bearer token (<code>access_as_user → ATC_InventoryAPI</code>)</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">2 →</span><span>PWA calls <code>POST /quote-requests/{token}/send</code> with Bearer token + <code>{ to_email, cc_emails }</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">3 →</span><span>API validates inbound token</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">4 →</span><span>API performs OBO exchange using <code>ATC_InventoryAPI</code> client certificate from Key Vault → Graph-scoped token (<code>Mail.Send</code>)</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">5 →</span><span>API calls Graph <code>sendMail</code> as the user</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">6 →</span><span>On success: sets <code>Graph_sent_dt</code>, writes <code>QuoteRequestEmailEvent</code>, fires <code>orders.updated</code> SignalR event</span></div>
+  </div>
+
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>Critical:</strong> The PWA Bearer token audience is <code>api://ATC_InventoryAPI/access_as_user</code>. This token cannot be passed directly to Graph — the API must perform the OBO exchange. Do not skip this step.
+    </div>
+  </div>
+
+  <h3>Email Addressing</h3>
+  <table>
+    <thead><tr><th>Field</th><th>Value</th></tr></thead>
+    <tbody>
+      <tr><td class="t-muted">From</td><td>Logged-in user's M365 mailbox</td></tr>
+      <tr><td class="t-muted">To</td><td>Vendor email (editable by user in compose panel)</td></tr>
+      <tr><td class="t-muted">CC</td><td>User's own email + any additional CC the user adds</td></tr>
+      <tr><td class="t-muted">Tracking mailbox</td><td><code>inventory-quotes@atcdevelopment.com</code> — always injected by API, never exposed to user</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Infrastructure</h3>
+  <table>
+    <thead><tr><th>Item</th><th>Value</th></tr></thead>
+    <tbody>
+      <tr><td class="t-muted">Key Vault certificate</td><td class="t-accent">ATC-InventoryAPI-GraphOBO (self-signed, 24 months)</td></tr>
+      <tr><td class="t-muted">Mail.Send permission</td><td>Delegated, added to <code>ATC_InventoryAPI</code> with admin consent</td></tr>
+      <tr><td class="t-muted">Key Vault secrets</td><td><code>GraphOBO-TenantId</code>, <code>GraphOBO-ClientId</code></td></tr>
+      <tr><td class="t-muted">TestMode config key</td><td><code>QuoteTracking__TestMode</code> — redirects sends to IT.Department for testing</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      <strong>Retired components:</strong> The <code>new_quote_email_detected</code> Power Automate flow and <code>QuoteEmailDetectedFunction</code> have been retired. The <code>email-detected</code> API endpoint returns <code>410 Gone</code> — retained to prevent errors if PA is accidentally re-enabled.
+    </div>
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<!-- ── FOOTER ── -->
+<div class="doc-footer">
+  <span>ATC Inventory Application</span>
+  <span>Application Architecture · May 2026</span>
+  <span>All Repos · Internal Use Only</span>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

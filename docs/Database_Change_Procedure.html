@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATC Inventory — Database Change Procedure</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2230;
+    --border: #2a3444;
+    --accent: #4fa3e0;
+    --accent2: #3ddc97;
+    --warn: #e6a817;
+    --danger: #e05c5c;
+    --text: #cdd9e5;
+    --muted: #768a9e;
+    --code: #a8d1f0;
+    --white: #f0f6fc;
+  }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.65;
+  }
+
+  .page {
+    max-width: 1060px;
+    margin: 0 auto;
+    padding: 0 0 80px;
+  }
+
+  /* ── Header ── */
+  .doc-header {
+    padding: 52px 56px 44px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .doc-header::before {
+    content: "";
+    position: absolute;
+    top: 0; right: 0;
+    width: 420px; height: 100%;
+    background: radial-gradient(ellipse at 80% 40%, rgba(79,163,224,0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .doc-header .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .doc-header h1 {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--white);
+    line-height: 1.1;
+    margin-bottom: 8px;
+  }
+  .doc-header .subtitle {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 32px;
+  }
+  .meta-strip {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    width: fit-content;
+  }
+  .meta-cell {
+    padding: 10px 20px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .meta-cell:last-child { border-right: none; }
+  .meta-cell .lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .meta-cell .val {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--white);
+  }
+  .meta-cell .val.green { color: var(--accent2); }
+  .meta-cell .val.warn  { color: var(--warn); }
+
+  /* ── TOC ── */
+  .toc {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 20px 56px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .toc a {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    transition: all 0.15s;
+  }
+  .toc a:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ── Content ── */
+  .content { padding: 0 56px; }
+
+  .section {
+    padding: 44px 0 0;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 44px;
+  }
+  .section:last-child { border-bottom: none; }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .sn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 2px;
+    background: rgba(79,163,224,0.08);
+    border: 1px solid rgba(79,163,224,0.2);
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .section-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--white);
+  }
+
+  p {
+    color: var(--text);
+    margin-bottom: 14px;
+    max-width: 800px;
+  }
+
+  /* ── Steps ── */
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 24px 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .step {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    border-bottom: 1px solid var(--border);
+  }
+  .step:last-child { border-bottom: none; }
+  .step-num {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+  }
+  .step-body {
+    padding: 18px 22px;
+    background: var(--surface2);
+  }
+  .step-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 6px;
+  }
+  .step-desc {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 12px;
+    max-width: 680px;
+  }
+  .step-desc:last-child { margin-bottom: 0; }
+
+  /* ── Code blocks ── */
+  pre {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--code);
+    overflow-x: auto;
+    margin: 10px 0 4px;
+    line-height: 1.7;
+  }
+  .pre-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 12px;
+    margin-bottom: 4px;
+  }
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--code);
+    background: rgba(79,163,224,0.08);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+
+  /* ── Callouts ── */
+  .callout {
+    display: flex;
+    gap: 14px;
+    padding: 14px 18px;
+    border-radius: 8px;
+    margin: 16px 0;
+    max-width: 800px;
+  }
+  .callout.c-info  { background: rgba(79,163,224,0.07);  border: 1px solid rgba(79,163,224,0.2);  }
+  .callout.c-warn  { background: rgba(230,168,23,0.07);  border: 1px solid rgba(230,168,23,0.2);  }
+  .callout.c-ok    { background: rgba(61,220,151,0.07);  border: 1px solid rgba(61,220,151,0.2);  }
+  .callout .icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .callout .body { font-size: 13px; color: var(--text); line-height: 1.6; }
+  .callout .body strong { color: var(--white); }
+
+  /* ── Type table ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+  thead tr {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    padding: 10px 16px;
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+  }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface); }
+  .t-sqlserver { color: var(--accent); }
+  .t-sqlite    { color: var(--accent2); }
+
+  /* ── Footer ── */
+  .doc-footer {
+    margin-top: 60px;
+    padding: 20px 56px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+  <!-- ── NAV BAR ── -->
+<div style="display:flex;align-items:center;gap:12px;padding:12px 56px;background:#161b22;border-bottom:1px solid #2a3444;position:sticky;top:0;z-index:100;">
+  <a href="../index.html" style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:#768a9e;text-decoration:none;letter-spacing:1px;">← Home</a>
+  <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#2a3444;">/</span>
+  <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#cdd9e5;">Database Change Procedure</span>
+</div>
+<div class="page">
+
+<!-- ── HEADER ── -->
+<div class="doc-header">
+  <div class="eyebrow">ATC Inventory Application</div>
+  <h1>Database Change Procedure</h1>
+  <p class="subtitle">How to make schema changes that apply correctly to both local SQLite and Azure SQL</p>
+  <div class="meta-strip">
+    <div class="meta-cell">
+      <span class="lbl">Status</span>
+      <span class="val green">Active</span>
+    </div>
+    <div class="meta-cell">
+      <span class="lbl">Created</span>
+      <span class="val">April 7, 2026</span>
+    </div>
+    <div class="meta-cell">
+      <span class="lbl">Scope</span>
+      <span class="val">API Repo</span>
+    </div>
+    <div class="meta-cell">
+      <span class="lbl">Applies To</span>
+      <span class="val">All Schema Changes</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOC ── -->
+<div class="toc">
+  <a href="#s1">01 Overview</a>
+  <a href="#s2">02 Why Two Steps</a>
+  <a href="#s3">03 Procedure</a>
+  <a href="#s4">04 Type Reference</a>
+  <a href="#s5">05 How Production Updates</a>
+</div>
+
+<div class="content">
+
+<!-- §01 OVERVIEW -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <span class="sn">01</span>
+    <h2>Overview</h2>
+  </div>
+  <p>The API uses two different database providers depending on environment:</p>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      <strong>Local Development</strong> → SQLite (<code>dev_data/inventory_dev.db</code>)<br>
+      <strong>Azure (Production)</strong> → Azure SQL (<code>atc-inventory-db-dev</code> via Key Vault connection string)
+    </div>
+  </div>
+  <p>Because SQLite and SQL Server use different type systems, a single EF Core migration generated for one provider will fail on the other. The procedure below ensures both environments stay in sync without losing local test data.</p>
+</div>
+
+<!-- §02 WHY TWO STEPS -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <span class="sn">02</span>
+    <h2>Why Two Steps Are Required</h2>
+  </div>
+  <p>EF Core migrations are generated against a specific database provider. When you run <code>dotnet ef migrations add</code>, the tooling defaults to the <strong>Development</strong> environment which loads <code>appsettings.Development.json</code> and resolves to SQLite. However, the model snapshot in source control is SQL Server — causing a type mismatch that prevents the migration from applying to either database cleanly.</p>
+  <p>The solution is to always generate migrations explicitly against the <strong>Production</strong> provider (SQL Server), then manually apply the equivalent SQLite changes to your local database.</p>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>Never run <code>dotnet ef migrations add</code> without the <code>ASPNETCORE_ENVIRONMENT=Production</code> prefix.</strong> Doing so will generate a SQLite migration that corrupts the snapshot and causes cascading errors.
+    </div>
+  </div>
+</div>
+
+<!-- §03 PROCEDURE -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <span class="sn">03</span>
+    <h2>Procedure</h2>
+  </div>
+
+  <p>Follow these steps every time you make a change that affects the database schema (new columns, new tables, modified constraints, etc.).</p>
+
+  <div class="steps">
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Make your entity changes in code</div>
+        <div class="step-desc">Add or modify properties on your entity classes in <code>Entities/</code>. Update any relevant DTOs.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Generate the Production migration</div>
+        <div class="step-desc">Use the <code>ASPNETCORE_ENVIRONMENT=Production</code> prefix to force SQL Server type generation. This creates the migration file but does <strong>not</strong> touch any database.</div>
+        <div class="pre-label">bash</div>
+        <pre>ASPNETCORE_ENVIRONMENT=Production dotnet ef migrations add &lt;MigrationName&gt;</pre>
+        <div class="step-desc">Verify the generated <code>Up()</code> method contains only the expected changes in SQL Server types (<code>nvarchar</code>, <code>int</code>, <code>datetime2</code>). If it contains <code>TEXT</code> or <code>INTEGER</code> types, something went wrong — run <code>dotnet ef migrations remove</code> and investigate.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Apply equivalent changes to local SQLite manually</div>
+        <div class="step-desc">Open the local SQLite database and apply the equivalent schema changes using SQLite-compatible types (see the Type Reference in §04). Then insert a record into <code>__EFMigrationsHistory</code> so EF knows this migration has been applied.</div>
+        <div class="pre-label">bash — open sqlite</div>
+        <pre>sqlite3 dev_data/inventory_dev.db</pre>
+        <div class="pre-label">sql — apply changes + record migration</div>
+        <pre>-- Apply your schema changes using SQLite types
+ALTER TABLE "TableName" ADD "ColumnName" TEXT NULL;
+ALTER TABLE "TableName" ADD "OtherId" INTEGER NULL;
+
+-- Mark the migration as applied (use the exact timestamp prefix from the migration filename)
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260407140513_YourMigrationName', '10.0.5');
+
+.quit</pre>
+        <div class="step-desc">The <code>MigrationId</code> value must exactly match the migration filename without the <code>.cs</code> extension.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Test locally</div>
+        <div class="step-desc">Run <code>dotnet run</code>. The app should start cleanly. EF will see both migrations as already applied in <code>__EFMigrationsHistory</code> and skip them. Your existing test data is preserved.</div>
+        <div class="pre-label">bash</div>
+        <pre>dotnet run</pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-title">Push to GitHub</div>
+        <div class="step-desc">Commit and push your changes including the new migration file. The CI/CD pipeline builds, tests, and deploys the app. On restart, <code>db.Database.Migrate()</code> runs in the Production startup block and applies the migration to Azure SQL automatically.</div>
+        <div class="pre-label">bash</div>
+        <pre>git add .
+git commit -m "feat: description of your schema change"
+git push</pre>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="callout c-ok">
+    <span class="icon">✅</span>
+    <div class="body">
+      <strong>No schema changes?</strong> If your push only affects endpoints, DTOs, frontend logic, or other non-schema code, skip this entire procedure and push normally. No migration needed.
+    </div>
+  </div>
+</div>
+
+<!-- §04 TYPE REFERENCE -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <span class="sn">04</span>
+    <h2>Type Translation Reference</h2>
+  </div>
+  <p>When writing the manual SQLite <code>ALTER TABLE</code> statements in Step 3, use this table to translate SQL Server types from the generated migration to their SQLite equivalents.</p>
+  <table>
+    <thead>
+      <tr>
+        <th>SQL Server Type</th>
+        <th>SQLite Equivalent</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="t-sqlserver">int</td>
+        <td class="t-sqlite">INTEGER</td>
+        <td style="color:var(--muted)">All integer sizes map to INTEGER in SQLite</td>
+      </tr>
+      <tr>
+        <td class="t-sqlserver">nvarchar(max)</td>
+        <td class="t-sqlite">TEXT</td>
+        <td style="color:var(--muted)">Any nvarchar length maps to TEXT</td>
+      </tr>
+      <tr>
+        <td class="t-sqlserver">nvarchar(450)</td>
+        <td class="t-sqlite">TEXT</td>
+        <td style="color:var(--muted)">Length constraints are not enforced in SQLite</td>
+      </tr>
+      <tr>
+        <td class="t-sqlserver">datetime2</td>
+        <td class="t-sqlite">TEXT</td>
+        <td style="color:var(--muted)">SQLite stores datetimes as ISO 8601 strings</td>
+      </tr>
+      <tr>
+        <td class="t-sqlserver">bit</td>
+        <td class="t-sqlite">INTEGER</td>
+        <td style="color:var(--muted)">0 = false, 1 = true</td>
+      </tr>
+      <tr>
+        <td class="t-sqlserver">float</td>
+        <td class="t-sqlite">REAL</td>
+        <td style="color:var(--muted)">Floating point numbers</td>
+      </tr>
+      <tr>
+        <td class="t-sqlserver">decimal(p,s)</td>
+        <td class="t-sqlite">REAL</td>
+        <td style="color:var(--muted)">SQLite does not enforce precision/scale</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §05 HOW PRODUCTION UPDATES -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <span class="sn">05</span>
+    <h2>How Production Updates</h2>
+  </div>
+  <p>The Azure SQL database is updated automatically on every deployment via <code>db.Database.Migrate()</code> in <code>Program.cs</code>:</p>
+  <pre>if (app.Environment.IsProduction())
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService&lt;InventoryDb&gt;();
+    db.Database.Migrate();
+}</pre>
+  <p>When the App Service restarts after a deployment, this block runs and applies any pending migrations against Azure SQL. EF checks the <code>__EFMigrationsHistory</code> table and only runs migrations that haven't been applied yet — making it safe to deploy repeatedly.</p>
+
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>Migration failure = app startup failure.</strong> If a migration throws an error against Azure SQL, the app will fail to start. Always verify your migration's <code>Up()</code> method is correct before pushing. In the event of a failed deployment, roll back the commit — the previous schema in Azure SQL is unaffected since the failed migration never completed.
+    </div>
+  </div>
+
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      <strong>Connection string location:</strong> The Azure SQL connection string is stored in Azure Key Vault as <code>ConnectionStrings--DefaultConnection</code> and is injected into the App Service at runtime. It is never stored in source control.
+    </div>
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<!-- ── FOOTER ── -->
+<div class="doc-footer">
+  <span>ATC Inventory Application</span>
+  <span>Database Change Procedure · April 7, 2026</span>
+  <span>API Repo · atc-inventory-api</span>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

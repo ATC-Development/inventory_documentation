@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATC Inventory — PWA API Usage</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2230;
+    --border: #2a3444;
+    --accent: #4fa3e0;
+    --accent2: #3ddc97;
+    --warn: #e6a817;
+    --danger: #e05c5c;
+    --text: #cdd9e5;
+    --muted: #768a9e;
+    --code: #a8d1f0;
+    --white: #f0f6fc;
+  }
+
+  body { font-family: 'Syne', sans-serif; font-size: 14px; color: var(--text); background: var(--bg); line-height: 1.65; }
+
+  /* ── Nav Bar ── */
+  .nav-bar { display: flex; align-items: center; gap: 12px; padding: 12px 56px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+  .nav-bar a { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: var(--muted); text-decoration: none; letter-spacing: 1px; transition: color 0.15s; }
+  .nav-bar a:hover { color: var(--accent); }
+  .nav-sep { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--border); }
+  .nav-current { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text); }
+
+  .page { max-width: 1100px; margin: 0 auto; padding: 0 0 80px; }
+
+  /* ── Header ── */
+  .doc-header { padding: 52px 56px 44px; border-bottom: 1px solid var(--border); position: relative; overflow: hidden; }
+  .doc-header::before { content: ""; position: absolute; top: 0; right: 0; width: 420px; height: 100%; background: radial-gradient(ellipse at 80% 40%, rgba(79,163,224,0.07) 0%, transparent 70%); pointer-events: none; }
+  .doc-header .eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 14px; }
+  .doc-header h1 { font-size: 36px; font-weight: 800; color: var(--white); line-height: 1.1; margin-bottom: 8px; }
+  .doc-header .subtitle { font-size: 14px; color: var(--muted); margin-bottom: 32px; max-width: 700px; }
+  .meta-strip { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; width: fit-content; }
+  .meta-cell { padding: 10px 20px; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 3px; }
+  .meta-cell:last-child { border-right: none; }
+  .meta-cell .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+  .meta-cell .val { font-size: 13px; font-weight: 600; color: var(--white); }
+  .meta-cell .val.green { color: var(--accent2); }
+
+  /* ── TOC ── */
+  .toc { display: flex; gap: 6px; flex-wrap: wrap; padding: 20px 56px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .toc a { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); text-decoration: none; padding: 5px 12px; border: 1px solid var(--border); border-radius: 20px; transition: all 0.15s; }
+  .toc a:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ── Content ── */
+  .content { padding: 0 56px; }
+  .section { padding: 44px 0; border-bottom: 1px solid var(--border); }
+  .section:last-child { border-bottom: none; }
+  .section-header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px; }
+  .sn { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 2px; background: rgba(79,163,224,0.08); border: 1px solid rgba(79,163,224,0.2); padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
+  .section-header h2 { font-size: 20px; font-weight: 700; color: var(--white); }
+
+  h3 { font-size: 15px; font-weight: 700; color: var(--white); margin: 28px 0 12px; }
+
+  p { color: var(--text); margin-bottom: 14px; max-width: 860px; }
+
+  ul { margin: 10px 0 16px 20px; max-width: 860px; }
+  ul li { color: var(--text); font-size: 13px; margin-bottom: 6px; line-height: 1.6; }
+  ul li strong { color: var(--white); }
+
+  /* ── Source of truth list ── */
+  .sot-list { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; max-width: 860px; }
+  .sot-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--text); line-height: 1.5; }
+  .sot-num { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--accent); flex-shrink: 0; background: rgba(79,163,224,0.1); padding: 1px 6px; border-radius: 3px; }
+
+  /* ── Auth flow ── */
+  .auth-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 18px 22px; margin: 16px 0; max-width: 860px; font-size: 13px; color: var(--text); line-height: 1.7; }
+  .auth-box code { font-size: 11px; }
+
+  /* ── Wide tables ── */
+  .table-wrap { overflow-x: auto; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead tr { background: var(--surface); border-bottom: 1px solid var(--border); }
+  th { padding: 10px 12px; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); font-weight: 600; white-space: nowrap; }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 11px; vertical-align: top; line-height: 1.5; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface); }
+  .t-accent { color: var(--accent); }
+  .t-accent2 { color: var(--accent2); }
+  .t-warn { color: var(--warn); }
+  .t-muted { color: var(--muted); }
+  .t-danger { color: var(--danger); }
+  .t-white { color: var(--white); font-weight: 600; }
+
+  /* ── Checklist ── */
+  .checklist { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; max-width: 860px; counter-reset: check-counter; }
+  .check-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--text); line-height: 1.5; counter-increment: check-counter; }
+  .check-num { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--accent2); flex-shrink: 0; min-width: 20px; }
+  .check-item code { font-size: 11px; }
+
+  /* ── Callouts ── */
+  .callout { display: flex; gap: 14px; padding: 14px 18px; border-radius: 8px; margin: 16px 0; max-width: 860px; }
+  .callout.c-info  { background: rgba(79,163,224,0.07);  border: 1px solid rgba(79,163,224,0.2);  }
+  .callout.c-warn  { background: rgba(230,168,23,0.07);  border: 1px solid rgba(230,168,23,0.2);  }
+  .callout .icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .callout .body { font-size: 13px; color: var(--text); line-height: 1.6; }
+  .callout .body strong { color: var(--white); }
+
+  code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--code); background: rgba(79,163,224,0.08); padding: 1px 6px; border-radius: 3px; }
+
+  /* ── Footer ── */
+  .doc-footer { margin-top: 60px; padding: 20px 56px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 0.5px; }
+</style>
+</head>
+<body>
+
+<!-- ── NAV BAR ── -->
+<div class="nav-bar">
+  <a href="../index.html">← Home</a>
+  <span class="nav-sep">/</span>
+  <span class="nav-current">PWA API Usage</span>
+</div>
+
+<div class="page">
+
+<!-- ── HEADER ── -->
+<div class="doc-header">
+  <div class="eyebrow">ATC Inventory Application — inventory_pwa</div>
+  <h1>PWA API Usage</h1>
+  <p class="subtitle">Route-to-data matrix, API and Functions usage by feature, query key ownership, SignalR events, role/UI visibility, and error handling expectations.</p>
+  <div class="meta-strip">
+    <div class="meta-cell"><span class="lbl">Repo</span><span class="val">inventory_pwa</span></div>
+    <div class="meta-cell"><span class="lbl">Status</span><span class="val">Draft</span></div>
+    <div class="meta-cell"><span class="lbl">Related</span><span class="val">PWA_DEVELOPER_GUIDE · API_CONTRACT · API_DEVELOPER_GUIDE</span></div>
+    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">May 2026</span></div>
+  </div>
+</div>
+
+<!-- ── TOC ── -->
+<div class="toc">
+  <a href="#s1">01 Purpose</a>
+  <a href="#s2">02 Source-of-Truth Rules</a>
+  <a href="#s3">03 Authentication Rules</a>
+  <a href="#s4">04 Route-to-Data Matrix</a>
+  <a href="#s5">05 API Usage Matrix</a>
+  <a href="#s6">06 Functions Usage Matrix</a>
+  <a href="#s7">07 Query Key &amp; Invalidation</a>
+  <a href="#s8">08 SignalR Event Matrix</a>
+  <a href="#s9">09 Role &amp; UI Visibility</a>
+  <a href="#s10">10 Error Handling</a>
+  <a href="#s11">11 Maintenance Checklist</a>
+</div>
+
+<div class="content">
+
+<!-- §01 PURPOSE -->
+<div class="section" id="s1">
+  <div class="section-header"><span class="sn">01</span><h2>Purpose</h2></div>
+  <p>This document records how the PWA consumes backend APIs, Functions endpoints, query keys, SignalR events, and role-gated UI behavior. It answers PWA-maintenance questions such as:</p>
+  <ul>
+    <li>Which PWA feature calls which backend endpoint?</li>
+    <li>Which query keys are owned by each feature?</li>
+    <li>Which SignalR event keeps a page fresh?</li>
+    <li>Which role gate controls a visible action?</li>
+    <li>What frontend error behavior should users see for common API failures?</li>
+  </ul>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body"><strong>This is not an endpoint contract.</strong> It does not replace <code>API_CONTRACT.html</code>. Keep implementation architecture, provider structure, MSAL bootstrap behavior, page patterns, testing strategy, and deployment instructions in <code>PWA_DEVELOPER_GUIDE.html</code>.</div>
+  </div>
+</div>
+
+<!-- §02 SOURCE OF TRUTH RULES -->
+<div class="section" id="s2">
+  <div class="section-header"><span class="sn">02</span><h2>Source-of-Truth Rules</h2></div>
+  <div class="sot-list">
+    <div class="sot-item"><span class="sot-num">1</span><span><code>API_CONTRACT.html</code> owns endpoint paths, request shapes, response shapes, status codes, and API-side authorization labels</span></div>
+    <div class="sot-item"><span class="sot-num">2</span><span>Current <code>inventory_pwa</code> source owns which endpoints the PWA actually calls</span></div>
+    <div class="sot-item"><span class="sot-num">3</span><span><code>PWA_API_USAGE.html</code> (this document) owns route-to-data, feature-to-endpoint, query invalidation, SignalR event, and role/UI matrices</span></div>
+    <div class="sot-item"><span class="sot-num">4</span><span><code>PWA_DEVELOPER_GUIDE.html</code> owns frontend architecture and maintenance patterns</span></div>
+    <div class="sot-item"><span class="sot-num">5</span><span>When this file conflicts with current PWA source, update this file. When it conflicts with <code>API_CONTRACT.html</code> about endpoint shape, reference the API contract instead of duplicating it</span></div>
+  </div>
+</div>
+
+<!-- §03 AUTHENTICATION RULES -->
+<div class="section" id="s3">
+  <div class="section-header"><span class="sn">03</span><h2>Authentication Rules</h2></div>
+  <p>All protected API calls must use an access token acquired through MSAL for <code>VITE_API_SCOPE</code>.</p>
+  <div class="auth-box">
+    Standard PWA API calls use <code>apiFetch</code>, which:<br><br>
+    — reads <code>VITE_API_BASE_URL</code><br>
+    — gets the active MSAL account or sets the first available account active<br>
+    — calls <code>acquireTokenSilent</code><br>
+    — attaches <code>Authorization: Bearer &lt;accessToken&gt;</code><br>
+    — sets <code>Content-Type: application/json</code> by default<br>
+    — parses JSON responses where present<br>
+    — throws <code>ApiError</code> for non-2xx responses
+  </div>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>Frontend role checks are UI-only.</strong> The API remains the final authorization authority. Every mutation path must handle <code>401</code> and <code>403</code> even when the UI hides unauthorized actions.<br><br>
+      Functions calls may use <code>VITE_FUNCTIONS_BASE_URL</code> and a separate authenticated helper, especially when payloads are not JSON (e.g. invoice file upload).
+    </div>
+  </div>
+</div>
+
+<!-- §04 ROUTE-TO-DATA MATRIX -->
+<div class="section" id="s4">
+  <div class="section-header"><span class="sn">04</span><h2>Route-to-Data Dependency Matrix</h2></div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>PWA Route / Area</th>
+          <th>Main Backend Dependencies</th>
+          <th>Query Keys / Cache Areas</th>
+          <th>Write Behavior</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="t-accent">/</td><td>none directly</td><td>none</td><td>Redirects based on mobile/desktop mode</td></tr>
+        <tr><td class="t-accent">/login</td><td>Entra/MSAL</td><td>account/auth state</td><td>Login/logout only</td></tr>
+        <tr><td class="t-accent">/about</td><td>/version.json static asset</td><td>version state</td><td>No write</td></tr>
+        <tr><td class="t-accent">/inventory</td><td>/supplies, /warehouses, /categories, /parts detail</td><td>supplies, warehouses, categories, parts</td><td>Row/detail actions may write through supplies/parts flows</td></tr>
+        <tr><td class="t-accent">/scan</td><td>/supplies/scan/consume, /supplies/scan/stockin, /supplies/lookup, /identifiers/resolve/{code}, /identifiers/lookup/{lookupId}</td><td>supplies, transactions, lookup/enrichment state</td><td>Scan in/out writes inventory through API</td></tr>
+        <tr><td class="t-accent">/parts</td><td>/parts, /parts/{id}, /identifiers, /vendorparts, /supplies part detail</td><td>parts, identifiers, vendorparts, supplies part-detail</td><td>Create/edit/delete parts and identifiers where role permits</td></tr>
+        <tr><td class="t-accent">/transactions</td><td>/transactions, /warehouses, /categories, /parts filters</td><td>transactions, reference data</td><td>Read-only</td></tr>
+        <tr><td class="t-accent">/orders</td><td>/orders, /orders/{id}/status, /transactions, /supplies/scan/stockin</td><td>orders, transactions, supplies</td><td>Mark ordered, received, cancelled, stock-in receive</td></tr>
+        <tr><td class="t-accent">/order-history</td><td>/orders with status/date filters</td><td>orders</td><td>Read-only/history-focused</td></tr>
+        <tr><td class="t-accent">/reports</td><td>/transactions, /supplies/below-minimum, /supplies/most-used, Functions export endpoints</td><td>report-specific keys, transactions, supplies, orders</td><td>Export/report generation through Functions</td></tr>
+        <tr><td class="t-accent">/equipment</td><td>/equipment, /equipment/{id}, /equipment/scan/resolve, /equipment/scan/checkout, /equipment/scan/checkin, /equipment/scan/locationupdate, /equipment/transactions</td><td>equipment</td><td>Checkout/checkin/location update where role permits</td></tr>
+        <tr><td class="t-accent">/manage/parts</td><td>/parts, /parts/multiple, /identifiers, /vendorparts, /supplies/multiple</td><td>parts, identifiers, vendorparts, supplies</td><td>DatabaseManager/admin writes</td></tr>
+        <tr><td class="t-accent">/manage/warehouses</td><td>/warehouses, /warehouses/multiples, /property-channels, /managed-properties</td><td>warehouses, property config keys</td><td>DatabaseManager/admin writes</td></tr>
+        <tr><td class="t-accent">/manage/categories</td><td>/categories, /categories/multiples</td><td>categories</td><td>DatabaseManager/admin writes</td></tr>
+        <tr><td class="t-accent">/manage/vendors</td><td>/vendors, /vendorparts where related</td><td>vendors, vendorparts</td><td>DatabaseManager/admin writes</td></tr>
+        <tr><td class="t-accent">/manage/invoice-aliases</td><td>/vendor-aliases</td><td>alias-specific keys</td><td>Create/delete aliases where permitted</td></tr>
+        <tr><td class="t-accent">/help</td><td>public/guide/index.html and guide assets</td><td>browser/static asset cache</td><td>No API write</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- §05 API USAGE MATRIX -->
+<div class="section" id="s5">
+  <div class="section-header"><span class="sn">05</span><h2>API Usage Matrix by Feature</h2></div>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">Endpoint paths below are for navigation and impact analysis only. Verify current paths, payload shapes, status codes, and server-side authorization in <code>API_CONTRACT.html</code>.</div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Feature / Page</th>
+          <th>API Module</th>
+          <th>Endpoints Consumed</th>
+          <th>Auth / Role</th>
+          <th>Invalidation Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="t-white">Categories reference data</td><td class="t-muted">categories</td><td>GET /categories</td><td>authenticated</td><td>staleTime: Infinity; invalidate on mutation or categories.changed</td></tr>
+        <tr><td class="t-white">Manage categories</td><td class="t-muted">categories</td><td>POST /categories, PUT /categories/{id}, DELETE /categories/{id}, POST /categories/multiples</td><td class="t-warn">DatabaseManager</td><td>invalidate categories</td></tr>
+        <tr><td class="t-white">Warehouses reference data</td><td class="t-muted">warehouses</td><td>GET /warehouses, GET /warehouses/{id}/summary</td><td>authenticated</td><td>staleTime: Infinity; invalidate on mutation or warehouses.changed</td></tr>
+        <tr><td class="t-white">Manage warehouses</td><td class="t-muted">warehouses</td><td>POST /warehouses, PUT /warehouses/{id}, DELETE /warehouses/{id}, POST /warehouses/multiples</td><td class="t-warn">DatabaseManager</td><td>invalidate warehouses</td></tr>
+        <tr><td class="t-white">Property channels</td><td class="t-muted">propertyChannels</td><td>GET /property-channels?warehouse_id={id}, POST /property-channels, PUT /property-channels/{id}, DELETE /property-channels/{id}</td><td class="t-warn">DatabaseManager</td><td>affects warehouse/property notification configuration</td></tr>
+        <tr><td class="t-white">Managed properties</td><td class="t-muted">managedProperties</td><td>GET /managed-properties, POST /managed-properties, DELETE /managed-properties/{id}</td><td class="t-warn">DatabaseManager</td><td>affects property configuration and routing</td></tr>
+        <tr><td class="t-white">Vendors reference data</td><td class="t-muted">vendors</td><td>GET /vendors</td><td>authenticated</td><td>staleTime: Infinity; invalidate on mutation or vendors.changed</td></tr>
+        <tr><td class="t-white">Manage vendors</td><td class="t-muted">vendors</td><td>POST /vendors, PUT /vendors/{id}, DELETE /vendors/{id}</td><td class="t-warn">DatabaseManager</td><td>invalidate vendors</td></tr>
+        <tr><td class="t-white">Parts catalog list</td><td class="t-muted">parts</td><td>GET /parts</td><td>authenticated</td><td>invalidate with parts.updated or part mutations</td></tr>
+        <tr><td class="t-white">Part detail</td><td class="t-muted">parts</td><td>GET /parts/{id}</td><td>authenticated</td><td>detail data used by modals and catalog views</td></tr>
+        <tr><td class="t-white">Create/edit/delete part</td><td class="t-muted">parts</td><td>POST /parts, PUT /parts/{id}, DELETE /parts/{id}</td><td class="t-warn">DatabaseManager or API policy</td><td>invalidate parts and related supply/detail keys</td></tr>
+        <tr><td class="t-white">Bulk parts</td><td class="t-muted">parts</td><td>POST /parts/multiple</td><td class="t-warn">DatabaseManager</td><td>invalidate parts</td></tr>
+        <tr><td class="t-white">Identifiers list/detail</td><td class="t-muted">identifiers</td><td>GET /identifiers, GET /identifiers/{id}</td><td>authenticated</td><td>affects barcode resolution and part detail</td></tr>
+        <tr><td class="t-white">Identifier create/bulk/delete/relink</td><td class="t-muted">identifiers</td><td>POST /identifiers/create, POST /identifiers/create/multiple, DELETE /identifiers/{id}, PATCH /identifiers/{id}</td><td class="t-warn">DatabaseManager or API policy</td><td>invalidate identifiers, parts, affected scan/part detail data</td></tr>
+        <tr><td class="t-white">Unknown barcode resolution</td><td class="t-muted">identifiers</td><td>GET /identifiers/resolve/{code}, GET /identifiers/lookup/{lookupId}</td><td>authenticated for resolve</td><td>supplemented by enrichment SignalR events where implemented</td></tr>
+        <tr><td class="t-white">Inventory search</td><td class="t-muted">supplies</td><td>GET /supplies</td><td>authenticated</td><td>invalidated by supply writes and supply.updated</td></tr>
+        <tr><td class="t-white">Below minimum alert/table</td><td class="t-muted">supplies</td><td>GET /supplies/below-minimum, GET /supplies?below_minimum=true</td><td>authenticated</td><td>Two intentional access paths: unpaginated alert view and paginated table view</td></tr>
+        <tr><td class="t-white">Most used</td><td class="t-muted">supplies</td><td>GET /supplies/most-used?days={n}</td><td>authenticated</td><td>invalidate on supply.updated where report depends on changed data</td></tr>
+        <tr><td class="t-white">Add part to warehouse</td><td class="t-muted">supplies</td><td>POST /supplies</td><td>property write or DatabaseManager</td><td>invalidate supplies, parts detail as needed</td></tr>
+        <tr><td class="t-white">Manual supply adjust</td><td class="t-muted">supplies</td><td>POST /supplies/adjust</td><td>property write or DatabaseManager</td><td>invalidate supplies, transactions</td></tr>
+        <tr><td class="t-white">Scan out / consume</td><td class="t-muted">supplies</td><td>POST /supplies/scan/consume</td><td>API-enforced; UI role-aware</td><td>invalidate supplies, transactions, reports</td></tr>
+        <tr><td class="t-white">Scan in / stock-in</td><td class="t-muted">supplies</td><td>POST /supplies/scan/stockin</td><td>API-enforced; UI role-aware</td><td>invalidate supplies, transactions, orders if receive-related</td></tr>
+        <tr><td class="t-white">Barcode lookup fallback</td><td class="t-muted">supplies</td><td>GET /supplies/lookup?code={code}&warehouse_id={id}</td><td>authenticated</td><td>used when preloaded scan cache has not populated yet</td></tr>
+        <tr><td class="t-white">Bulk supply import</td><td class="t-muted">supplies</td><td>POST /supplies/multiple</td><td class="t-warn">DatabaseManager</td><td>invalidate supplies, parts, transactions as applicable</td></tr>
+        <tr><td class="t-white">Transaction ledger</td><td class="t-muted">transactions</td><td>GET /transactions</td><td>authenticated</td><td>invalidated by supply writes and supply.updated</td></tr>
+        <tr><td class="t-white">Usage trend</td><td class="t-muted">transactions</td><td>GET /transactions/trend</td><td>authenticated</td><td>report-specific freshness</td></tr>
+        <tr><td class="t-white">Part trend</td><td class="t-muted">transactions</td><td>GET /transactions/part-trend</td><td>authenticated</td><td>report-specific freshness</td></tr>
+        <tr><td class="t-white">Orders</td><td class="t-muted">orders</td><td>GET /orders, POST /orders, PATCH /orders/{id}/status</td><td>authenticated/read; writes API-enforced</td><td>invalidate orders; receive flows may invalidate supplies and transactions</td></tr>
+        <tr><td class="t-white">Vendor cross-reference</td><td class="t-muted">vendorparts</td><td>GET /vendorparts, POST /vendorparts, DELETE /vendorparts/{id}, POST /vendorparts/multiple</td><td>read authenticated; writes DatabaseManager</td><td>invalidate vendorparts, parts detail</td></tr>
+        <tr><td class="t-white">Invoice aliasing</td><td class="t-muted">invoice / vendor aliases</td><td>GET /vendor-aliases, POST /vendor-aliases, DELETE /vendor-aliases/{id}</td><td>API-defined alias policy</td><td>409 during alias creation may be non-fatal when alias already exists</td></tr>
+        <tr><td class="t-white">Equipment list/detail</td><td class="t-muted">equipment</td><td>GET /equipment, GET /equipment/{id}</td><td>authenticated</td><td>invalidate with equipment.changed or equipment mutations</td></tr>
+        <tr><td class="t-white">Equipment scan resolve</td><td class="t-muted">equipment</td><td>POST /equipment/scan/resolve</td><td>authenticated</td><td>used by tool scan workflow</td></tr>
+        <tr><td class="t-white">Equipment checkout/checkin/location</td><td class="t-muted">equipment</td><td>POST /equipment/scan/checkout, POST /equipment/scan/checkin, POST /equipment/scan/locationupdate</td><td>property write or DatabaseManager</td><td>invalidate equipment; equipment.changed may supplement</td></tr>
+        <tr><td class="t-white">Equipment transactions</td><td class="t-muted">equipment</td><td>GET /equipment/transactions</td><td>authenticated</td><td>read-only equipment ledger</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- §06 FUNCTIONS USAGE MATRIX -->
+<div class="section" id="s6">
+  <div class="section-header"><span class="sn">06</span><h2>Functions Usage Matrix</h2></div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>PWA Feature</th><th>Functions Endpoint</th><th>Payload Style</th><th>Auth</th><th>Notes</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="t-white">Invoice analysis</td><td class="t-accent">POST {VITE_FUNCTIONS_BASE_URL}/api/invoice/analyze</td><td>FormData with file, warehouse_id, optional vendor_id</td><td>Bearer token from MSAL</td><td>Separate from apiFetch — file upload must not force JSON headers</td></tr>
+        <tr><td class="t-white">Report exports</td><td class="t-accent">Functions export endpoints</td><td>JSON payload built by PWA</td><td>Bearer token from MSAL</td><td>PWA builds filters and requested-by identity; Functions generates files</td></tr>
+        <tr><td class="t-white">Transactions export</td><td class="t-accent">export utility payload builder</td><td>JSON</td><td>Bearer token</td><td>Payload builder should include selected filters and requester identity</td></tr>
+        <tr><td class="t-white">Part trend export</td><td class="t-accent">export utility payload builder</td><td>JSON</td><td>Bearer token</td><td>Keep visible report filters and export payload synchronized</td></tr>
+        <tr><td class="t-white">Order report/export</td><td class="t-accent">export utility payload builder</td><td>JSON</td><td>Bearer token</td><td>Order status/date/warehouse filters must match UI</td></tr>
+        <tr><td class="t-white">Label generation</td><td class="t-muted">verify current call path</td><td>verify current call path</td><td>Bearer token</td><td>Do not document as API-only or Functions-only without checking current source</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      Keep <code>VITE_FUNCTIONS_BASE_URL</code> separate from <code>VITE_API_BASE_URL</code>. Do not call Functions for API-owned business rules. Handle Functions failures separately from API failures — response shapes may differ.
+    </div>
+  </div>
+</div>
+
+<!-- §07 QUERY KEY & INVALIDATION MATRIX -->
+<div class="section" id="s7">
+  <div class="section-header"><span class="sn">07</span><h2>Query Key &amp; Invalidation Matrix</h2></div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Domain</th><th>Query Key Namespace</th><th>Stale Time</th><th>Invalidation Source</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="t-white">Warehouses</td><td class="t-accent">warehouses</td><td class="t-accent2">Infinity</td><td>warehouse mutation, warehouses.changed</td></tr>
+        <tr><td class="t-white">Categories</td><td class="t-accent">categories</td><td class="t-accent2">Infinity</td><td>category mutation, categories.changed</td></tr>
+        <tr><td class="t-white">Vendors</td><td class="t-accent">vendors</td><td class="t-accent2">Infinity</td><td>vendor mutation, vendors.changed</td></tr>
+        <tr><td class="t-white">Parts</td><td class="t-accent">parts</td><td>5 minutes (default)</td><td>part mutation, identifier mutation, parts.updated</td></tr>
+        <tr><td class="t-white">Supplies</td><td class="t-accent">supplies</td><td>5 minutes (default)</td><td>scan/adjust mutation, supply.updated</td></tr>
+        <tr><td class="t-white">Transactions</td><td class="t-accent">transactions</td><td>5 minutes (default)</td><td>supply mutation, supply.updated</td></tr>
+        <tr><td class="t-white">Orders</td><td class="t-accent">orders</td><td>5 minutes (default)</td><td>order mutation, receive workflow, orders.updated</td></tr>
+        <tr><td class="t-white">Equipment</td><td class="t-accent">equipment</td><td>5 minutes (default)</td><td>equipment mutation, equipment.changed</td></tr>
+        <tr><td class="t-white">Reports</td><td class="t-muted">report-specific</td><td>5 minutes or manual</td><td>underlying domain mutation or explicit refresh</td></tr>
+        <tr><td class="t-white">Vendor aliases</td><td class="t-muted">alias-specific</td><td>5 minutes (default)</td><td>alias mutation, invoice confirmation</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      Use the <code>queryKeys</code> factory for normal query construction. Prefix invalidation using raw arrays such as <code>['parts']</code>, <code>['orders']</code>, and <code>['equipment']</code> is intentional for namespace-wide invalidation.<br><br>
+      <strong>Note:</strong> <code>['supplies', 'part-detail', partId]</code> is a cross-warehouse part-detail key. Warehouse-scoped <code>supply.updated</code> invalidation does not catch that key unless explicitly targeted.<br><br>
+      Reference data (warehouses, categories, vendors) should not refetch on every window focus — use SignalR and mutation invalidation.
+    </div>
+  </div>
+</div>
+
+<!-- §08 SIGNALR EVENT MATRIX -->
+<div class="section" id="s8">
+  <div class="section-header"><span class="sn">08</span><h2>SignalR Event Matrix</h2></div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Event</th><th>Scope</th><th>PWA Behavior</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="t-accent">supply.updated</td><td>warehouse or relevant group</td><td>Invalidate warehouse supplies, transactions, usage/report data, and part-detail supply data where targeted</td></tr>
+        <tr><td class="t-accent">parts.updated</td><td>all or relevant clients</td><td>Invalidate parts/catalog and part-detail data using the parts namespace</td></tr>
+        <tr><td class="t-accent">warehouses.changed</td><td>all clients</td><td>Invalidate warehouses reference data</td></tr>
+        <tr><td class="t-accent">categories.changed</td><td>all clients</td><td>Invalidate categories reference data</td></tr>
+        <tr><td class="t-accent">vendors.changed</td><td>all clients</td><td>Invalidate vendors reference data</td></tr>
+        <tr><td class="t-accent">orders.updated</td><td>all or relevant clients</td><td>Invalidate active orders and order history data</td></tr>
+        <tr><td class="t-accent">equipment.changed</td><td>all or relevant clients</td><td>Invalidate equipment list/detail data</td></tr>
+        <tr><td class="t-accent2">supply.low_stock</td><td>relevant clients</td><td>Display low-stock toast where useLowStockToasts is active; suppress duplicates</td></tr>
+        <tr><td class="t-muted">enrichment.resolved</td><td>lookup-specific/relevant clients</td><td>Update unknown barcode/enrichment workflow state where implemented</td></tr>
+        <tr><td class="t-muted">enrichment.failed</td><td>lookup-specific/relevant clients</td><td>Update unknown barcode/enrichment failure state where implemented</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      SignalR events normally invalidate query data — they do not become authoritative UI state. <code>supply.low_stock</code> is the notable UI-notification exception and still should not replace API data refresh.<br><br>
+      If <code>accessTokenFactory</code> fails during reconnect, real-time updates may enter a disconnected state. Normal API calls should continue to work as long as MSAL token acquisition succeeds.
+    </div>
+  </div>
+</div>
+
+<!-- §09 ROLE & UI VISIBILITY MATRIX -->
+<div class="section" id="s9">
+  <div class="section-header"><span class="sn">09</span><h2>Role &amp; UI Visibility Matrix</h2></div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>UI / Action</th><th>No Role</th><th>propCode_wh</th><th>DatabaseManager</th><th>Notes</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="t-white">View inventory</td><td class="t-accent2">Yes</td><td class="t-accent2">Yes</td><td class="t-accent2">Yes</td><td>Authenticated baseline</td></tr>
+        <tr><td class="t-white">View parts catalog</td><td class="t-accent2">Yes</td><td class="t-accent2">Yes</td><td class="t-accent2">Yes</td><td>Action buttons may differ</td></tr>
+        <tr><td class="t-white">Scan out / consume</td><td class="t-muted">Limited/API-enforced</td><td>Property/API-enforced</td><td class="t-accent2">Yes</td><td>Confirm API policy before final wording</td></tr>
+        <tr><td class="t-white">Scan in / stock-in</td><td class="t-danger">No or limited</td><td>Own property</td><td class="t-accent2">Any property</td><td>API is final authority</td></tr>
+        <tr><td class="t-white">Add part to warehouse</td><td class="t-danger">No</td><td>Own property if API permits</td><td class="t-accent2">Any property</td><td>Verify current policy</td></tr>
+        <tr><td class="t-white">Manage parts</td><td class="t-danger">No</td><td class="t-danger">No</td><td class="t-accent2">Yes</td><td>DatabaseManager gated</td></tr>
+        <tr><td class="t-white">Delete part</td><td class="t-danger">No</td><td class="t-danger">No</td><td class="t-accent2">Yes</td><td>DatabaseManager gated</td></tr>
+        <tr><td class="t-white">Manage warehouses</td><td class="t-danger">No</td><td class="t-danger">No</td><td class="t-accent2">Yes</td><td>DatabaseManager gated</td></tr>
+        <tr><td class="t-white">Manage categories</td><td class="t-danger">No</td><td class="t-danger">No</td><td class="t-accent2">Yes</td><td>DatabaseManager gated</td></tr>
+        <tr><td class="t-white">Manage vendors</td><td class="t-danger">No</td><td class="t-danger">No</td><td class="t-accent2">Yes</td><td>DatabaseManager gated</td></tr>
+        <tr><td class="t-white">Bulk import</td><td class="t-danger">No</td><td class="t-danger">No</td><td class="t-accent2">Yes</td><td>DatabaseManager gated</td></tr>
+        <tr><td class="t-white">Equipment checkout/checkin</td><td class="t-muted">Limited/API-enforced</td><td>Property/API-enforced</td><td class="t-accent2">Any property</td><td>Verify current policy</td></tr>
+        <tr><td class="t-white">Reports</td><td class="t-accent2">Yes</td><td class="t-accent2">Yes</td><td class="t-accent2">Yes</td><td>Some export actions may be gated</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      PWA role checks are UI hints only. API <code>403</code> must be handled on every protected write. <code>{propCode}_wh</code> roles should be resolved through the shared permission hook — not by ad hoc token decoding in page components.
+    </div>
+  </div>
+</div>
+
+<!-- §10 ERROR HANDLING EXPECTATIONS -->
+<div class="section" id="s10">
+  <div class="section-header"><span class="sn">10</span><h2>Error Handling Expectations</h2></div>
+  <p>The PWA should preserve enough error detail for pages to show useful remediation — not collapse every failure to a generic message.</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Error Category</th><th>Typical Source</th><th>PWA Expectation</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="t-danger">401 Unauthorized</td><td>expired/missing token, failed MSAL acquisition</td><td>Prompt re-authentication or route to login where appropriate; do not retry mutations blindly</td></tr>
+        <tr><td class="t-danger">403 Forbidden</td><td>API authorization policy rejects action</td><td>Show permission-focused message; keep UI stable; do not assume hidden buttons are sufficient</td></tr>
+        <tr><td class="t-warn">404 Not Found</td><td>stale row, deleted entity, wrong route/id</td><td>Show not-found or refresh message; invalidate affected query if stale cache is likely</td></tr>
+        <tr><td class="t-warn">409 Conflict</td><td>duplicate name, duplicate identifier, concurrency conflict</td><td>Show conflict-specific message; in vendor alias confirmation, 409 may be non-fatal if alias already exists</td></tr>
+        <tr><td class="t-accent">Validation failure</td><td>API model validation, missing required fields</td><td>Map message to form-level or field-level feedback when available</td></tr>
+        <tr><td class="t-accent">Negative inventory / business-rule failure</td><td>scan out or adjust would violate API rules</td><td>Show action-specific message; never force client-side override unless API explicitly supports it</td></tr>
+        <tr><td class="t-muted">Network failure</td><td>offline, API unavailable, Functions unavailable</td><td>Show retry/connectivity message; preserve unsent form data where possible</td></tr>
+        <tr><td class="t-muted">SignalR unavailable</td><td>hub disconnected, access token factory failure</td><td>Continue normal API behavior; show real-time status only if useful; do not block workflows</td></tr>
+        <tr><td class="t-muted">Functions failure</td><td>invoice analysis/export/report generation fails</td><td>Distinguish from API CRUD failure; show file/report-specific remediation</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="margin-top:16px;">Feature-specific expectations:</p>
+  <ul>
+    <li>Scan flows should preserve the scanned code and quantity after recoverable errors where safe</li>
+    <li>Forms should keep user-entered data when validation or network failures occur</li>
+    <li>Delete actions should require explicit confirmation and report <code>403</code>, <code>409</code>, or dependency failures clearly</li>
+    <li>Export/report failures should state whether the failure happened before request, during generation, or during download where that distinction is available</li>
+  </ul>
+</div>
+
+<!-- §11 MAINTENANCE CHECKLIST -->
+<div class="section" id="s11">
+  <div class="section-header"><span class="sn">11</span><h2>Maintenance Checklist</h2></div>
+  <p>When adding or changing PWA backend usage, work through this checklist.</p>
+  <div class="checklist">
+    <div class="check-item"><span class="check-num">01</span><span>Confirm the endpoint contract in <code>API_CONTRACT.html</code> or the current API source</span></div>
+    <div class="check-item"><span class="check-num">02</span><span>Add or update the PWA API service function — do not call raw <code>fetch</code> from page components unless there is a documented reason</span></div>
+    <div class="check-item"><span class="check-num">03</span><span>Add or update the route-to-data row in this file</span></div>
+    <div class="check-item"><span class="check-num">04</span><span>Add or update query key ownership and invalidation behavior</span></div>
+    <div class="check-item"><span class="check-num">05</span><span>Add or update SignalR event handling if the API emits a relevant event</span></div>
+    <div class="check-item"><span class="check-num">06</span><span>Add or update role/UI visibility expectations</span></div>
+    <div class="check-item"><span class="check-num">07</span><span>Handle <code>401</code>, <code>403</code>, <code>409</code>, validation errors, network errors, and server errors intentionally</span></div>
+    <div class="check-item"><span class="check-num">08</span><span>Add tests for PWA behavior, especially cache invalidation and role-gated UI</span></div>
+    <div class="check-item"><span class="check-num">09</span><span>Do not duplicate full request/response contracts from <code>API_CONTRACT.html</code></span></div>
+    <div class="check-item"><span class="check-num">10</span><span>If the change crosses into Functions, update the Functions usage matrix and verify <code>VITE_FUNCTIONS_BASE_URL</code> behavior</span></div>
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<!-- ── FOOTER ── -->
+<div class="doc-footer">
+  <span>ATC Inventory Application</span>
+  <span>PWA API Usage · May 2026</span>
+  <span>inventory_pwa · Internal Use Only</span>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

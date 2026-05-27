@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATC Inventory — PWA Developer Guide</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2230;
+    --border: #2a3444;
+    --accent: #4fa3e0;
+    --accent2: #3ddc97;
+    --warn: #e6a817;
+    --danger: #e05c5c;
+    --text: #cdd9e5;
+    --muted: #768a9e;
+    --code: #a8d1f0;
+    --white: #f0f6fc;
+  }
+
+  body { font-family: 'Syne', sans-serif; font-size: 14px; color: var(--text); background: var(--bg); line-height: 1.65; }
+
+  .nav-bar { display: flex; align-items: center; gap: 12px; padding: 12px 56px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+  .nav-bar a { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: var(--muted); text-decoration: none; letter-spacing: 1px; transition: color 0.15s; }
+  .nav-bar a:hover { color: var(--accent); }
+  .nav-sep { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--border); }
+  .nav-current { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text); }
+
+  .page { max-width: 1060px; margin: 0 auto; padding: 0 0 80px; }
+
+  .doc-header { padding: 52px 56px 44px; border-bottom: 1px solid var(--border); position: relative; overflow: hidden; }
+  .doc-header::before { content: ""; position: absolute; top: 0; right: 0; width: 420px; height: 100%; background: radial-gradient(ellipse at 80% 40%, rgba(79,163,224,0.07) 0%, transparent 70%); pointer-events: none; }
+  .doc-header .eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 14px; }
+  .doc-header h1 { font-size: 36px; font-weight: 800; color: var(--white); line-height: 1.1; margin-bottom: 8px; }
+  .doc-header .subtitle { font-size: 14px; color: var(--muted); margin-bottom: 32px; max-width: 700px; }
+  .meta-strip { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; width: fit-content; }
+  .meta-cell { padding: 10px 20px; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 3px; }
+  .meta-cell:last-child { border-right: none; }
+  .meta-cell .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+  .meta-cell .val { font-size: 13px; font-weight: 600; color: var(--white); }
+  .meta-cell .val.green { color: var(--accent2); }
+
+  .toc { display: flex; gap: 6px; flex-wrap: wrap; padding: 20px 56px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .toc a { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); text-decoration: none; padding: 5px 12px; border: 1px solid var(--border); border-radius: 20px; transition: all 0.15s; }
+  .toc a:hover { color: var(--accent); border-color: var(--accent); }
+
+  .content { padding: 0 56px; }
+  .section { padding: 44px 0; border-bottom: 1px solid var(--border); }
+  .section:last-child { border-bottom: none; }
+  .section-header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px; }
+  .sn { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 2px; background: rgba(79,163,224,0.08); border: 1px solid rgba(79,163,224,0.2); padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
+  .section-header h2 { font-size: 20px; font-weight: 700; color: var(--white); }
+
+  h3 { font-size: 15px; font-weight: 700; color: var(--white); margin: 28px 0 12px; }
+  h4 { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 1.5px; text-transform: uppercase; margin: 20px 0 10px; }
+
+  p { color: var(--text); margin-bottom: 14px; max-width: 800px; }
+
+  ul { margin: 10px 0 16px 20px; max-width: 800px; }
+  ul li { color: var(--text); font-size: 13px; margin-bottom: 6px; line-height: 1.6; }
+  ul li strong { color: var(--white); }
+
+  ol { margin: 10px 0 16px 20px; max-width: 800px; }
+  ol li { color: var(--text); font-size: 13px; margin-bottom: 6px; line-height: 1.6; }
+
+  /* ── Source of truth list ── */
+  .sot-list { display: flex; flex-direction: column; gap: 6px; margin: 12px 0 20px; max-width: 800px; }
+  .sot-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--text); line-height: 1.5; }
+  .sot-num { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--accent); flex-shrink: 0; background: rgba(79,163,224,0.1); padding: 1px 6px; border-radius: 3px; min-width: 24px; text-align: center; }
+
+  /* ── Rule items ── */
+  .rules-list { display: flex; flex-direction: column; gap: 6px; margin: 12px 0 20px; max-width: 800px; }
+  .rule-item { display: flex; align-items: flex-start; gap: 12px; padding: 9px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--text); line-height: 1.5; }
+  .rule-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 5px; }
+  .rule-dot.warn { background: var(--warn); }
+  .rule-dot.danger { background: var(--danger); }
+  .rule-dot.green { background: var(--accent2); }
+
+  /* ── Checklist ── */
+  .checklist { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; max-width: 800px; }
+  .check-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--text); line-height: 1.5; }
+  .check-num { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--accent2); flex-shrink: 0; min-width: 24px; }
+  .check-box { width: 14px; height: 14px; border: 1px solid var(--border); border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+
+  /* ── Dual mode cards ── */
+  .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; max-width: 800px; }
+  .mode-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 22px; }
+  .mode-card.desktop { border-top: 2px solid var(--accent); }
+  .mode-card.mobile { border-top: 2px solid var(--accent2); }
+  .mode-card .mc-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 8px; }
+  .mode-card.desktop .mc-tag { color: var(--accent); }
+  .mode-card.mobile .mc-tag { color: var(--accent2); }
+  .mode-card .mc-title { font-size: 14px; font-weight: 700; color: var(--white); margin-bottom: 10px; }
+  .mode-card ul { margin: 0; }
+  .mode-card ul li { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+
+  /* ── Pipeline ── */
+  .pipeline { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 18px 22px; margin: 16px 0; max-width: 800px; }
+  .pipeline-step { display: flex; align-items: flex-start; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text); line-height: 1.5; }
+  .pipeline-step:last-child { border-bottom: none; }
+  .pipeline-arrow { font-family: 'JetBrains Mono', monospace; color: var(--accent); flex-shrink: 0; font-size: 12px; margin-top: 1px; }
+
+  /* ── Provider tree ── */
+  .provider-tree { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 18px 22px; margin: 16px 0; max-width: 600px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); line-height: 2; }
+  .provider-tree .pt-highlight { color: var(--accent); }
+  .provider-tree .pt-auth { color: var(--accent2); }
+
+  /* ── Code ── */
+  pre { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--code); overflow-x: auto; margin: 10px 0 16px; line-height: 1.7; }
+  .pre-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-top: 16px; margin-bottom: 4px; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--code); background: rgba(79,163,224,0.08); padding: 1px 6px; border-radius: 3px; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+
+  /* ── Callouts ── */
+  .callout { display: flex; gap: 14px; padding: 14px 18px; border-radius: 8px; margin: 16px 0; max-width: 800px; }
+  .callout.c-info  { background: rgba(79,163,224,0.07);  border: 1px solid rgba(79,163,224,0.2);  }
+  .callout.c-warn  { background: rgba(230,168,23,0.07);  border: 1px solid rgba(230,168,23,0.2);  }
+  .callout.c-ok    { background: rgba(61,220,151,0.07);  border: 1px solid rgba(61,220,151,0.2);  }
+  .callout .icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .callout .body { font-size: 13px; color: var(--text); line-height: 1.6; }
+  .callout .body strong { color: var(--white); }
+
+  /* ── Tables ── */
+  .table-wrap { overflow-x: auto; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { background: var(--surface); border-bottom: 1px solid var(--border); }
+  th { padding: 10px 14px; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  td { padding: 9px 14px; border-bottom: 1px solid var(--border); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; vertical-align: top; line-height: 1.5; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface); }
+  .t-accent { color: var(--accent); }
+  .t-accent2 { color: var(--accent2); }
+  .t-warn { color: var(--warn); }
+  .t-muted { color: var(--muted); }
+  .t-danger { color: var(--danger); }
+
+  .doc-footer { margin-top: 60px; padding: 20px 56px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 0.5px; }
+</style>
+</head>
+<body>
+
+<div class="nav-bar">
+  <a href="../index.html">← Home</a>
+  <span class="nav-sep">/</span>
+  <span class="nav-current">PWA Developer Guide</span>
+</div>
+
+<div class="page">
+
+<div class="doc-header">
+  <div class="eyebrow">ATC Inventory Application — inventory_pwa</div>
+  <h1>PWA Developer Guide</h1>
+  <p class="subtitle">Primary developer reference for the React 19 + TypeScript + Vite 7 PWA — MSAL auth, TanStack Query, SignalR, dual desktop/mobile architecture, scan workflows, testing, deployment, and maintenance procedures.</p>
+  <div class="meta-strip">
+    <div class="meta-cell"><span class="lbl">Repo</span><span class="val">inventory_pwa</span></div>
+    <div class="meta-cell"><span class="lbl">Runtime</span><span class="val">React 19 · TypeScript · Vite 7</span></div>
+    <div class="meta-cell"><span class="lbl">Status</span><span class="val">Draft</span></div>
+    <div class="meta-cell"><span class="lbl">Target</span><span class="val">Azure Static Web Apps</span></div>
+    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">May 2026</span></div>
+  </div>
+</div>
+
+<div class="toc">
+  <a href="#s1">01 Purpose</a>
+  <a href="#s2">02 Source-of-Truth Rules</a>
+  <a href="#s3">03 System Context</a>
+  <a href="#s4">04 Technology Stack</a>
+  <a href="#s5">05 Local Dev Setup</a>
+  <a href="#s6">06 Build &amp; Configuration</a>
+  <a href="#s7">07 PWA &amp; Service Worker</a>
+  <a href="#s8">08 Authentication</a>
+  <a href="#s9">09 Authorization &amp; Roles</a>
+  <a href="#s10">10 Warehouse Context</a>
+  <a href="#s11">11 TanStack Query v5</a>
+  <a href="#s12">12 SignalR Integration</a>
+  <a href="#s13">13 Dual UX Architecture</a>
+  <a href="#s14">14 Scan Workflow</a>
+  <a href="#s15">15 Core Inventory Pages</a>
+  <a href="#s16">16 Manage Pages</a>
+  <a href="#s17">17 Orders &amp; Invoice</a>
+  <a href="#s18">18 Equipment Tracking</a>
+  <a href="#s19">19 Reporting &amp; Export</a>
+  <a href="#s20">20 API Client Layer</a>
+  <a href="#s21">21 Testing</a>
+  <a href="#s22">22 Deployment</a>
+  <a href="#s23">23 Observability</a>
+  <a href="#s24">24 Implementation Notes</a>
+  <a href="#s25">25 Maintenance Procedures</a>
+  <a href="#s26">26 Documentation Workflow</a>
+  <a href="#sa">Appendix A</a>
+  <a href="#sb">Appendix B</a>
+  <a href="#sc">Appendix C</a>
+  <a href="#sd">Appendix D</a>
+  <a href="#se">Appendix E</a>
+  <a href="#sf">Appendix F</a>
+</div>
+
+<div class="content">
+
+<!-- §01 PURPOSE -->
+<div class="section" id="s1">
+  <div class="section-header"><span class="sn">01</span><h2>Purpose of This Guide</h2></div>
+  <p>This guide is the primary developer reference for the ATC Inventory PWA. It is written for developers who need to maintain, troubleshoot, extend, or deploy the React frontend without relying on project history or informal knowledge.</p>
+  <p>The PWA is the user-facing application for inventory operations. It owns the user experience, Microsoft Entra sign-in, API access-token acquisition, desktop and mobile workflows, React Query cache management, SignalR client integration, scanner UI, and PWA update behavior.</p>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body"><strong>The PWA is not the system of record.</strong> It does not enforce final authorization, does not write directly to the database, does not own inventory business rules, and does not host scheduled automation. Those responsibilities remain in the API and Functions repositories.</div>
+  </div>
+
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body"><strong>This guide covers:</strong> local setup, build, MSAL auth, role-based UI, warehouse context, TanStack Query, SignalR, PWA service worker, dual desktop/mobile architecture, scanner workflow, page families, testing, troubleshooting, and change impact procedures.<br><br><strong>This guide does not cover:</strong> full API endpoint contracts (<code>API_CONTRACT.html</code>), API business rule implementation (<code>API_DEVELOPER_GUIDE.html</code>), Azure Functions internals (<code>FUNCTIONS_DEVELOPER_GUIDE.html</code>), or end-user task instructions (<code>public/guide/index.html</code>).</div>
+  </div>
+</div>
+
+<!-- §02 SOURCE-OF-TRUTH RULES -->
+<div class="section" id="s2">
+  <div class="section-header"><span class="sn">02</span><h2>Source-of-Truth Rules</h2></div>
+  <div class="sot-list">
+    <div class="sot-item"><span class="sot-num">1</span><span><strong>Current PWA source code wins for implemented frontend behavior.</strong> The snapshot is the authority for routing, provider placement, component behavior, query keys, auth bootstrapping, service worker configuration, and implemented UI patterns.</span></div>
+    <div class="sot-item"><span class="sot-num">2</span><span><strong>The API contract wins for endpoint shape.</strong> Do not duplicate API request and response contracts in this guide. Reference <code>API_CONTRACT.html</code>.</span></div>
+    <div class="sot-item"><span class="sot-num">3</span><span><strong>The API source code wins for server-side behavior.</strong> The PWA may guide the user, but the API validates tokens, enforces authorization, applies inventory rules, and protects data integrity.</span></div>
+    <div class="sot-item"><span class="sot-num">4</span><span><strong>Architecture and project rules win for repository boundaries.</strong> The PWA, API, and Functions repositories must remain independently deployed systems.</span></div>
+    <div class="sot-item"><span class="sot-num">5</span><span><strong>When uncertain, flag uncertainty.</strong> Do not document guessed behavior as implemented behavior.</span></div>
+  </div>
+</div>
+
+<!-- §03 SYSTEM CONTEXT -->
+<div class="section" id="s3">
+  <div class="section-header"><span class="sn">03</span><h2>System Context</h2></div>
+  <table>
+    <thead><tr><th>Repository</th><th>System</th><th>Responsibility</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">inventory_pwa</td><td>React PWA</td><td>UX, MSAL login, token acquisition, mobile and desktop workflows, scanner UI, SignalR client, cache management</td></tr>
+      <tr><td class="t-accent">inventory_api</td><td>ASP.NET Minimal API</td><td>System of record, JWT validation, authorization, business rules, EF Core persistence, transactions, SignalR hub</td></tr>
+      <tr><td class="t-accent">inventory_functions</td><td>Azure Functions</td><td>Scheduled jobs, reports, notifications, exports, PDF/Excel generation, background side effects</td></tr>
+    </tbody>
+  </table>
+
+  <h3>PWA Responsibilities</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot green"></div><span>Authenticate users through MSAL; acquire and send bearer tokens on API requests</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Maintain desktop and mobile user experiences from one codebase</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Capture barcode scans and provide manual fallback</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Maintain selected warehouse/property context</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Use TanStack Query for server state; use SignalR events to invalidate cached API data</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Display PWA update prompts and expose application version</span></div>
+  </div>
+
+  <h3>Explicitly Outside the PWA</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Database writes outside the API</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Final authorization decisions</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Negative inventory protection</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Transaction ledger integrity</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Scheduled reports or background jobs</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Third-party enrichment API keys or password storage</span></div>
+  </div>
+
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body"><strong>Required failure assumption:</strong> Every write action in the PWA must be prepared for the API to reject the request with <code>401</code>, <code>403</code>, <code>409</code>, validation errors, or network failures. Role-based rendering reduces confusion, but it does not replace server-side enforcement.</div>
+  </div>
+</div>
+
+<!-- §04 TECHNOLOGY STACK -->
+<div class="section" id="s4">
+  <div class="section-header"><span class="sn">04</span><h2>Technology Stack</h2></div>
+  <table>
+    <thead><tr><th>Area</th><th>Current Implementation</th></tr></thead>
+    <tbody>
+      <tr><td class="t-muted">UI runtime</td><td>React 19</td></tr>
+      <tr><td class="t-muted">Language</td><td>TypeScript</td></tr>
+      <tr><td class="t-muted">Build tool</td><td>Vite 7</td></tr>
+      <tr><td class="t-muted">Routing</td><td>React Router 7</td></tr>
+      <tr><td class="t-muted">Authentication</td><td>@azure/msal-browser · @azure/msal-react</td></tr>
+      <tr><td class="t-muted">Server state</td><td>TanStack Query v5</td></tr>
+      <tr><td class="t-muted">Real-time</td><td>@microsoft/signalr</td></tr>
+      <tr><td class="t-muted">PWA</td><td>vite-plugin-pwa / Workbox</td></tr>
+      <tr><td class="t-muted">Barcode scanning</td><td>Native BarcodeDetector when available; Quagga2 fallback; manual entry fallback</td></tr>
+      <tr><td class="t-muted">Charts</td><td>Recharts</td></tr>
+      <tr><td class="t-muted">Icons</td><td>Lucide React</td></tr>
+      <tr><td class="t-muted">Styling</td><td>Tailwind CSS 4</td></tr>
+      <tr><td class="t-muted">Testing</td><td>Vitest · Testing Library · jsdom</td></tr>
+      <tr><td class="t-muted">Deployment target</td><td>Azure Static Web Apps</td></tr>
+    </tbody>
+  </table>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">The dependency list should be reviewed against <code>package.json</code> before every major documentation refresh. Do not document a dependency as used unless it appears in the current code or package manifest.</div>
+  </div>
+</div>
+
+<!-- §05 LOCAL DEV SETUP -->
+<div class="section" id="s5">
+  <div class="section-header"><span class="sn">05</span><h2>Local Development Setup</h2></div>
+
+  <h3>Prerequisites</h3>
+  <table>
+    <thead><tr><th>Tool / Access</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td>Node.js (current LTS)</td><td>Run Vite, TypeScript, tests, and build scripts</td></tr>
+      <tr><td>npm</td><td>Install and run project scripts</td></tr>
+      <tr><td>Microsoft Entra test account</td><td>Login and API token testing</td></tr>
+      <tr><td>Running inventory_api</td><td>Local API dependency</td></tr>
+      <tr><td>Running inventory_functions</td><td>Required for local testing of export, invoice, and Functions-backed workflows</td></tr>
+      <tr><td>Camera-capable browser/device</td><td>Scanner testing</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Install and Run</h3>
+  <div class="pre-label">bash</div>
+  <pre>npm install
+npm run dev</pre>
+
+  <h3>Common Scripts</h3>
+  <table>
+    <thead><tr><th>Script</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">npm run dev</td><td>Start local Vite dev server</td></tr>
+      <tr><td class="t-accent">npm run build</td><td>Type-check and build production output</td></tr>
+      <tr><td class="t-accent">npm run preview</td><td>Preview built app locally</td></tr>
+      <tr><td class="t-accent">npm run lint</td><td>Run ESLint</td></tr>
+      <tr><td class="t-accent">npm run test</td><td>Run Vitest</td></tr>
+      <tr><td class="t-accent">npm run test:coverage</td><td>Run Vitest with coverage</td></tr>
+      <tr><td class="t-accent">npm run version</td><td>Write public/version.json from package.json</td></tr>
+      <tr><td class="t-accent">npm run prebuild</td><td>Automatically write version file before build</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Environment Files</h3>
+  <p>The repository includes <code>.env.example</code> and environment-specific files. Values are Vite variables and must use the <code>VITE_</code> prefix to be available in client code. Do not commit secrets. See Appendix B for the full environment variable reference.</p>
+
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body"><strong>Camera and HTTPS note:</strong> Camera APIs require <code>localhost</code> or a secure origin. Local scanner testing should use <code>localhost</code> or HTTPS. The project includes <code>@vitejs/plugin-basic-ssl</code> as a development dependency — verify whether it is currently enabled in <code>vite.config.ts</code> before relying on it.</div>
+  </div>
+</div>
+
+<!-- §06 BUILD & CONFIGURATION -->
+<div class="section" id="s6">
+  <div class="section-header"><span class="sn">06</span><h2>Build &amp; Configuration</h2></div>
+
+  <h3>Vite Configuration</h3>
+  <p>The Vite configuration owns: React plugin setup, Tailwind integration, PWA plugin configuration, alias configuration (<code>@</code> to <code>src</code>), build-time version injection, and static asset/service worker behavior.</p>
+  <p>Before changing Vite configuration, test: local dev server startup, production build, Static Web App routing fallback, PWA installation and update prompt, MSAL login redirect, and service worker update behavior.</p>
+
+  <h3>Version Injection</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot"></div><span>Use semantic versioning; version visible in app must match the deployed artifact</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span><code>public/version.json</code> must remain network-fresh — do not let the service worker precache stale version metadata</span></div>
+  </div>
+
+  <h3>TypeScript and ESLint</h3>
+  <p>Treat type errors and lint errors as build-quality issues, not optional cleanup. Prefer explicit types for API payloads and UI state. Keep DTO-like frontend types aligned to <code>API_CONTRACT.html</code>. Avoid duplicating backend validation rules unless the UI needs a friendly pre-submit guard.</p>
+
+  <h3>Static Web App Configuration</h3>
+  <p><code>staticwebapp.config.json</code> controls SPA routing fallback and HTTP headers. Expected concerns: SPA fallback to <code>index.html</code>, service worker and Workbox files not over-cached, <code>version.json</code> network-fresh, and security headers must not break MSAL redirect or iframe-based token flows.</p>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body"><strong>Verification note:</strong> During final review, verify the exact <code>staticwebapp.config.json</code> that Azure Static Web Apps consumes. If multiple config files exist, document which one is active and reconcile the others.</div>
+  </div>
+</div>
+
+<!-- §07 PWA & SERVICE WORKER -->
+<div class="section" id="s7">
+  <div class="section-header"><span class="sn">07</span><h2>PWA &amp; Service Worker Behavior</h2></div>
+
+  <h3>Update Strategy</h3>
+  <p>The app uses a prompt-based update flow. Users are notified that an update is available and can choose when to reload.</p>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body"><strong>Do not switch to automatic reload.</strong> A forced refresh during a scan, receive, order, or edit modal can cause user confusion or lost UI state.</div>
+  </div>
+
+  <h3>Service Worker Caching Rules</h3>
+  <table>
+    <thead><tr><th>Resource Type</th><th>Intended Behavior</th></tr></thead>
+    <tbody>
+      <tr><td>App shell and static assets</td><td>Can be cached for faster startup and offline shell availability</td></tr>
+      <tr><td class="t-warn">version.json</td><td>Must be network-fresh; do not precache stale version metadata</td></tr>
+      <tr><td class="t-danger">Microsoft identity endpoints</td><td>Must not be intercepted by app caching logic</td></tr>
+      <tr><td>API requests</td><td>May use network-first caching only when implemented; writes require network</td></tr>
+      <tr><td>User guide static assets</td><td>Can tolerate longer caching than auth/version metadata</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Offline Capability and Limits</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Authenticated writes require network access — scan in, scan out, receive order, edit, delete, and create actions require API availability</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>SignalR is unavailable offline and must not block normal app use</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>Cached data may be stale — the user must receive clear failure feedback when a network-only operation cannot complete</span></div>
+  </div>
+
+  <h3>Version Check</h3>
+  <p><code>useVersionCheck</code> and <code>UpdatePrompt</code> detect a newer deployed build and prompt the user to reload. Fetch <code>version.json</code> from the network, compare deployed version to current app version, show a non-blocking prompt, allow the user to continue current work, and reload only when the user chooses to apply the update.</p>
+</div>
+
+<!-- §08 AUTHENTICATION -->
+<div class="section" id="s8">
+  <div class="section-header"><span class="sn">08</span><h2>Authentication</h2></div>
+
+  <h3>MSAL Configuration</h3>
+  <p><code>msalConfig.ts</code> defines the MSAL browser configuration: Entra client ID and tenant authority, redirect and post-logout redirect behavior, cache behavior, login scopes, and API access scopes.</p>
+  <table>
+    <thead><tr><th>Request</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td>Login request</td><td>Basic identity scopes: openid, profile, email, and optional Microsoft profile scopes</td></tr>
+      <tr><td>API request</td><td>Access token for the Inventory API scope, usually access_as_user</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Bootstrap Order</h3>
+  <p>The application must initialize MSAL and consume redirect responses before rendering protected app routes. Rendering authenticated routes before MSAL finishes redirect handling causes route thrashing, stale account state, or redirect loops.</p>
+  <div class="pre-label">order</div>
+  <pre>create PublicClientApplication singleton
+→ msalInstance.initialize()
+→ msalInstance.handleRedirectPromise()
+→ render React app</pre>
+
+  <h3>AuthShell Hardening and Redirect-Loop Fix</h3>
+  <p><code>AuthShell</code> is the guard between unauthenticated routes and the authenticated application.</p>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot"></div><span>Wait while MSAL interaction is in progress</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Never initiate a new redirect while <code>inProgress !== "none"</code></span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Render a safe transitional state while auth is settling</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Keep <code>AuthenticatedShell</code> separate from <code>AuthShell</code> — authenticated-only providers must mount after login</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Prevent stale MSAL interaction state from trapping the user in a loop</span></div>
+  </div>
+
+  <h3>Auth Troubleshooting Quick Reference</h3>
+  <table>
+    <thead><tr><th>Symptom</th><th>Likely Area</th></tr></thead>
+    <tbody>
+      <tr><td>Repeated login redirects</td><td>MSAL redirect handling order, AuthShell, route guards, Static Web App headers</td></tr>
+      <tr><td>Blank page after login</td><td>inProgress state, account state, redirect promise handling</td></tr>
+      <tr><td>User role does not update</td><td>Token contains stale role claims — user must log out and back in</td></tr>
+      <tr><td>Works locally but not in Azure</td><td>redirect URI, Static Web App config, Entra app registration</td></tr>
+      <tr><td>Silent token failure</td><td>API scope, tenant/client mismatch, expired session, blocked iframe behavior</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Token Acquisition for API Calls</h3>
+  <div class="pipeline">
+    <div class="pipeline-step"><span class="pipeline-arrow">1 →</span><span>Use MSAL account context</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">2 →</span><span>Request API scope with <code>acquireTokenSilent</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">3 →</span><span>Attach <code>Authorization: Bearer &lt;access_token&gt;</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">4 →</span><span>Send request to <code>VITE_API_BASE_URL</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">5 →</span><span>Parse API errors into a user-appropriate message; let route/page code handle forbidden or failed actions gracefully</span></div>
+  </div>
+</div>
+
+<!-- §09 AUTHORIZATION & ROLES -->
+<div class="section" id="s9">
+  <div class="section-header"><span class="sn">09</span><h2>Authorization &amp; Role Model</h2></div>
+
+  <h3>Role Tiers</h3>
+  <table>
+    <thead><tr><th>Role State</th><th>PWA Behavior</th><th>API Behavior</th></tr></thead>
+    <tbody>
+      <tr><td class="t-warn">DatabaseManager</td><td>Show administrative, bulk, destructive, and all-property write actions</td><td>Full server-side access for protected administrative operations</td></tr>
+      <tr><td class="t-accent">{propCode}_wh</td><td>Show property-scoped write actions for matching warehouse/property</td><td>Write allowed only where the role matches API policy</td></tr>
+      <tr><td class="t-muted">No role</td><td>Authenticated read-oriented UI</td><td>API blocks protected write/admin operations</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Permission Hook Pattern</h3>
+  <p>The PWA centralizes role parsing through the established permission hook/context pattern. Expected derived values: <code>roles</code>, <code>isDatabaseManager</code>, property role list, <code>canWriteToWarehouse(...)</code>, loading/error state for permission resolution.</p>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Do not decode tokens ad hoc in page components</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Do not call Graph to resolve permissions at runtime unless the architecture changes</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>Do not assume a missing role means unauthenticated — it means authenticated baseline access</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Always handle API <code>403</code> responses, even when the button is hidden</span></div>
+  </div>
+
+  <h3>Role-Based Rendering Rules</h3>
+  <table>
+    <thead><tr><th>UI Area</th><th>Rendering Rule</th></tr></thead>
+    <tbody>
+      <tr><td>Manage pages</td><td class="t-warn">DatabaseManager only</td></tr>
+      <tr><td>Bulk operations</td><td class="t-warn">DatabaseManager only</td></tr>
+      <tr><td>Part delete</td><td class="t-warn">DatabaseManager only</td></tr>
+      <tr><td>Warehouse/category/vendor management</td><td class="t-warn">DatabaseManager only</td></tr>
+      <tr><td>Scan out / consume</td><td>Authenticated flow; final write access enforced by API and property rules</td></tr>
+      <tr><td>Stock in / add to warehouse</td><td>Requires matching property role or DatabaseManager</td></tr>
+      <tr><td>901 / ATC Office writes</td><td class="t-warn">DatabaseManager only unless architecture changes</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §10 WAREHOUSE CONTEXT -->
+<div class="section" id="s10">
+  <div class="section-header"><span class="sn">10</span><h2>Warehouse Context</h2></div>
+  <p>Warehouse context is one of the core app-level states in the PWA. It affects search, scan, inventory lists, reports, orders, and SignalR group membership.</p>
+
+  <h3>Responsibilities</h3>
+  <p>Warehouse context provides: available warehouses, selected warehouse, all-properties mode where supported, manual selection behavior, location-aware nearest warehouse behavior where implemented, loading and error states, and helper methods for consumers.</p>
+
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot danger"></div><span><strong>All-properties mode is not a valid mutation target.</strong> All write actions must resolve to a specific warehouse.</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>Mobile workflows must keep property context visible — a user scanning in the wrong property can create real inventory errors</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>When warehouse selection changes, the SignalR client must join/leave the appropriate warehouse group</span></div>
+  </div>
+</div>
+
+<!-- §11 TANSTACK QUERY V5 -->
+<div class="section" id="s11">
+  <div class="section-header"><span class="sn">11</span><h2>Data Fetching: TanStack Query v5</h2></div>
+  <p>TanStack Query v5 handles server state. Query keys and invalidation are cross-cutting infrastructure — treat them as architecture, not incidental implementation.</p>
+
+  <h3>Query Client Defaults</h3>
+  <ul>
+    <li>Operational data defaults to finite stale time, commonly 5 minutes</li>
+    <li>Retry count is low, commonly 1</li>
+    <li>Reference data may override stale time to <code>Infinity</code></li>
+    <li>SignalR and explicit mutation handlers invalidate stale caches</li>
+  </ul>
+
+  <h3>Query Key Factory</h3>
+  <p><code>queryKeys.ts</code> is the central query key factory.</p>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Use the factory for normal query keys — avoid ad hoc string arrays for new feature queries</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Keep query key shape stable — changing it can silently break invalidation</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Add new keys to the factory before using them broadly</span></div>
+  </div>
+
+  <h3>Reference Data vs. Operational Data</h3>
+  <div class="mode-grid">
+    <div class="mode-card desktop">
+      <div class="mc-tag">Reference Data</div>
+      <div class="mc-title">staleTime: Infinity</div>
+      <ul>
+        <li>Warehouses</li>
+        <li>Categories</li>
+        <li>Vendors</li>
+        <li>Refresh via: mutation invalidation, SignalR changed events, manual refresh</li>
+      </ul>
+    </div>
+    <div class="mode-card mobile">
+      <div class="mc-tag">Operational Data</div>
+      <div class="mc-title">staleTime: 5 minutes</div>
+      <ul>
+        <li>Parts, Supplies, Transactions</li>
+        <li>Orders, Equipment, Reports</li>
+        <li>Invoice results</li>
+        <li>Refresh via: writes, relevant SignalR events</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Mutation Invalidation Patterns</h3>
+  <table>
+    <thead><tr><th>Mutation</th><th>Expected Invalidation</th></tr></thead>
+    <tbody>
+      <tr><td>Scan in / stock in</td><td>supplies, transactions, dashboard/report data, related orders where applicable</td></tr>
+      <tr><td>Scan out / consume</td><td>supplies, transactions, usage/report data</td></tr>
+      <tr><td>Part create/update</td><td>parts, identifiers, vendor cross-reference data, supplies if warehouse assignment changed</td></tr>
+      <tr><td>Identifier add/relink</td><td>part detail, identifier lookup/cache, scan lookup assumptions</td></tr>
+      <tr><td>Warehouse create/update/delete</td><td>warehouses reference data and warehouse-scoped views</td></tr>
+      <tr><td>Category create/update/delete</td><td>categories reference data and part/catalog views</td></tr>
+      <tr><td>Vendor create/update/delete</td><td>vendors reference data and vendor cross-reference views</td></tr>
+      <tr><td>Order update</td><td>orders, order history, supplies if stock-in receive occurred</td></tr>
+      <tr><td>Equipment movement</td><td>equipment list/detail, equipment transactions</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body"><strong>Do not store server truth in local UI state.</strong> Local component state can hold form values, selected rows, modal mode, and temporary UI flags. After writes, rely on invalidation/refetch patterns unless a deliberate optimistic update is implemented and tested.</div>
+  </div>
+</div>
+
+<!-- §12 SIGNALR INTEGRATION -->
+<div class="section" id="s12">
+  <div class="section-header"><span class="sn">12</span><h2>SignalR Integration</h2></div>
+
+  <h3>Architecture Rules</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot"></div><span>SignalR connection should be app-level, not page-level — <code>SignalRProvider</code> lives high in the authenticated app shell</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>SignalR must degrade gracefully — normal API operations must still work if SignalR is disconnected</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Events should not be treated as authoritative data payloads — they are invalidation signals</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>Hub path is <code>/hubs/inventory</code> — do not use the older <code>/inventoryhub</code> reference</span></div>
+  </div>
+
+  <h3>Event Handling Pattern</h3>
+  <div class="pipeline">
+    <div class="pipeline-step"><span class="pipeline-arrow">✓</span><span><strong>Correct:</strong> SignalR event received → determine affected query namespace → invalidate TanStack Query keys → UI refreshes from API data</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">✗</span><span><strong>Avoid:</strong> SignalR event received → directly mutate visible UI as source of truth</span></div>
+  </div>
+
+  <p>Toast notifications may use event payloads for display-only messages when explicitly implemented, such as low-stock notifications via <code>supply.low_stock</code>.</p>
+
+  <h3>Connection Lifecycle</h3>
+  <p>When reconnecting, the client must regain any required warehouse group membership. If access tokens expire, reconnect logic must obtain a fresh token.</p>
+
+  <h3>SignalR Failure Behavior</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot"></div><span>Show connection status only if useful — do not block page rendering</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Do not block scan or write operations due to SignalR unavailability</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Continue using API calls and mutation invalidation; allow reconnect attempts in the background</span></div>
+  </div>
+</div>
+
+<!-- §13 DUAL UX ARCHITECTURE -->
+<div class="section" id="s13">
+  <div class="section-header"><span class="sn">13</span><h2>Dual UX Architecture: Desktop and Mobile</h2></div>
+
+  <div class="mode-grid">
+    <div class="mode-card desktop">
+      <div class="mc-tag">Desktop</div>
+      <div class="mc-title">Table-First, Admin/Review</div>
+      <ul>
+        <li>Filters, bulk actions, modals</li>
+        <li>DesktopPageHeader + filter/action bar</li>
+        <li>TableCard + loading/error/empty states</li>
+        <li>SelectionActionBar for multi-select</li>
+        <li>Keyboard and scanner-friendly flows</li>
+        <li>DatabaseManager actions clearly separated</li>
+      </ul>
+    </div>
+    <div class="mode-card mobile">
+      <div class="mc-tag">Mobile</div>
+      <div class="mc-title">Scan-First, Property Workflows</div>
+      <ul>
+        <li>Minimal typing, large touch targets</li>
+        <li>Property context visible before submitting</li>
+        <li>Cards instead of dense tables</li>
+        <li>Manual fallback for camera/scanner failure</li>
+        <li>Clear success/failure feedback</li>
+        <li>Safe duplicate-submit prevention</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Desktop Page Architecture Pattern</h3>
+  <div class="pre-label">structure</div>
+  <pre>DesktopPageHeader
+→ filter/search/action bar
+→ TableCard
+→ loading/error/empty PageStateCard states
+→ modal for create/edit/detail/action</pre>
+
+  <h3>Shared Logic</h3>
+  <p>Desktop and mobile experiences share: API client modules, query hooks, auth context, permission logic, warehouse context, barcode normalization utilities, domain types, and mutation/invalidation conventions. Do not implement separate business logic for desktop and mobile unless the API contract requires distinct flows.</p>
+</div>
+
+<!-- §14 SCAN WORKFLOW -->
+<div class="section" id="s14">
+  <div class="section-header"><span class="sn">14</span><h2>Scan Workflow</h2></div>
+
+  <h3>Scanner Architecture</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot green"></div><span>Native browser <code>BarcodeDetector</code> path when supported</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Quagga2 fallback when native detection is unavailable</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Manual barcode entry fallback in all cases — never remove manual fallback</span></div>
+  </div>
+
+  <h3>Barcode Normalization</h3>
+  <p>Barcode normalization must be centralized. Expected responsibilities: trim and normalize raw scan/manual input, normalize ATC shorthand where implemented, normalize case for identifier comparison, apply numeric padding rules, and distinguish supply/part barcode behavior from equipment/tool barcode behavior.</p>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">Any change to normalization can affect: scan in, scan out, add identifier, relink identifier, part lookup, equipment scan, and vendor/invoice workflows. Avoid page-specific one-off normalization.</div>
+  </div>
+
+  <h3>Scan Out / Consume Flow</h3>
+  <div class="pipeline">
+    <div class="pipeline-step"><span class="pipeline-arrow">1 →</span><span>Confirm selected warehouse</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">2 →</span><span>Scan or enter barcode</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">3 →</span><span>Resolve part/supply using cache or API lookup path</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">4 →</span><span>Confirm matched part and quantity</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">5 →</span><span>POST consume request to API — API enforces business rules including negative inventory protection</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">6 →</span><span>Show success or error; invalidate affected queries</span></div>
+  </div>
+
+  <h3>Scan In / Stock-In Flow</h3>
+  <div class="pipeline">
+    <div class="pipeline-step"><span class="pipeline-arrow">1 →</span><span>Confirm selected warehouse</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">2 →</span><span>Scan or enter barcode; resolve part/supply</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">3 →</span><span>Confirm matched part and quantity</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">4 →</span><span>POST stock-in request to API — API applies identifier unit multiplier rules where applicable</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">5 →</span><span>Show success or error; invalidate affected queries</span></div>
+  </div>
+
+  <h3>Unknown Barcode / Identifier Resolution Flow</h3>
+  <div class="pipeline">
+    <div class="pipeline-step"><span class="pipeline-arrow">1 →</span><span>Scan or enter code → normal scan lookup fails with identifier-not-found condition</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">2 →</span><span>Call identifier resolve endpoint only for unknown identifier flow</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">3 →</span><span>API returns <code>FOUND</code> or lookup started</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">4 →</span><span>If lookup started, poll lookup status</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">5 →</span><span>If complete with useful metadata, prefill new-part flow; otherwise prompt manual entry</span></div>
+  </div>
+
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">Normal scan operations should not call identifier enrichment unnecessarily. Enrichment is for unknown barcode workflows only. Scan and receive actions must prevent accidental duplicate submissions using the established submitting/ref pattern.</div>
+  </div>
+</div>
+
+<!-- §15 CORE INVENTORY PAGES -->
+<div class="section" id="s15">
+  <div class="section-header"><span class="sn">15</span><h2>Core Inventory Pages</h2></div>
+
+  <h3>Inventory / Search Inventory</h3>
+  <p>Display warehouse-scoped or all-property inventory state; search/filter supplies and parts; surface low-stock state. Warehouse context affects query keys. All-properties mode must not be used as mutation target. SignalR <code>supply.updated</code> should invalidate visible inventory data.</p>
+
+  <h3>Parts Catalog</h3>
+  <p>Master catalog of parts regardless of whether stocked at selected warehouse; part detail review; create/edit where authorized; identifier and vendor cross-reference subflows; label printing where implemented. Do not confuse catalog existence with warehouse supply existence.</p>
+
+  <h3>Transactions</h3>
+  <p>Read-only view of inventory ledger activity. Transactions are append-only from the API perspective — the PWA should not offer edit/delete transaction actions unless the API contract changes. <code>supply.updated</code> often implies transaction queries should be invalidated.</p>
+
+  <h3>Orders</h3>
+  <p>Active order workflows: creating or marking items as ordered, marking received, stock-in and receive combined workflow, canceling with reason, viewing active orders and history. Receiving should be tied to physical receipt of stock. Quantity confirmation must be explicit.</p>
+</div>
+
+<!-- §16 MANAGE PAGES -->
+<div class="section" id="s16">
+  <div class="section-header"><span class="sn">16</span><h2>DatabaseManager Manage Pages</h2></div>
+  <p>Manage pages are gated to DatabaseManager users in the PWA and protected by the API. UI gating is not enforcement.</p>
+
+  <h3>Common Manage Page Pattern</h3>
+  <div class="pre-label">structure</div>
+  <pre>DesktopPageHeader
+→ search/filter controls
+→ TableCard
+→ create/edit/delete modal
+→ mutation invalidation</pre>
+
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Handle API <code>403</code> even if hidden from non-managers</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>Confirm destructive actions; invalidate reference data after create/update/delete</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Use shared page state components for loading, error, and empty states</span></div>
+  </div>
+
+  <h3>Manage Parts</h3>
+  <p>Administrative part maintenance, identifier management, vendor cross-reference management, and part deletion where API permits. Identifier uniqueness, ATC master rules, and similar-name validation are all API-owned.</p>
+
+  <h3>Manage Warehouses</h3>
+  <p>Warehouse/property record maintenance and PropCode management. Changing PropCode can affect <code>{propCode}_wh</code> role mapping and SignalR grouping assumptions. Warehouse changes should invalidate warehouse reference data.</p>
+
+  <h3>Manage Invoice Aliases</h3>
+  <p>Maintain vendor alias mappings used by invoice reconciliation. Alias changes affect future invoice matching. Do not silently remap ambiguous invoice descriptions without clear user confirmation.</p>
+</div>
+
+<!-- §17 ORDERS & INVOICE -->
+<div class="section" id="s17">
+  <div class="section-header"><span class="sn">17</span><h2>Orders, Receiving, and Invoice Reconciliation</h2></div>
+
+  <h3>Invoice Scan Responsibilities</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot green"></div><span>Submit invoice image/file for analysis</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Display matched and unmatched lines</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>User confirmation is required before inventory or alias changes — AI or OCR results are suggestions, not truth</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>Avoid clearing draft/review state after partial failure; Functions and API availability can fail independently</span></div>
+  </div>
+
+  <h3>Vendor Alias Creation Rules</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot warn"></div><span>Alias creation must be deliberate — a bad alias creates repeated future mismatches</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Duplicate/409 handling should be graceful</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>DatabaseManager or appropriate authorized role controls sensitive alias operations per API contract</span></div>
+  </div>
+</div>
+
+<!-- §18 EQUIPMENT TRACKING -->
+<div class="section" id="s18">
+  <div class="section-header"><span class="sn">18</span><h2>Equipment Tracking</h2></div>
+
+  <h3>Domain Difference</h3>
+  <table>
+    <thead><tr><th>Consumable Inventory</th><th>Equipment / Tools</th></tr></thead>
+    <tbody>
+      <tr><td>Tracked by quantity per part+warehouse</td><td>Tracked as individual reusable items</td></tr>
+      <tr><td>Uses supplies and transactions</td><td>Uses equipment status and equipment transactions</td></tr>
+      <tr><td>Scan in/out changes stock count</td><td>Check out/check in/location update changes item state</td></tr>
+      <tr><td>Negative inventory is key concern</td><td>Current location/status is key concern</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Equipment Workflows</h3>
+  <ul>
+    <li>Scan or search for tool/equipment</li>
+    <li>Check out to property/unit/location</li>
+    <li>Check in to warehouse/property</li>
+    <li>Update location while checked out</li>
+    <li>Review equipment status and movement history</li>
+  </ul>
+
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Use tool/equipment barcode normalization mode — do not apply supply quantity logic to equipment</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Equipment transactions should be treated as a lifecycle ledger, not inventory quantity changes</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Equipment SignalR events (<code>equipment.changed</code>) should invalidate equipment queries where implemented</span></div>
+  </div>
+</div>
+
+<!-- §19 REPORTING & EXPORT -->
+<div class="section" id="s19">
+  <div class="section-header"><span class="sn">19</span><h2>Reporting and Export</h2></div>
+
+  <h3>PWA Export Responsibilities</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot green"></div><span>Collect filter criteria and build export payloads</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Include requested-by identity where implemented</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Call the correct Functions or API endpoint; trigger browser download or display result</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Show useful errors distinguishing API failure from Functions failure</span></div>
+  </div>
+
+  <h3>Export Maintenance Checklist</h3>
+  <div class="checklist">
+    <div class="check-item"><div class="check-box"></div><span>Verify frontend payload builder</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Verify Functions endpoint contract</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Verify auth token behavior</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Verify file name and content type</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Verify browser download behavior</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Verify filters match the visible report filters</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Test both PDF and Excel if both are supported</span></div>
+  </div>
+</div>
+
+<!-- §20 API CLIENT LAYER -->
+<div class="section" id="s20">
+  <div class="section-header"><span class="sn">20</span><h2>API Client Layer</h2></div>
+
+  <h3>Standard API Fetch Behavior</h3>
+  <p>The API fetch helper isolates transport details from page components. Expected responsibilities: read <code>VITE_API_BASE_URL</code>, acquire MSAL API token, attach bearer token, set JSON headers, serialize request body, parse JSON response, and convert error responses to a consistent frontend error shape.</p>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">Page components should call service functions or hooks, not raw <code>fetch</code>, unless there is a deliberate exception.</div>
+  </div>
+
+  <h3>Functions Client Rules</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Keep <code>VITE_FUNCTIONS_BASE_URL</code> separate from <code>VITE_API_BASE_URL</code></span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Do not call Functions for API-owned business rules</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>Handle Functions failures separately from API failures — response shapes may differ</span></div>
+  </div>
+
+  <h3>Error Handling</h3>
+  <p>API client errors must preserve enough information for page code to distinguish: unauthenticated (<code>401</code>), forbidden (<code>403</code>), not found (<code>404</code>), duplicate/conflict (<code>409</code>), validation failure, network failure, and unexpected server error.</p>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">Do not reduce all errors to "Something went wrong" at the service layer. Page code needs meaningful categories to show useful remediation text.</div>
+  </div>
+</div>
+
+<!-- §21 TESTING -->
+<div class="section" id="s21">
+  <div class="section-header"><span class="sn">21</span><h2>Testing</h2></div>
+
+  <h3>High-Value Frontend Tests</h3>
+  <ul>
+    <li><code>AuthShell</code> behavior around MSAL in-progress state</li>
+    <li>Permission hook parsing of <code>DatabaseManager</code> and <code>{propCode}_wh</code> roles</li>
+    <li><code>canWriteToWarehouse</code> behavior</li>
+    <li>Query key factory outputs</li>
+    <li>Mutation invalidation behavior</li>
+    <li>SignalR event invalidation mapping</li>
+    <li>Barcode normalization</li>
+    <li>Scan duplicate-submit prevention</li>
+    <li>Mobile vs desktop route redirection</li>
+    <li>Modal save/cancel/delete flows</li>
+    <li>Update prompt behavior</li>
+  </ul>
+
+  <h3>Testing Boundaries</h3>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      <strong>Good PWA test:</strong> When API returns <code>403</code>, the page displays a permission error and does not clear the form prematurely.<br><br>
+      <strong>Bad PWA test:</strong> Negative inventory is impossible because frontend math blocks it.<br><br>
+      The API owns negative inventory protection. The PWA only tests its response to API success/failure.
+    </div>
+  </div>
+
+  <h3>Test Utilities</h3>
+  <p>Provide reusable wrappers for: Router context, QueryClient provider, MSAL/provider mocks, permission context, warehouse context, and SignalR context where needed. Avoid duplicating provider setup in every test file.</p>
+</div>
+
+<!-- §22 DEPLOYMENT -->
+<div class="section" id="s22">
+  <div class="section-header"><span class="sn">22</span><h2>Deployment</h2></div>
+
+  <h3>Rules</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Do not combine the PWA with the API or Functions repository</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Do not deploy server secrets into the PWA</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>Production build must use production API and Functions URLs</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>Entra redirect URI must match the deployed Static Web App URL and app registration configuration</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span><code>version.json</code> must match the deployed app version</span></div>
+  </div>
+
+  <h3>Post-Deploy Smoke Test</h3>
+  <div class="checklist">
+    <div class="check-item"><div class="check-num">01</div><span>App loads from production URL</span></div>
+    <div class="check-item"><div class="check-num">02</div><span>Login succeeds</span></div>
+    <div class="check-item"><div class="check-num">03</div><span>Logout succeeds</span></div>
+    <div class="check-item"><div class="check-num">04</div><span>Version/about display is correct</span></div>
+    <div class="check-item"><div class="check-num">05</div><span>PWA update prompt does not show falsely</span></div>
+    <div class="check-item"><div class="check-num">06</div><span>API calls include bearer token</span></div>
+    <div class="check-item"><div class="check-num">07</div><span>Inventory page loads</span></div>
+    <div class="check-item"><div class="check-num">08</div><span>Mobile route loads on mobile viewport</span></div>
+    <div class="check-item"><div class="check-num">09</div><span>Scan screen opens and manual entry works</span></div>
+    <div class="check-item"><div class="check-num">10</div><span>SignalR connects or degrades gracefully</span></div>
+    <div class="check-item"><div class="check-num">11</div><span>DatabaseManager-only pages are hidden/shown correctly</span></div>
+    <div class="check-item"><div class="check-num">12</div><span>A read-only user cannot perform write actions</span></div>
+    <div class="check-item"><div class="check-num">13</div><span>Functions-backed export or invoice flow works if in scope for release</span></div>
+  </div>
+</div>
+
+<!-- §23 OBSERVABILITY -->
+<div class="section" id="s23">
+  <div class="section-header"><span class="sn">23</span><h2>Observability &amp; Troubleshooting</h2></div>
+
+  <h3>Auth Troubleshooting</h3>
+  <table>
+    <thead><tr><th>Symptom</th><th>Check</th></tr></thead>
+    <tbody>
+      <tr><td>Redirect loop</td><td>MSAL bootstrap order, AuthShell, Entra redirect URI, Static Web App headers</td></tr>
+      <tr><td>User has wrong permissions</td><td>Token roles claim, group assignment, logout/login to refresh token</td></tr>
+      <tr><td>API returns 401</td><td>Token acquisition, API scope, tenant/client mismatch</td></tr>
+      <tr><td>API returns 403</td><td>Role mismatch, selected warehouse, DatabaseManager requirement</td></tr>
+      <tr><td>Blank auth screen</td><td>inProgress state, redirect promise, account state</td></tr>
+    </tbody>
+  </table>
+
+  <h3>API Troubleshooting</h3>
+  <table>
+    <thead><tr><th>Symptom</th><th>Check</th></tr></thead>
+    <tbody>
+      <tr><td>API calls hit wrong server</td><td>VITE_API_BASE_URL</td></tr>
+      <tr><td>CORS/network error</td><td>API CORS config, URL, HTTPS, local dev port</td></tr>
+      <tr><td>Mutation succeeds but UI stale</td><td>query invalidation and SignalR event mapping</td></tr>
+      <tr><td>Works on desktop but not mobile</td><td>route branch, warehouse context, camera permissions, viewport-specific UI</td></tr>
+    </tbody>
+  </table>
+
+  <h3>SignalR Troubleshooting</h3>
+  <table>
+    <thead><tr><th>Symptom</th><th>Check</th></tr></thead>
+    <tbody>
+      <tr><td>No real-time refresh</td><td>hub URL (/hubs/inventory), token, connection status, event subscription</td></tr>
+      <tr><td>Refresh works on one page only</td><td>provider placement — SignalR must be app-level</td></tr>
+      <tr><td>Wrong warehouse updates</td><td>selected warehouse, group join/leave behavior</td></tr>
+      <tr><td>Reconnect fails</td><td>token refresh, network, API hub availability</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Scanner Troubleshooting</h3>
+  <table>
+    <thead><tr><th>Symptom</th><th>Check</th></tr></thead>
+    <tbody>
+      <tr><td>Camera unavailable</td><td>permissions, HTTPS/localhost, browser support</td></tr>
+      <tr><td>Barcode not detected</td><td>lighting, label quality, scanner fallback, manual input</td></tr>
+      <tr><td>Wrong part matched</td><td>barcode normalization, identifier data, cache staleness</td></tr>
+      <tr><td>Scan double-submits</td><td>submitting guard, scanner event handling, button state</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §24 IMPLEMENTATION NOTES -->
+<div class="section" id="s24">
+  <div class="section-header"><span class="sn">24</span><h2>Implementation Notes and Follow-Ups</h2></div>
+
+  <h3>VITE_REDIRECT_URI</h3>
+  <p>Environment files include <code>VITE_REDIRECT_URI</code>, but current MSAL behavior derives redirect URI from the app origin and Vite base URL rather than directly consuming <code>VITE_REDIRECT_URI</code>. If a future developer changes <code>msalConfig.ts</code> to use it, update this section and retest redirect-loop hardening behavior.</p>
+
+  <h3>Static Web App Config Verification</h3>
+  <p>During final review, verify the exact <code>staticwebapp.config.json</code> used by Azure Static Web Apps. If more than one exists, reconcile them.</p>
+
+  <h3>version.json Must Stay Network-Fresh</h3>
+  <p>The app update flow depends on fetching fresh version metadata. Do not precache <code>version.json</code> or configure long-lived caching for it.</p>
+
+  <h3>Role Checks Are UX Only</h3>
+  <p>Any documentation or code comments that imply the frontend enforces authorization should be corrected. The API enforces all authorization rules server-side.</p>
+</div>
+
+<!-- §25 MAINTENANCE PROCEDURES -->
+<div class="section" id="s25">
+  <div class="section-header"><span class="sn">25</span><h2>Maintenance Procedures</h2></div>
+
+  <h3>Adding a New Page</h3>
+  <div class="checklist">
+    <div class="check-item"><div class="check-num">01</div><span>Pick desktop, mobile, or shared route behavior; add route in the established routing location</span></div>
+    <div class="check-item"><div class="check-num">02</div><span>Add navigation item if appropriate; apply role gating if needed</span></div>
+    <div class="check-item"><div class="check-num">03</div><span>Use established page architecture components</span></div>
+    <div class="check-item"><div class="check-num">04</div><span>Add API service/hook if data is needed; add query key to <code>queryKeys.ts</code></span></div>
+    <div class="check-item"><div class="check-num">05</div><span>Add mutation invalidation if writes occur; add SignalR invalidation if realtime updates are relevant</span></div>
+    <div class="check-item"><div class="check-num">06</div><span>Add tests for route and role behavior</span></div>
+  </div>
+
+  <h3>Adding a New API Call</h3>
+  <div class="checklist">
+    <div class="check-item"><div class="check-num">01</div><span>Confirm endpoint in <code>API_CONTRACT.html</code></span></div>
+    <div class="check-item"><div class="check-num">02</div><span>Add or update typed payload/response shape</span></div>
+    <div class="check-item"><div class="check-num">03</div><span>Add service function in the appropriate API module using the standard authenticated fetch helper</span></div>
+    <div class="check-item"><div class="check-num">04</div><span>Add query key or mutation hook</span></div>
+    <div class="check-item"><div class="check-num">05</div><span>Handle <code>401</code>, <code>403</code>, validation, and conflict errors</span></div>
+    <div class="check-item"><div class="check-num">06</div><span>Add tests around frontend behavior; update <code>PWA_API_USAGE.html</code></span></div>
+  </div>
+
+  <h3>Adding a New SignalR Event</h3>
+  <div class="checklist">
+    <div class="check-item"><div class="check-num">01</div><span>Confirm API emits the event; confirm event name and payload shape</span></div>
+    <div class="check-item"><div class="check-num">02</div><span>Subscribe in <code>useInventorySync</code> or domain-specific hook</span></div>
+    <div class="check-item"><div class="check-num">03</div><span>Invalidate query keys — do not use event as authoritative UI state</span></div>
+    <div class="check-item"><div class="check-num">04</div><span>Add tests for invalidation mapping; update <code>PWA_API_USAGE.html</code></span></div>
+  </div>
+
+  <h3>Adding a New Role-Gated Action</h3>
+  <div class="checklist">
+    <div class="check-item"><div class="check-num">01</div><span>Confirm API authorization policy</span></div>
+    <div class="check-item"><div class="check-num">02</div><span>Add PWA visibility rule; handle API <code>403</code> even if hidden from unauthorized users</span></div>
+    <div class="check-item"><div class="check-num">03</div><span>Add tests for DatabaseManager, property role, and no-role users</span></div>
+    <div class="check-item"><div class="check-num">04</div><span>Update <code>PWA_API_USAGE.html</code></span></div>
+  </div>
+
+  <h3>Changing Scanner Behavior</h3>
+  <div class="checklist">
+    <div class="check-item"><div class="check-num">01</div><span>Update normalization utility centrally</span></div>
+    <div class="check-item"><div class="check-num">02</div><span>Test native BarcodeDetector path, Quagga2 fallback path, and manual fallback</span></div>
+    <div class="check-item"><div class="check-num">03</div><span>Test supply and tool modes; test duplicate-submit protection</span></div>
+    <div class="check-item"><div class="check-num">04</div><span>Update scan workflow docs</span></div>
+  </div>
+</div>
+
+<!-- §26 DOCUMENTATION WORKFLOW -->
+<div class="section" id="s26">
+  <div class="section-header"><span class="sn">26</span><h2>Documentation Workflow</h2></div>
+
+  <h3>Drafting Workflow</h3>
+  <ol>
+    <li>Start from current PWA snapshot</li>
+    <li>Search supporting architecture, API, Functions, auth, SignalR, and quick task docs</li>
+    <li>Draft guide — keep endpoint details out unless needed for frontend behavior</li>
+    <li>Keep integration matrices in <code>PWA_API_USAGE.html</code> instead of duplicating the full API contract</li>
+    <li>Flag uncertainty</li>
+  </ol>
+
+  <h3>Review Checklist</h3>
+  <p>Reviewers should validate: repo boundaries, auth wording, role wording, SignalR hub path, query key/invalidation mappings in <code>PWA_API_USAGE.html</code>, PWA offline claims, scanner implementation wording, staticwebapp config statements, route inventory, and environment variable list.</p>
+
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body"><strong>No PWA_CONTRACT.html at this stage.</strong> A separate contract file is not warranted because the PWA consumes the API rather than exposing its own external HTTP contract. The authoritative endpoint contract remains <code>API_CONTRACT.html</code>. PWA-specific integration assumptions live in <code>PWA_API_USAGE.html</code>.</div>
+  </div>
+</div>
+
+<!-- APPENDIX A — ROUTE INVENTORY -->
+<div class="section" id="sa">
+  <div class="section-header"><span class="sn">A</span><h2>Appendix A — Route Inventory</h2></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Route / Area</th><th>Mode</th><th>Access</th><th>Purpose / Status</th></tr></thead>
+      <tbody>
+        <tr><td class="t-accent">/</td><td>shared</td><td>authenticated</td><td>Redirect to mobile or desktop landing based on device mode</td></tr>
+        <tr><td class="t-accent">/login</td><td>shared</td><td>anonymous/auth transition</td><td>Login entry point</td></tr>
+        <tr><td class="t-accent">/about</td><td>shared</td><td>authenticated</td><td>Version/about information where implemented</td></tr>
+        <tr><td class="t-accent">/inventory</td><td>desktop</td><td>authenticated</td><td>Inventory search/table view</td></tr>
+        <tr><td class="t-muted">/inventory/:id</td><td>desktop</td><td>authenticated</td><td class="t-warn">Placeholder — verify before building on this route</td></tr>
+        <tr><td class="t-accent">/scan</td><td>mobile</td><td>authenticated</td><td>Mobile scan landing / scan workflow entry</td></tr>
+        <tr><td class="t-muted">/scan/transfer</td><td>mobile</td><td>authenticated/write gated</td><td class="t-warn">Placeholder or future transfer flow — verify before documenting as live</td></tr>
+        <tr><td class="t-accent">/parts</td><td>desktop</td><td>authenticated, with gated actions</td><td>Parts catalog</td></tr>
+        <tr><td class="t-muted">/parts/:id</td><td>desktop</td><td>authenticated</td><td class="t-warn">Placeholder — verify before building on this route</td></tr>
+        <tr><td class="t-accent">/transactions</td><td>desktop</td><td>authenticated</td><td>Transaction ledger view</td></tr>
+        <tr><td class="t-accent">/orders</td><td>desktop</td><td>authenticated, write gated</td><td>Active order workflows</td></tr>
+        <tr><td class="t-accent">/order-history</td><td>desktop</td><td>authenticated</td><td>Order history/reporting</td></tr>
+        <tr><td class="t-accent">/reports</td><td>desktop</td><td>authenticated</td><td>Reporting hub</td></tr>
+        <tr><td class="t-accent">/equipment</td><td>desktop/mobile depending implementation</td><td>authenticated, write gated</td><td>Equipment/tool tracking</td></tr>
+        <tr><td class="t-accent">/manage/parts</td><td>desktop</td><td class="t-warn">DatabaseManager</td><td>Administrative part maintenance</td></tr>
+        <tr><td class="t-accent">/manage/warehouses</td><td>desktop</td><td class="t-warn">DatabaseManager</td><td>Warehouse maintenance</td></tr>
+        <tr><td class="t-accent">/manage/categories</td><td>desktop</td><td class="t-warn">DatabaseManager</td><td>Category maintenance</td></tr>
+        <tr><td class="t-accent">/manage/vendors</td><td>desktop</td><td class="t-warn">DatabaseManager</td><td>Vendor maintenance</td></tr>
+        <tr><td class="t-accent">/manage/invoice-aliases</td><td>desktop</td><td class="t-warn">DatabaseManager or API-defined access</td><td>Invoice alias maintenance</td></tr>
+        <tr><td class="t-accent">/help</td><td>shared</td><td>authenticated or public depending route config</td><td>In-app user guide launcher/full guide</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- APPENDIX B — ENVIRONMENT VARIABLES -->
+<div class="section" id="sb">
+  <div class="section-header"><span class="sn">B</span><h2>Appendix B — Environment Variable Reference</h2></div>
+  <table>
+    <thead><tr><th>Variable</th><th>Required</th><th>Used By</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">VITE_ENTRA_CLIENT_ID</td><td class="t-accent2">Yes</td><td>MSAL</td><td>PWA client app registration ID</td></tr>
+      <tr><td class="t-accent">VITE_ENTRA_TENANT_ID</td><td class="t-accent2">Yes</td><td>MSAL</td><td>Entra tenant ID</td></tr>
+      <tr><td class="t-accent">VITE_REDIRECT_URI</td><td class="t-muted">Present in templates</td><td>Implementation note</td><td>In env files; current MSAL config may derive redirect URI instead — see Section 24</td></tr>
+      <tr><td class="t-accent">VITE_API_BASE_URL</td><td class="t-accent2">Yes</td><td>API client</td><td>Base URL for inventory_api</td></tr>
+      <tr><td class="t-accent">VITE_API_SCOPE</td><td class="t-accent2">Yes</td><td>MSAL token acquisition</td><td>API access scope</td></tr>
+      <tr><td class="t-accent">VITE_DM_GROUP_ID</td><td class="t-muted">Optional — verify</td><td>Permissions legacy/config</td><td>Present in env files and README; verify whether current permission hooks consume it or if it is vestigial</td></tr>
+      <tr><td class="t-accent">VITE_APP_VERSION</td><td class="t-accent2">Yes at build/runtime</td><td>Version display/check</td><td>Current app version from package/build</td></tr>
+      <tr><td class="t-accent">VITE_FUNCTIONS_BASE_URL</td><td class="t-accent2">Yes for Functions flows</td><td>Functions client/export/invoice</td><td>Base URL for inventory_functions</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- APPENDIX C — PROVIDER TREE -->
+<div class="section" id="sc">
+  <div class="section-header"><span class="sn">C</span><h2>Appendix C — Provider Tree</h2></div>
+  <p>Confirmed conceptual provider order from the PWA bootstrap and shell structure.</p>
+  <div class="provider-tree">
+    <span class="pt-highlight">MSAL initialization before render</span><br>
+    └─ React root<br>
+    &nbsp;&nbsp;&nbsp;└─ <span class="pt-highlight">MsalProvider</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ QueryClientProvider<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ WarehouseProvider<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ App<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ <span class="pt-auth">AuthShell</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ <span class="pt-auth">AuthenticatedShell</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ UserPermissionsProvider<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ AppShell<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ <span class="pt-highlight">SignalRProvider</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ Routes / Layouts / Pages
+  </div>
+  <div class="rules-list" style="margin-top:16px;">
+    <div class="rule-item"><div class="rule-dot danger"></div><span>MSAL must initialize before rendering protected app routes</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>QueryClient must wrap query consumers</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Warehouse context must be available where selected warehouse drives queries and SignalR subscription</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>User permission context should be authenticated-only; SignalR provider should be app-level for global invalidation</span></div>
+  </div>
+</div>
+
+<!-- APPENDIX D — PWA API USAGE -->
+<div class="section" id="sd">
+  <div class="section-header"><span class="sn">D</span><h2>Appendix D — PWA API, Query, SignalR, and Role Usage</h2></div>
+  <p>The PWA integration matrices have been moved to <a href="PWA_API_USAGE.html" style="color:var(--accent);">PWA_API_USAGE.html</a>.</p>
+  <p>Use <code>PWA_API_USAGE.html</code> for: route-to-data dependencies, API and Functions usage by feature, query key ownership and invalidation behavior, SignalR event handling, role/UI visibility expectations, and frontend error-handling expectations.</p>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">Do not duplicate full endpoint request/response contracts in this guide. The authoritative endpoint contract remains <code>API_CONTRACT.html</code>.</div>
+  </div>
+</div>
+
+<!-- APPENDIX E — DESKTOP PAGE PATTERN CHECKLIST -->
+<div class="section" id="se">
+  <div class="section-header"><span class="sn">E</span><h2>Appendix E — Desktop Page Pattern Checklist</h2></div>
+  <p>Use this checklist when adding or reviewing a desktop table page.</p>
+  <div class="checklist">
+    <div class="check-item"><div class="check-box"></div><span>Uses <code>DesktopPageHeader</code> with clear title, description, and context stats where useful</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Uses shared <code>SearchBar</code> or established filter components</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Uses <code>TableCard</code> for table shell with sticky/sortable headers where table is large</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Handles loading state, error state, and empty state</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Uses pagination where result sets can grow</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Uses <code>SelectionActionBar</code> for multi-select actions where relevant</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Uses modal for create/edit/detail actions; confirms destructive actions</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Uses query key factory; invalidates affected queries after mutation</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Handles API <code>403</code> gracefully; tests role-gated actions</span></div>
+  </div>
+</div>
+
+<!-- APPENDIX F — GLOSSARY -->
+<div class="section" id="sf">
+  <div class="section-header"><span class="sn">F</span><h2>Appendix F — Glossary</h2></div>
+  <table>
+    <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">PWA</td><td>Progressive Web App; installable browser app with service worker support</td></tr>
+      <tr><td class="t-accent">MSAL</td><td>Microsoft Authentication Library used for Entra sign-in and token acquisition</td></tr>
+      <tr><td class="t-accent">Entra ID</td><td>Microsoft identity provider used by ATC</td></tr>
+      <tr><td class="t-accent">API scope</td><td>Permission scope requested by the PWA to call inventory_api</td></tr>
+      <tr><td class="t-accent">DatabaseManager</td><td>Elevated app role for administrative inventory operations</td></tr>
+      <tr><td class="t-accent">{propCode}_wh</td><td>Property-scoped warehouse role, such as ms_wh</td></tr>
+      <tr><td class="t-accent">Warehouse context</td><td>Current selected warehouse/property in the PWA</td></tr>
+      <tr><td class="t-accent">SignalR</td><td>Real-time messaging used for cache invalidation hints</td></tr>
+      <tr><td class="t-accent">Query key</td><td>TanStack Query identifier for cached server state</td></tr>
+      <tr><td class="t-accent">Reference data</td><td>Relatively stable data such as warehouses, categories, vendors</td></tr>
+      <tr><td class="t-accent">Operational data</td><td>Frequently changing data such as supplies, transactions, orders, equipment</td></tr>
+      <tr><td class="t-accent">Scan out</td><td>Consume inventory / reduce stock</td></tr>
+      <tr><td class="t-accent">Scan in</td><td>Receive stock / increase stock</td></tr>
+      <tr><td class="t-accent">Identifier</td><td>Barcode or code linked to a part</td></tr>
+      <tr><td class="t-accent">ATC master</td><td>Canonical internal identifier for a part, owned by API rules</td></tr>
+      <tr><td class="t-accent">Equipment</td><td>Reusable tool/item tracked by status and location rather than quantity</td></tr>
+      <tr><td class="t-accent">Functions</td><td>Azure Functions repository used for automations, reports, exports, side effects</td></tr>
+    </tbody>
+  </table>
+</div>
+
+</div><!-- /content -->
+
+<div class="doc-footer">
+  <span>ATC Inventory Application</span>
+  <span>PWA Developer Guide · May 2026</span>
+  <span>inventory_pwa · Internal Use Only</span>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATC Inventory — Functions Developer Guide</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2230;
+    --border: #2a3444;
+    --accent: #4fa3e0;
+    --accent2: #3ddc97;
+    --warn: #e6a817;
+    --danger: #e05c5c;
+    --text: #cdd9e5;
+    --muted: #768a9e;
+    --code: #a8d1f0;
+    --white: #f0f6fc;
+  }
+
+  body { font-family: 'Syne', sans-serif; font-size: 14px; color: var(--text); background: var(--bg); line-height: 1.65; }
+
+  .nav-bar { display: flex; align-items: center; gap: 12px; padding: 12px 56px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+  .nav-bar a { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: var(--muted); text-decoration: none; letter-spacing: 1px; transition: color 0.15s; }
+  .nav-bar a:hover { color: var(--accent); }
+  .nav-sep { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--border); }
+  .nav-current { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text); }
+
+  .page { max-width: 1060px; margin: 0 auto; padding: 0 0 80px; }
+
+  .doc-header { padding: 52px 56px 44px; border-bottom: 1px solid var(--border); position: relative; overflow: hidden; }
+  .doc-header::before { content: ""; position: absolute; top: 0; right: 0; width: 420px; height: 100%; background: radial-gradient(ellipse at 80% 40%, rgba(79,163,224,0.07) 0%, transparent 70%); pointer-events: none; }
+  .doc-header .eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 14px; }
+  .doc-header h1 { font-size: 36px; font-weight: 800; color: var(--white); line-height: 1.1; margin-bottom: 8px; }
+  .doc-header .subtitle { font-size: 14px; color: var(--muted); margin-bottom: 32px; max-width: 700px; }
+  .meta-strip { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; width: fit-content; }
+  .meta-cell { padding: 10px 20px; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 3px; }
+  .meta-cell:last-child { border-right: none; }
+  .meta-cell .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+  .meta-cell .val { font-size: 13px; font-weight: 600; color: var(--white); }
+  .meta-cell .val.green { color: var(--accent2); }
+
+  .toc { display: flex; gap: 6px; flex-wrap: wrap; padding: 20px 56px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .toc a { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); text-decoration: none; padding: 5px 12px; border: 1px solid var(--border); border-radius: 20px; transition: all 0.15s; }
+  .toc a:hover { color: var(--accent); border-color: var(--accent); }
+
+  .content { padding: 0 56px; }
+  .section { padding: 44px 0; border-bottom: 1px solid var(--border); }
+  .section:last-child { border-bottom: none; }
+  .section-header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px; }
+  .sn { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 2px; background: rgba(79,163,224,0.08); border: 1px solid rgba(79,163,224,0.2); padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
+  .section-header h2 { font-size: 20px; font-weight: 700; color: var(--white); }
+
+  h3 { font-size: 15px; font-weight: 700; color: var(--white); margin: 28px 0 12px; }
+  h4 { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 1.5px; text-transform: uppercase; margin: 20px 0 10px; }
+
+  p { color: var(--text); margin-bottom: 14px; max-width: 800px; }
+
+  ul { margin: 10px 0 16px 20px; max-width: 800px; }
+  ul li { color: var(--text); font-size: 13px; margin-bottom: 6px; line-height: 1.6; }
+  ul li strong { color: var(--white); }
+
+  /* ── Call patterns ── */
+  .pattern-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+  .pattern-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 22px; border-top: 2px solid var(--accent); }
+  .pattern-card.async { border-top-color: var(--accent2); }
+  .pattern-card .pc-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+  .pattern-card.async .pc-tag { color: var(--accent2); }
+  .pattern-card .pc-title { font-size: 14px; font-weight: 700; color: var(--white); margin-bottom: 8px; }
+  .pattern-card .pc-desc { font-size: 12px; color: var(--muted); line-height: 1.6; margin-bottom: 10px; }
+  .pattern-card .pc-used { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); }
+  .pattern-card .pc-used strong { color: var(--text); }
+
+  /* ── Pipeline flow ── */
+  .pipeline { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 18px 22px; margin: 16px 0; max-width: 800px; }
+  .pipeline-step { display: flex; align-items: flex-start; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text); line-height: 1.5; }
+  .pipeline-step:last-child { border-bottom: none; }
+  .pipeline-arrow { font-family: 'JetBrains Mono', monospace; color: var(--accent); flex-shrink: 0; font-size: 12px; margin-top: 1px; }
+  .pipeline-step code { font-size: 11px; }
+
+  /* ── Checklist ── */
+  .checklist { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; max-width: 800px; }
+  .check-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--text); line-height: 1.5; }
+  .check-box { width: 14px; height: 14px; border: 1px solid var(--border); border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+  .check-item code { font-size: 11px; }
+
+  /* ── Backlog items ── */
+  .backlog-item { display: flex; gap: 14px; padding: 14px 18px; border-radius: 8px; margin: 12px 0; max-width: 800px; background: rgba(230,168,23,0.05); border: 1px solid rgba(230,168,23,0.2); }
+  .backlog-item .icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .backlog-item .body { font-size: 13px; color: var(--text); line-height: 1.6; }
+  .backlog-item .body strong { color: var(--warn); }
+  .backlog-item .body code { font-size: 11px; }
+
+  /* ── Code ── */
+  pre { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--code); overflow-x: auto; margin: 10px 0 16px; line-height: 1.7; }
+  .pre-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-top: 16px; margin-bottom: 4px; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--code); background: rgba(79,163,224,0.08); padding: 1px 6px; border-radius: 3px; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+
+  /* ── Callouts ── */
+  .callout { display: flex; gap: 14px; padding: 14px 18px; border-radius: 8px; margin: 16px 0; max-width: 800px; }
+  .callout.c-info  { background: rgba(79,163,224,0.07);  border: 1px solid rgba(79,163,224,0.2);  }
+  .callout.c-warn  { background: rgba(230,168,23,0.07);  border: 1px solid rgba(230,168,23,0.2);  }
+  .callout.c-ok    { background: rgba(61,220,151,0.07);  border: 1px solid rgba(61,220,151,0.2);  }
+  .callout .icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .callout .body { font-size: 13px; color: var(--text); line-height: 1.6; }
+  .callout .body strong { color: var(--white); }
+
+  /* ── Tables ── */
+  .table-wrap { overflow-x: auto; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { background: var(--surface); border-bottom: 1px solid var(--border); }
+  th { padding: 10px 14px; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  td { padding: 9px 14px; border-bottom: 1px solid var(--border); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; vertical-align: top; line-height: 1.5; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface); }
+  .t-accent { color: var(--accent); }
+  .t-accent2 { color: var(--accent2); }
+  .t-warn { color: var(--warn); }
+  .t-muted { color: var(--muted); }
+  .t-danger { color: var(--danger); }
+
+  .doc-footer { margin-top: 60px; padding: 20px 56px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 0.5px; }
+</style>
+</head>
+<body>
+
+<div class="nav-bar">
+  <a href="../index.html">← Home</a>
+  <span class="nav-sep">/</span>
+  <span class="nav-current">Functions Developer Guide</span>
+</div>
+
+<div class="page">
+
+<div class="doc-header">
+  <div class="eyebrow">ATC Inventory Application — inventory_functions</div>
+  <h1>Functions Developer Guide</h1>
+  <p class="subtitle">Automation and side-effects layer — report generation, invoice analysis, notification pipeline, local setup, deployment, and troubleshooting.</p>
+  <div class="meta-strip">
+    <div class="meta-cell"><span class="lbl">Repo</span><span class="val">inventory_functions</span></div>
+    <div class="meta-cell"><span class="lbl">Runtime</span><span class="val">.NET 9 · Azure Functions v4 Isolated</span></div>
+    <div class="meta-cell"><span class="lbl">Hosting</span><span class="val">Flex Consumption · Linux</span></div>
+    <div class="meta-cell"><span class="lbl">Status</span><span class="val">Draft</span></div>
+    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">May 2026</span></div>
+  </div>
+</div>
+
+<div class="toc">
+  <a href="#s1">01 Purpose &amp; Scope</a>
+  <a href="#s2">02 System Context</a>
+  <a href="#s3">03 Technology Stack</a>
+  <a href="#s4">04 Local Dev Setup</a>
+  <a href="#s5">05 Startup &amp; DI</a>
+  <a href="#s6">06 Authentication</a>
+  <a href="#s7">07 Function Inventory</a>
+  <a href="#s8">08 Report Generation</a>
+  <a href="#s9">09 Notification Pipeline</a>
+  <a href="#s10">10 Invoice Analysis</a>
+  <a href="#s11">11 Adding a New Function</a>
+  <a href="#s12">12 Configuration Reference</a>
+  <a href="#s13">13 Deployment</a>
+  <a href="#s14">14 Testing</a>
+  <a href="#s15">15 Observability &amp; Troubleshooting</a>
+</div>
+
+<div class="content">
+
+<!-- §01 PURPOSE & SCOPE -->
+<div class="section" id="s1">
+  <div class="section-header"><span class="sn">01</span><h2>Purpose &amp; Scope</h2></div>
+  <p><code>inventory_functions</code> is the automation and side-effects layer of the ATC Inventory Application. It handles work that is intentionally kept out of the API: report generation, scheduled notifications, invoice analysis, and queue-based notification dispatch.</p>
+
+  <h3>What This Repo Is Responsible For</h3>
+  <ul>
+    <li>Generating binary report output (Excel, PDF) on demand for the PWA</li>
+    <li>Analyzing vendor invoices via Azure Document Intelligence and Azure OpenAI</li>
+    <li>Sending scheduled Teams notifications via Power Automate flows</li>
+    <li>Dispatching queue-triggered notifications enqueued by the API</li>
+  </ul>
+
+  <h3>What This Repo Is Not</h3>
+  <ul>
+    <li><strong>No inventory CRUD.</strong> Side-effect write-backs go through the API over HTTP — Functions never write to inventory, supply, order, transaction, or equipment tables directly</li>
+    <li><strong>Not the authentication authority.</strong> JWT validation is performed locally in middleware, but identity is established by Microsoft Entra ID</li>
+    <li><strong>Not responsible for SignalR broadcasts.</strong> Those are the API's responsibility</li>
+  </ul>
+
+  <table>
+    <thead><tr><th>Repo</th><th>Responsibility</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">inventory_pwa</td><td>UI; calls Functions HTTP endpoints for reports and invoice analysis</td></tr>
+      <tr><td class="t-accent">inventory_api</td><td>System of record; enqueues notification messages; receives write-back calls from Functions</td></tr>
+      <tr><td class="t-accent">inventory_functions</td><td>Side effects; reads DB directly (read-only); calls API for write-backs</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §02 SYSTEM CONTEXT -->
+<div class="section" id="s2">
+  <div class="section-header"><span class="sn">02</span><h2>System Context</h2></div>
+
+  <h3>Two Call Patterns</h3>
+  <div class="pattern-grid">
+    <div class="pattern-card">
+      <div class="pc-tag">Pattern 1</div>
+      <div class="pc-title">HTTP — Synchronous, User-Initiated</div>
+      <div class="pc-desc">PWA sends authenticated request → Function validates JWT → reads DB or calls external AI services → returns binary file or JSON.</div>
+      <div class="pc-used"><strong>Used by:</strong> TabularReportFunction, LabelReportFunction, OrderFormReportFunction, AnalyzeInvoiceFunction</div>
+    </div>
+    <div class="pattern-card async">
+      <div class="pc-tag">Pattern 2</div>
+      <div class="pc-title">Timer / Queue — Async, Self-Initiated</div>
+      <div class="pc-desc">Timer fires or Storage Queue receives message → Function runs with no HTTP context → reads DB via Managed Identity → calls API for writes → POSTs to Power Automate for Teams delivery.</div>
+      <div class="pc-used"><strong>Used by:</strong> DailyPendingOrdersFunction, WeeklyOrderedItemsFunction, DailyChannelFailuresFunction, NotificationQueueFunction</div>
+    </div>
+  </div>
+
+  <h3>Database Access Model</h3>
+  <p>Both <code>ReportDataService</code> and <code>NotificationDataService</code> read the database directly using raw ADO.NET (<code>DbCommand</code> / <code>DbConnection</code>). EF Core is not used in this repo.</p>
+  <ul>
+    <li><strong>Development / Testing:</strong> SQLite via connection string pointing at <code>inventory_api/dev_data/inventory_dev.db</code></li>
+    <li><strong>Production:</strong> Azure SQL via <code>SqlConnection</code> with access token from <code>DefaultAzureCredential</code> (Managed Identity)</li>
+  </ul>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body"><strong>All writes go through the API.</strong> Functions never write to inventory, supply, order, transaction, or equipment tables directly. Column names in <code>GetOrdinal()</code> calls must match the actual schema exactly — mismatches cause runtime exceptions.</div>
+  </div>
+
+  <h3>Azure Resource Dependencies</h3>
+  <table>
+    <thead><tr><th>Resource</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">Azure Functions (Flex Consumption)</td><td>Hosts all functions</td></tr>
+      <tr><td class="t-accent">Azure Storage Queue</td><td><code>inventory-notifications</code> queue for async notification dispatch</td></tr>
+      <tr><td class="t-accent">Azure Key Vault</td><td>Secrets for ADI, OpenAI, and other non-connection-string config</td></tr>
+      <tr><td class="t-accent">Application Insights</td><td>Telemetry and structured logging</td></tr>
+      <tr><td class="t-accent">Azure Document Intelligence</td><td>Invoice extraction (Stage 1 of invoice pipeline)</td></tr>
+      <tr><td class="t-accent">Azure OpenAI</td><td>Semantic line item matching (Stage 4 of invoice pipeline)</td></tr>
+      <tr><td class="t-accent">Azure SQL</td><td>Production database (read-only access via Managed Identity)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §03 TECHNOLOGY STACK -->
+<div class="section" id="s3">
+  <div class="section-header"><span class="sn">03</span><h2>Technology Stack</h2></div>
+  <ul>
+    <li><strong>.NET 9</strong> isolated process worker model</li>
+    <li><strong>Azure Functions v4</strong> (<code>Microsoft.Azure.Functions.Worker</code> 2.51.0)</li>
+    <li><strong>Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore</strong> — enables <code>HttpRequest</code>/<code>IActionResult</code> in HTTP triggers and supports the ASP.NET Core middleware pipeline (required for <code>JwtValidationMiddleware</code>)</li>
+  </ul>
+
+  <h3>Key Packages</h3>
+  <table>
+    <thead><tr><th>Package</th><th>Version</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">PdfSharpCore</td><td>1.3.65</td><td>PDF generation. Requires explicit font resolver — system fonts not available in Functions hosting.</td></tr>
+      <tr><td class="t-accent">ClosedXML</td><td>0.105.0</td><td>Excel (.xlsx) generation</td></tr>
+      <tr><td class="t-accent">ZXing.Net</td><td>0.16.9</td><td>Code 128 barcode rendering used in label PDFs</td></tr>
+      <tr><td class="t-accent">Azure.AI.FormRecognizer</td><td>4.1.0</td><td>Azure Document Intelligence client (invoice extraction)</td></tr>
+      <tr><td class="t-accent">Azure.AI.OpenAI</td><td>2.1.0</td><td>Azure OpenAI client (semantic line item matching)</td></tr>
+      <tr><td class="t-accent">Microsoft.Identity.Web</td><td>3.8.2</td><td>JWT validation infrastructure</td></tr>
+      <tr><td class="t-accent">Azure.Identity</td><td>1.17.0</td><td>DefaultAzureCredential for Managed Identity (DB token, Key Vault, API calls)</td></tr>
+      <tr><td class="t-accent">Microsoft.Data.SqlClient</td><td>5.2.2</td><td>Azure SQL connection</td></tr>
+      <tr><td class="t-accent">Microsoft.Data.Sqlite</td><td>9.0.0</td><td>SQLite connection for local dev</td></tr>
+      <tr><td class="t-accent">Azure.Security.KeyVault.Secrets</td><td>4.6.0</td><td>Direct Key Vault reads for non-ConnectionStrings secrets</td></tr>
+      <tr><td class="t-accent">Extensions.Storage.Queues</td><td>5.5.1</td><td>Queue trigger binding</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body"><strong>Font embedding:</strong> PdfSharpCore requires an <code>IFontResolver</code> at runtime — Azure Functions hosting does not expose system fonts. This repo embeds <code>NotoSans-Regular.ttf</code> as an assembly resource and registers <code>CustomFontResolver.Instance</code> as a global singleton before <code>host.Run()</code>. All PDF output uses NotoSans as the primary and fallback font.</div>
+  </div>
+</div>
+
+<!-- §04 LOCAL DEV SETUP -->
+<div class="section" id="s4">
+  <div class="section-header"><span class="sn">04</span><h2>Local Development Setup</h2></div>
+
+  <h3>Prerequisites</h3>
+  <ul>
+    <li>.NET 9 SDK</li>
+    <li>Azure Functions Core Tools v4 (<code>func</code> CLI)</li>
+    <li>Azurite (local Azure Storage emulator) — required for the queue trigger and <code>AzureWebJobsStorage</code></li>
+    <li><code>inventory_api</code> checked out locally with its dev SQLite database present at <code>dev_data/inventory_dev.db</code></li>
+  </ul>
+
+  <h3>local.settings.json</h3>
+  <p>Copy <code>local.settings.example.json</code> to <code>local.settings.json</code> and fill in your values. <strong>Do not commit <code>local.settings.json</code></strong> — it is gitignored.</p>
+  <div class="pre-label">json</div>
+  <pre>{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "ASPNETCORE_ENVIRONMENT": "Development",
+
+    "AzureAd__Instance": "https://login.microsoftonline.com/",
+    "AzureAd__TenantId": "&lt;your-tenant-id&gt;",
+    "AzureAd__ClientId": "&lt;api-client-id&gt;",
+    "AzureAd__Audience": "api://&lt;api-client-id&gt;",
+
+    "InventoryApi__BaseUrl": "http://localhost:5077",
+
+    "AzureDocIntelligence__Endpoint": "&lt;your-adi-endpoint&gt;",
+    "AzureDocIntelligence__ApiKey":   "&lt;your-adi-key&gt;",
+
+    "AzureOpenAI__Endpoint":       "&lt;your-openai-endpoint&gt;",
+    "AzureOpenAI__ApiKey":         "&lt;your-openai-key&gt;",
+    "AzureOpenAI__DeploymentName": "gpt-4.1-mini",
+
+    "PA__new_part_created":        "&lt;pa-flow-url&gt;",
+    "PA__new_part_in_warehouse":   "&lt;pa-flow-url&gt;",
+    "PA__bulk_parts_created":      "&lt;pa-flow-url&gt;",
+    "PA__bulk_supplies_created":   "&lt;pa-flow-url&gt;",
+    "PA__daily_pending_orders":    "&lt;pa-flow-url&gt;",
+    "PA__weekly_warehouse_report": "&lt;pa-flow-url&gt;",
+    "PA__daily_channel_failures":  "&lt;pa-flow-url&gt;",
+
+    "NotificationOverride":            "true",
+    "NotificationOverride__TeamId":    "&lt;it-team-id&gt;",
+    "NotificationOverride__ChannelId": "&lt;it-test-channel-id&gt;",
+
+    "DM__TeamId":    "&lt;it-team-id&gt;",
+    "DM__ChannelId": "&lt;inventory-db-manager-alerts-channel-id&gt;"
+  },
+  "ConnectionStrings": {
+    "InventoryDb": "Data Source=&lt;absolute-path-to-inventory_api&gt;/dev_data/inventory_dev.db"
+  }
+}</pre>
+
+  <h3>Configuration Resolution Order</h3>
+  <p>The codebase uses a three-path lookup in <code>JwtValidationMiddleware</code>, <code>PowerAutomateService</code>, and <code>InvoiceAnalysisService</code>:</p>
+  <div class="pre-label">csharp</div>
+  <pre>_config[key]                         // root key (Azure App Settings / env vars)
+?? _config[key.Replace("__", ":")]   // colon-normalized variant
+?? _config[$"Values:{key}"]          // local.settings.json Values section</pre>
+  <p>This means <code>AzureAd__TenantId</code> resolves as <code>AzureAd:TenantId</code> in ASP.NET Core config, or as <code>Values:AzureAd__TenantId</code> in <code>local.settings.json</code>. Key names do not need to change between environments.</p>
+
+  <h3>Shared Dev Database</h3>
+  <p>The Functions repo has no database of its own. The SQLite connection string must point to <code>inventory_dev.db</code> inside your local <code>inventory_api</code> checkout. The <code>inventory_api</code> project must be run at least once first so its startup migration creates the database file.</p>
+
+  <h3>NotificationOverride</h3>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body"><strong>Always enable <code>NotificationOverride=true</code> in local dev.</strong> When active, all Teams notifications are routed to the team/channel configured in <code>NotificationOverride__TeamId</code> and <code>NotificationOverride__ChannelId</code> — regardless of the intended property channel. If override IDs are not set, the service logs a Warning and falls back to the real channel (intentional — a misconfigured override does not silently drop notifications).</div>
+  </div>
+
+  <h3>Azurite Setup</h3>
+  <div class="pre-label">bash</div>
+  <pre>azurite --silent --location .azurite --debug .azurite/debug.log</pre>
+  <p>The <code>inventory-notifications</code> queue is created automatically on first use. The <code>.azurite/</code> folder is gitignored.</p>
+
+  <h3>Running Locally</h3>
+  <div class="pre-label">bash</div>
+  <pre>cd src/InventoryFunctions
+func start</pre>
+  <p>Functions host binds to <code>http://localhost:7071</code> by default. HTTP trigger routes are relative to that base: e.g., <code>POST http://localhost:7071/api/reports/tabular</code>.</p>
+</div>
+
+<!-- §05 STARTUP & DI -->
+<div class="section" id="s5">
+  <div class="section-header"><span class="sn">05</span><h2>Startup Pipeline &amp; Dependency Injection</h2></div>
+
+  <h3>HostBuilder Configuration Order</h3>
+  <div class="pipeline">
+    <div class="pipeline-step"><span class="pipeline-arrow">1 →</span><span><code>ConfigureAppConfiguration</code> — loads <code>local.settings.json</code> (optional) then environment variables</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">2 →</span><span><code>ConfigureFunctionsWebApplication</code> — registers ASP.NET Core middleware pipeline including <code>JwtValidationMiddleware</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">3 →</span><span><code>ConfigureServices</code> — environment detection, connection string selection, <code>AddInventoryServices</code>, Application Insights</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">4 →</span><span>Global font resolver: <code>GlobalFontSettings.FontResolver = CustomFontResolver.Instance</code> — must run before <code>host.Run()</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">5 →</span><span>Startup warnings logged: NotificationOverride state, missing PA flow URLs</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">6 →</span><span><code>host.Run()</code></span></div>
+  </div>
+
+  <h3>Environment Detection</h3>
+  <div class="pre-label">csharp</div>
+  <pre>var useSqlite = env.IsDevelopment() || env.IsEnvironment("Testing");</pre>
+  <p><code>ASPNETCORE_ENVIRONMENT</code> drives this check. <code>Development</code> and <code>Testing</code> use the SQLite connection string. Any other value (including <code>Production</code>) uses <code>DefaultConnection</code> and Azure SQL with Managed Identity token auth.</p>
+
+  <h3>AddInventoryServices — Registered Services (all Scoped)</h3>
+  <table>
+    <thead><tr><th>Service</th><th>Implementation</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">IReportDataService</td><td>ReportDataService(connectionString, useSqlite)</td></tr>
+      <tr><td class="t-accent">IExcelReportService</td><td>ExcelReportService</td></tr>
+      <tr><td class="t-accent">IPdfReportService</td><td>PdfReportService</td></tr>
+      <tr><td class="t-accent">IInvoiceAnalysisService</td><td>InvoiceAnalysisService</td></tr>
+      <tr><td class="t-accent">INotificationDataService</td><td>NotificationDataService(connectionString, useSqlite, logger)</td></tr>
+      <tr><td class="t-accent">IApiClient</td><td>ApiClient</td></tr>
+      <tr><td class="t-accent">IPowerAutomateService</td><td>PowerAutomateService</td></tr>
+    </tbody>
+  </table>
+  <p>Two named <code>HttpClient</code> instances are also registered: <code>"InventoryApi"</code> and <code>"PowerAutomate"</code>.</p>
+</div>
+
+<!-- §06 AUTHENTICATION & AUTHORIZATION -->
+<div class="section" id="s6">
+  <div class="section-header"><span class="sn">06</span><h2>Authentication &amp; Authorization</h2></div>
+
+  <h3>JwtValidationMiddleware</h3>
+  <p>Located at <code>Services/Auth/JwtValidationMiddleware.cs</code>. This is the sole authentication enforcement point for HTTP triggers.</p>
+  <ul>
+    <li><strong>Timer and queue triggers:</strong> Middleware checks for <code>HttpContext</code> at the start of <code>Invoke</code>. When none exists, it calls <code>next(context)</code> immediately. No token required, negligible overhead.</li>
+    <li><strong>HTTP triggers:</strong> Extracts <code>Authorization: Bearer &lt;token&gt;</code>, fetches signing keys from Entra ID OpenID Connect metadata, validates issuer/audience/lifetime/signing key. On success sets <code>ITokenClaims</code> on <code>context.Features</code> and sets <code>httpContext.User</code>. On failure returns <code>401</code>.</li>
+  </ul>
+
+  <h3>Token Validation Failure Responses</h3>
+  <table>
+    <thead><tr><th>Condition</th><th>Status</th><th>Message</th></tr></thead>
+    <tbody>
+      <tr><td>Missing/malformed Authorization header</td><td class="t-danger">401</td><td>Missing or malformed Authorization header.</td></tr>
+      <tr><td>Token expired</td><td class="t-danger">401</td><td>Token has expired.</td></tr>
+      <tr><td>Any other validation failure</td><td class="t-danger">401</td><td>Token validation failed.</td></tr>
+      <tr><td>AzureAd config incomplete</td><td class="t-danger">500</td><td>Server configuration error.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Accessing Claims in Function Handlers</h3>
+  <div class="pre-label">csharp</div>
+  <pre>var claims = functionContext.GetTokenClaims();
+// claims.Oid   — object ID from token
+// claims.Email — preferred_username or upn claim</pre>
+  <p>If the middleware did not run (timer/queue), <code>GetTokenClaims()</code> returns an empty <code>TokenClaims</code> instance rather than null.</p>
+
+  <h3>OID Cross-Validation</h3>
+  <p><code>TabularReportFunction</code>, <code>LabelReportFunction</code>, and <code>OrderFormReportFunction</code> enforce an additional check — the <code>requested_by_oid</code> field in the request body must match the OID from the validated token. This prevents one authenticated user from generating a report scoped to another user's identity.</p>
+  <div class="pre-label">csharp</div>
+  <pre>if (!string.Equals(claims.Oid, request.RequestedByOid, StringComparison.OrdinalIgnoreCase))
+    return new ObjectResult(new { error = "FORBIDDEN", message = "OID mismatch." })
+        { StatusCode = StatusCodes.Status403Forbidden };</pre>
+
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body"><strong>All HTTP triggers use <code>AuthorizationLevel.Anonymous</code>.</strong> This means the Azure Functions host does not enforce function keys. Authentication is enforced entirely by <code>JwtValidationMiddleware</code>. Do not change the authorization level without evaluating the middleware behavior.</div>
+  </div>
+
+  <h3>Timer and Queue → API Call-Through</h3>
+  <p>When timer and queue functions call the API for write-back operations, <code>ApiClient</code> acquires a token using <code>DefaultAzureCredential</code>. In production this resolves via the Function App's Managed Identity. Locally it falls through the credential chain (environment variables, Azure CLI, Visual Studio, etc.).</p>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">This is <strong>not</strong> a user token — it is a service-to-service token scoped to the API's audience. The invoice analysis pipeline uses a different pattern: the user's own Bearer token is forwarded from the incoming HTTP request to the API calls within <code>InvoiceAnalysisService</code>.</div>
+  </div>
+</div>
+
+<!-- §07 FUNCTION INVENTORY -->
+<div class="section" id="s7">
+  <div class="section-header"><span class="sn">07</span><h2>Function Inventory</h2></div>
+
+  <h3>HTTP Report Functions</h3>
+  <p>All HTTP report functions share: <code>AuthorizationLevel.Anonymous</code> (auth via middleware), OID cross-validation, <code>FileContentResult</code> on success, structured JSON error objects on failure.</p>
+
+  <h4>POST /api/reports/tabular — TabularReportFunction</h4>
+  <table>
+    <thead><tr><th>report_type</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">transactions</td><td>Transaction ledger filtered by warehouse, date range, reason, category</td></tr>
+      <tr><td class="t-accent">part_trend</td><td>Consumption or quantity-on-hand trend for a single part across warehouses</td></tr>
+      <tr><td class="t-accent">order_history</td><td>Order history filtered by warehouse, date range, status, category</td></tr>
+      <tr><td class="t-accent">on_order</td><td>Currently open orders (pending + ordered) filtered by warehouse</td></tr>
+      <tr><td class="t-accent">parts_catalog</td><td>Parts catalog with supply levels</td></tr>
+      <tr><td class="t-accent">cross_reference</td><td>Cross-reference of parts to identifiers/barcodes</td></tr>
+    </tbody>
+  </table>
+  <p>Formats: <code>"excel"</code> or <code>"pdf"</code> — both supported for all six report types.</p>
+
+  <h4>POST /api/reports/labels — LabelReportFunction</h4>
+  <ul>
+    <li>Parts labels: provide <code>items</code> array with <code>{ part_id, copies }</code></li>
+    <li>Equipment labels: provide <code>equipment_items</code> array with <code>{ equipment_id, copies }</code></li>
+    <li>Parts and equipment cannot be mixed in a single request (<code>MIXED_ITEMS</code> error)</li>
+    <li><code>copies</code> clamped to [1, 30] per item</li>
+    <li>Equipment items without a <code>ToolMasterValue</code> are skipped — if none have a valid Tool ID returns <code>400 NO_VALID_EQUIPMENT</code></li>
+  </ul>
+
+  <h4>POST /api/reports/order-form — OrderFormReportFunction</h4>
+  <ul>
+    <li><code>format = "excel"</code>: returns <code>.xlsx</code> file</li>
+    <li><code>format = "pdf"</code>: returns <code>501 Not Implemented</code> (<code>UNSUPPORTED_FORMAT</code>) — PDF order form not yet implemented</li>
+    <li>Any other format value: returns <code>400 UNSUPPORTED_FORMAT</code></li>
+  </ul>
+
+  <h3>HTTP Invoice Function</h3>
+  <h4>POST /api/invoice/analyze — AnalyzeInvoiceFunction</h4>
+  <p>Accepts a multipart form upload and returns matched line items. See Section 10 for pipeline detail.</p>
+  <table>
+    <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">file</td><td>File upload</td><td class="t-accent2">Yes</td><td>JPEG, PNG, TIFF, or PDF</td></tr>
+      <tr><td class="t-accent">warehouse_id</td><td>Integer</td><td class="t-accent2">Yes</td><td>Scopes alias and parts lookups</td></tr>
+      <tr><td class="t-accent">vendor_id</td><td>Integer</td><td class="t-muted">No</td><td>Narrows alias lookup to a specific vendor</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Timer Functions</h3>
+  <div class="callout c-info"><span class="icon">ℹ️</span><div class="body">All timer functions use UTC time. Cron expressions follow the Azure Functions 6-field format: <code>{second} {minute} {hour} {day} {month} {day-of-week}</code>.</div></div>
+  <table>
+    <thead><tr><th>Function</th><th>Cron</th><th>Schedule</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">DailyPendingOrdersFunction</td><td>0 0 6 * * *</td><td>6:00 AM UTC, every day</td></tr>
+      <tr><td class="t-accent">WeeklyOrderedItemsFunction</td><td>0 0 6 * * 5</td><td>6:00 AM UTC, every Friday</td></tr>
+      <tr><td class="t-accent">DailyChannelFailuresFunction</td><td>0 30 6 * * *</td><td>6:30 AM UTC, every day</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Queue Function</h3>
+  <p><strong>NotificationQueueFunction</strong> — Queue: <code>inventory-notifications</code>, Connection: <code>AzureWebJobsStorage</code>. Triggered by messages enqueued by <code>inventory_api</code> on inventory write events. See Section 9 for the full notification pipeline.</p>
+</div>
+
+<!-- §08 REPORT GENERATION PIPELINE -->
+<div class="section" id="s8">
+  <div class="section-header"><span class="sn">08</span><h2>Report Generation Pipeline</h2></div>
+
+  <h3>Data Access</h3>
+  <p><code>ReportDataService</code> reads the database directly using raw ADO.NET. Production connections use <code>DefaultAzureCredential</code> to acquire an access token for <code>https://database.windows.net/.default</code> and assign it to <code>SqlConnection.AccessToken</code>. The connection string itself contains no credentials.</p>
+
+  <h3>Excel Generation</h3>
+  <p><code>ExcelReportService</code> uses ClosedXML to build <code>.xlsx</code> workbooks in memory and return <code>byte[]</code>. Column definitions, date format strings, and header styles are applied per report type.</p>
+
+  <h3>PDF Generation</h3>
+  <p><code>PdfReportService</code> uses PdfSharpCore with <code>CustomFontResolver</code> registered as the global font resolver. The resolver's <code>ResolveTypeface</code> method falls back all unrecognized font family names to NotoSans. Even where report builders request <code>"Arial"</code> by name, PdfSharpCore resolves through the resolver and renders NotoSans. The embedded <code>NotoSans-Regular.ttf</code> is used for all PDF rendering in practice.</p>
+
+  <h3>Barcode Rendering</h3>
+  <p>ZXing.Net renders Code 128 barcodes as <code>byte[]</code> images, which are embedded in label PDFs by <code>PdfReportService</code>. Barcode values come from the <code>Identifiers</code> table via <code>ReportDataService</code>.</p>
+
+  <h3>Report Type Filter Models</h3>
+  <table>
+    <thead><tr><th>report_type</th><th>Filter Class</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">transactions</td><td>TransactionsFilters</td></tr>
+      <tr><td class="t-accent">part_trend</td><td>PartTrendFilters</td></tr>
+      <tr><td class="t-accent">order_history</td><td>OrderHistoryFilters</td></tr>
+      <tr><td class="t-accent">on_order</td><td>OnOrderFilters</td></tr>
+      <tr><td class="t-accent">parts_catalog</td><td>PartsCatalogFilters</td></tr>
+      <tr><td class="t-accent">cross_reference</td><td>CrossReferenceFilters</td></tr>
+    </tbody>
+  </table>
+  <p>The <code>TabularReportRequest.Filters</code> field is a <code>JsonElement</code> deserialized into the appropriate filter class at dispatch time.</p>
+
+  <h3>Binary Response Pattern</h3>
+  <div class="pre-label">csharp</div>
+  <pre>return new FileContentResult(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+{
+    FileDownloadName = $"order-form-{DateTime.UtcNow:yyyy-MM-dd}.xlsx"
+};</pre>
+  <p>The PWA receives this as a binary blob and triggers a browser download. The PWA sends report parameters (filters, IDs, format) — never pre-fetched row data.</p>
+</div>
+
+<!-- §09 NOTIFICATION PIPELINE -->
+<div class="section" id="s9">
+  <div class="section-header"><span class="sn">09</span><h2>Notification Pipeline</h2></div>
+
+  <h3>End-to-End Flow</h3>
+  <div class="pipeline">
+    <div class="pipeline-step"><span class="pipeline-arrow">1 →</span><span><code>inventory_api</code> write event → enqueues <code>NotificationQueueMessage</code> to <code>inventory-notifications</code> Storage Queue</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">2 →</span><span><code>NotificationQueueFunction</code> (queue trigger) → deserializes message → calls <code>PowerAutomateService</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">3 →</span><span><code>PowerAutomateService</code> → resolves routing (override or real channel) → resolves PA flow URL from <code>PA__{event_type}</code> config → POSTs <code>TeamNotificationPayload</code> to PA flow</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">4a →</span><span>On HTTP 2xx → calls <code>ApiClient.PostNotificationSuccessAsync</code> (fire-and-forget)</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">4b →</span><span>On non-2xx or exception → calls <code>ApiClient.PostNotificationFailureAsync</code> (fire-and-forget)</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">5 →</span><span>API records outcome in <code>PropertyChannelFailureLogs</code> or delivery success log</span></div>
+  </div>
+
+  <h3>Power Automate Flow Registry</h3>
+  <table>
+    <thead><tr><th>Config Key</th><th>Event</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">PA__new_part_created</td><td>New part added to catalog</td></tr>
+      <tr><td class="t-accent">PA__new_part_in_warehouse</td><td>Part added to a warehouse's supply</td></tr>
+      <tr><td class="t-accent">PA__bulk_parts_created</td><td>Bulk part creation</td></tr>
+      <tr><td class="t-accent">PA__bulk_supplies_created</td><td>Bulk supply creation</td></tr>
+      <tr><td class="t-accent">PA__daily_pending_orders</td><td>Daily pending orders digest (timer)</td></tr>
+      <tr><td class="t-accent">PA__weekly_warehouse_report</td><td>Weekly inventory report (timer)</td></tr>
+      <tr><td class="t-accent">PA__daily_channel_failures</td><td>Daily notification failure digest (timer, DM)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>NotificationQueueMessage Schema</h3>
+  <table>
+    <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">event_type</td><td>string</td><td>Must match a PA__ key (e.g. "new_part_created")</td></tr>
+      <tr><td class="t-accent">channel_type</td><td>string</td><td>"DM" or property channel type (e.g. "property")</td></tr>
+      <tr><td class="t-accent">team_id</td><td>string</td><td>Required when channel_type != "DM"</td></tr>
+      <tr><td class="t-accent">channel_id</td><td>string</td><td>Required when channel_type != "DM"</td></tr>
+      <tr><td class="t-accent">subject</td><td>string</td><td>Notification subject line</td></tr>
+      <tr><td class="t-accent">body</td><td>object</td><td>Notification body payload (event-type specific)</td></tr>
+      <tr><td class="t-accent">triggered_by</td><td>string</td><td>Email or identifier of the user who triggered the event</td></tr>
+    </tbody>
+  </table>
+
+  <h3>SanitizeForNotification</h3>
+  <p>Located in <code>Helpers/NotificationSanitizer.cs</code>. Applied as a string extension on all user-sourced values before embedding in notification payloads. Power Automate's <code>@{...}</code> template substitution injects raw values directly into Adaptive Card JSON — unescaped double-quotes break the card's JSON structure.</p>
+  <div class="pre-label">csharp</div>
+  <pre>public static string SanitizeForNotification(this string? value)
+    => (value ?? string.Empty).Replace("\"", "in");</pre>
+  <p>Replaces <code>"</code> with the literal text <code>"in"</code> at read time. Display-only — stored data is never modified.</p>
+
+  <h3>DailyChannelFailuresFunction Atomicity</h3>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">Steps: (1) fetch unreported failures from DB, (2) dispatch digest to DM PA flow, (3) mark failures as reported via API. Step 3 is <strong>awaited</strong> (unlike fire-and-forget success/failure recording). If step 2 succeeds but step 3 fails, the failures will not be marked as reported and will reappear in the next day's digest. This is by design — it prefers duplicate reporting over silent data loss.</div>
+  </div>
+</div>
+
+<!-- §10 INVOICE ANALYSIS PIPELINE -->
+<div class="section" id="s10">
+  <div class="section-header"><span class="sn">10</span><h2>Invoice Analysis Pipeline</h2></div>
+
+  <p><code>AnalyzeInvoiceFunction</code> handles HTTP validation, form parsing, and file type checking, then delegates entirely to <code>IInvoiceAnalysisService.AnalyzeAsync(file, warehouseId, vendorId, bearerToken)</code>.</p>
+
+  <h3>Accepted File Types</h3>
+  <p>JPEG, PNG, TIFF, application/pdf. Other content types return <code>400 UNSUPPORTED_FILE_TYPE</code>.</p>
+
+  <h3>Processing Stages</h3>
+  <div class="pipeline">
+    <div class="pipeline-step"><span class="pipeline-arrow">Stage 1 →</span><span><strong>Azure Document Intelligence</strong> — <code>prebuilt-invoice</code> model extracts <code>VendorName</code>, <code>Items</code> (Description, Quantity, Unit). If no items found, returns empty result immediately.</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">Stage 2 →</span><span><strong>Vendor alias lookup</strong> — normalized descriptions sent to <code>POST /vendor-aliases/lookup</code>. Matched items get <code>match_source = "alias"</code> and <code>confidence = 1.0</code>.</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">Stage 3 →</span><span><strong>Partition</strong> — items with alias match added to result immediately. Unresolved items proceed to Stage 4.</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">Stage 4 →</span><span><strong>Azure OpenAI semantic matching</strong> — parts catalog fetched once (<code>GET /parts?limit=500</code>). Each unresolved description sent to GPT deployment. Confidence ≥ 0.80 → <code>match_source = "ai"</code>. Below threshold → <code>match_source = "unresolved"</code>.</span></div>
+  </div>
+
+  <h3>Match Source Values</h3>
+  <table>
+    <thead><tr><th>match_source</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent2">alias</td><td>Matched by a known vendor alias in the database; confidence = 1.0</td></tr>
+      <tr><td class="t-accent">ai</td><td>Matched by OpenAI semantic matching; confidence ≥ 0.80</td></tr>
+      <tr><td class="t-muted">unresolved</td><td>Not matched; requires manual review in the PWA</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Bearer Token Passthrough</h3>
+  <p><code>AnalyzeInvoiceFunction</code> extracts the Bearer token from the incoming <code>Authorization</code> header and passes it to <code>InvoiceAnalysisService.AnalyzeAsync</code>. The service forwards this token to the API calls it makes (alias lookup, parts list fetch). This is a user-token passthrough — distinct from the Managed Identity token used by timer functions.</p>
+
+  <h3>Key Vault Secret Resolution</h3>
+  <p><code>InvoiceAnalysisService</code> uses a <code>GetSecret(localConfigKey, keyVaultSecretName)</code> helper for ADI and OpenAI credentials. In local dev it reads from <code>local.settings.json</code>. In production it reads directly from Key Vault using <code>DefaultAzureCredential</code>. This is necessary because non-<code>ConnectionStrings</code> keys do not resolve through <code>IConfiguration</code> on Flex Consumption plans when set as Key Vault references.</p>
+</div>
+
+<!-- §11 ADDING A NEW FUNCTION -->
+<div class="section" id="s11">
+  <div class="section-header"><span class="sn">11</span><h2>Adding a New Function</h2></div>
+
+  <h3>Choosing the Trigger Type</h3>
+  <table>
+    <thead><tr><th>Scenario</th><th>Trigger</th></tr></thead>
+    <tbody>
+      <tr><td>User requests a file or analysis result</td><td class="t-accent">HTTP</td></tr>
+      <tr><td>Scheduled data aggregation or notification</td><td class="t-accent">Timer</td></tr>
+      <tr><td>Reactive to an API write event</td><td class="t-accent">Queue</td></tr>
+    </tbody>
+  </table>
+
+  <h3>HTTP Function Checklist</h3>
+  <div class="checklist">
+    <div class="check-item"><div class="check-box"></div><span>Declare <code>AuthorizationLevel.Anonymous</code> on <code>HttpTrigger</code></span></div>
+    <div class="check-item"><div class="check-box"></div><span>Check <code>claims.Oid</code> immediately; return <code>UnauthorizedResult()</code> if empty</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Apply OID cross-validation if request body contains user-scoped data (<code>requested_by_oid</code>)</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Return structured JSON error objects (<code>new { error = "CODE", message = "..." }</code>) for all non-success responses</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Inject services via constructor; do not call <code>GetService</code> directly</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Use <code>CancellationToken ct</code> parameter and pass it through to all async calls</span></div>
+  </div>
+
+  <h3>Timer Function Checklist</h3>
+  <div class="checklist">
+    <div class="check-item"><div class="check-box"></div><span>No <code>HttpContext</code> — no auth check needed</span></div>
+    <div class="check-item"><div class="check-box"></div><span>API calls use <code>ApiClient</code> (acquires Managed Identity token automatically)</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Log start and completion with <code>DateTime.UtcNow</code></span></div>
+    <div class="check-item"><div class="check-box"></div><span>Log <code>myTimer.ScheduleStatus?.Next</code> on completion</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Catch exceptions per-item in loops; log and continue rather than aborting the entire run</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Do not write to inventory, supply, order, transaction, or equipment tables directly</span></div>
+  </div>
+
+  <h3>Queue Function Checklist</h3>
+  <div class="checklist">
+    <div class="check-item"><div class="check-box"></div><span>Deserialize defensively; on parse failure log the raw message and <code>return</code> — the message is consumed and discarded, not retried</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Throw on dispatch exceptions (not deserialization failures) so the Functions host can retry via built-in retry policy</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Log <code>event_type</code> and <code>channel_type</code> on dequeue for traceability</span></div>
+  </div>
+
+  <h3>Adding a PA Flow</h3>
+  <div class="checklist">
+    <div class="check-item"><div class="check-box"></div><span>Add the flow URL key to <code>local.settings.example.json</code> under <code>Values</code></span></div>
+    <div class="check-item"><div class="check-box"></div><span>Add the key to the <code>paKeys</code> array in <code>Program.cs</code> so it is validated at startup</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Add a <code>PA__{event_type}</code> entry to Azure App Settings (or Key Vault) in production</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Implement <code>IPowerAutomateService</code> dispatch calls for the new event type</span></div>
+  </div>
+</div>
+
+<!-- §12 CONFIGURATION REFERENCE -->
+<div class="section" id="s12">
+  <div class="section-header"><span class="sn">12</span><h2>Configuration Reference</h2></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Key</th><th>Required</th><th>Behavior When Absent</th></tr></thead>
+      <tbody>
+        <tr><td class="t-accent">AzureWebJobsStorage</td><td class="t-danger">Yes</td><td>Functions host will not start</td></tr>
+        <tr><td class="t-accent">FUNCTIONS_WORKER_RUNTIME</td><td class="t-danger">Yes</td><td>Must be "dotnet-isolated"</td></tr>
+        <tr><td class="t-accent">ASPNETCORE_ENVIRONMENT</td><td class="t-danger">Yes</td><td>Absence defaults to Azure SQL path</td></tr>
+        <tr><td class="t-accent">AzureAd__Instance</td><td class="t-danger">Yes</td><td>JWT validation fails with 500</td></tr>
+        <tr><td class="t-accent">AzureAd__TenantId</td><td class="t-danger">Yes</td><td>JWT validation fails with 500</td></tr>
+        <tr><td class="t-accent">AzureAd__ClientId</td><td class="t-danger">Yes</td><td>Required for token audience</td></tr>
+        <tr><td class="t-accent">AzureAd__Audience</td><td class="t-danger">Yes</td><td>JWT validation fails with 500; also used by ApiClient for token scope</td></tr>
+        <tr><td class="t-accent">InventoryApi__BaseUrl</td><td class="t-danger">Yes</td><td>Invoice and notification API calls fail at runtime</td></tr>
+        <tr><td class="t-accent">AzureDocIntelligence__Endpoint</td><td class="t-warn">Invoice</td><td>Invoice analysis returns 502</td></tr>
+        <tr><td class="t-accent">AzureDocIntelligence__ApiKey</td><td class="t-warn">Invoice</td><td>Invoice analysis returns 502</td></tr>
+        <tr><td class="t-accent">AzureOpenAI__Endpoint</td><td class="t-warn">Invoice</td><td>Invoice analysis returns 502</td></tr>
+        <tr><td class="t-accent">AzureOpenAI__ApiKey</td><td class="t-warn">Invoice</td><td>Invoice analysis returns 502</td></tr>
+        <tr><td class="t-accent">AzureOpenAI__DeploymentName</td><td class="t-warn">Invoice</td><td>Invoice analysis returns 502</td></tr>
+        <tr><td class="t-accent">PA__new_part_created</td><td class="t-muted">No</td><td>Startup warning; notification logged and skipped</td></tr>
+        <tr><td class="t-accent">PA__new_part_in_warehouse</td><td class="t-muted">No</td><td>Startup warning; notification logged and skipped</td></tr>
+        <tr><td class="t-accent">PA__bulk_parts_created</td><td class="t-muted">No</td><td>Startup warning; notification logged and skipped</td></tr>
+        <tr><td class="t-accent">PA__bulk_supplies_created</td><td class="t-muted">No</td><td>Startup warning; notification logged and skipped</td></tr>
+        <tr><td class="t-accent">PA__daily_pending_orders</td><td class="t-muted">No</td><td>Startup warning; notification logged and skipped</td></tr>
+        <tr><td class="t-accent">PA__weekly_warehouse_report</td><td class="t-muted">No</td><td>Startup warning; notification logged and skipped</td></tr>
+        <tr><td class="t-accent">PA__daily_channel_failures</td><td class="t-muted">No</td><td>Startup warning; notification logged and skipped</td></tr>
+        <tr><td class="t-accent">NotificationOverride</td><td class="t-muted">No</td><td>All notifications go to real channels</td></tr>
+        <tr><td class="t-accent">NotificationOverride__TeamId</td><td class="t-muted">No</td><td>If override active but IDs missing, falls back to real channel with Warning</td></tr>
+        <tr><td class="t-accent">NotificationOverride__ChannelId</td><td class="t-muted">No</td><td>Same as above</td></tr>
+        <tr><td class="t-accent">DM__TeamId</td><td class="t-muted">No</td><td>DM notifications skipped with Warning</td></tr>
+        <tr><td class="t-accent">DM__ChannelId</td><td class="t-muted">No</td><td>DM notifications skipped with Warning</td></tr>
+        <tr><td class="t-accent">KeyVaultUrl</td><td class="t-muted">No</td><td>Defaults to https://atc-inventory-keyvault.vault.azure.net/</td></tr>
+        <tr><td class="t-accent">ConnectionStrings:InventoryDb</td><td class="t-warn">Dev only</td><td>Startup exception in Development/Testing</td></tr>
+        <tr><td class="t-accent">ConnectionStrings:DefaultConnection</td><td class="t-warn">Prod only</td><td>Startup exception in Production</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- §13 DEPLOYMENT -->
+<div class="section" id="s13">
+  <div class="section-header"><span class="sn">13</span><h2>Deployment</h2></div>
+
+  <h3>GitHub Actions Workflow</h3>
+  <p><code>.github/workflows/deploy.yml</code> defines two jobs:</p>
+  <div class="pipeline">
+    <div class="pipeline-step"><span class="pipeline-arrow">Job 1 →</span><span><strong>build-and-test:</strong> Checkout → Restore → Build (Release) → <code>dotnet test</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">Job 2 →</span><span><strong>publish-and-deploy:</strong> Checkout → Publish to <code>./publish</code> → Azure Login (OIDC) → Deploy via <code>Azure/functions-action@v1</code> → Restart Function App</span></div>
+  </div>
+
+  <h3>Azure Resource Identifiers</h3>
+  <table>
+    <thead><tr><th>Resource</th><th>Value</th></tr></thead>
+    <tbody>
+      <tr><td class="t-muted">Function App name</td><td class="t-accent">atc-inventory-functions</td></tr>
+      <tr><td class="t-muted">Resource group</td><td class="t-accent">PAX8_ATC-InventoryApp</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Managed Identity Permissions Required</h3>
+  <table>
+    <thead><tr><th>Resource</th><th>Permission</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">Azure SQL</td><td>db_datareader role</td><td>NotificationDataService and ReportDataService</td></tr>
+      <tr><td class="t-accent">ATC_InventoryAPI Entra registration</td><td>Token acquisition for AzureAd__Audience scope</td><td>ApiClient — write-back calls to API</td></tr>
+      <tr><td class="t-accent">Key Vault</td><td>Get permission on secrets</td><td>InvoiceAnalysisService.GetSecret()</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body"><strong>Key Vault green checkmarks in the Azure portal confirm valid reference syntax only — not runtime resolution.</strong> Use Application Insights logs to verify resolved values on first invocation.</div>
+  </div>
+</div>
+
+<!-- §14 TESTING -->
+<div class="section" id="s14">
+  <div class="section-header"><span class="sn">14</span><h2>Testing</h2></div>
+
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body"><strong>Current coverage gap:</strong> The test project exists and is wired into the CI pipeline, but no test files were present in the snapshot at the time this guide was written. The CI step (<code>dotnet test</code>) runs against the empty project and passes. Meaningful test coverage does not currently exist for this repo.</div>
+  </div>
+
+  <h3>Priority Areas for Initial Coverage</h3>
+  <ul>
+    <li><code>NotificationSanitizer</code> — pure function, trivially testable</li>
+    <li><code>InvoiceAnalysisService</code> stage dispatch logic — alias vs. AI vs. unresolved branching</li>
+    <li><code>WeeklyOrderedItemsFunction</code> correlation logic (below-min vs. ordered correlation)</li>
+    <li><code>PowerAutomateService</code> routing logic (override vs. real channel resolution)</li>
+  </ul>
+
+  <h3>Running Tests</h3>
+  <div class="pre-label">bash</div>
+  <pre>dotnet test tests/InventoryFunctions.Tests/InventoryFunctions.Tests.csproj</pre>
+
+  <h3>Testing Approach by Trigger Type</h3>
+  <table>
+    <thead><tr><th>Trigger</th><th>Approach</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">HTTP functions</td><td>Standard IActionResult type and value assertions. Middleware not active in unit tests — pass pre-populated ITokenClaims mock via FunctionContext.Features.</td></tr>
+      <tr><td class="t-accent">Timer functions</td><td>Business logic in private ProcessWarehouseAsync methods. Extract to testable service class for unit testing.</td></tr>
+      <tr><td class="t-accent">Queue function</td><td>Deserialization and dispatch logic testable by constructing NotificationQueueFunction with mock IPowerAutomateService.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §15 OBSERVABILITY & TROUBLESHOOTING -->
+<div class="section" id="s15">
+  <div class="section-header"><span class="sn">15</span><h2>Observability &amp; Troubleshooting</h2></div>
+
+  <h3>Log Stream vs. Application Insights</h3>
+  <ul>
+    <li><strong>Log stream</strong> (Azure portal → Function App → Log stream): Near-real-time Information-level and above. Use for watching timer runs, notification dispatch, and startup warnings as they happen.</li>
+    <li><strong>Application Insights:</strong> Full exception detail including stack traces. Use <code>outerMessage</code> (not <code>innermostMessage</code>) in KQL queries. <code>parsedStack</code> array has <code>fileName</code> and <code>method</code> fields.</li>
+  </ul>
+
+  <h3>Common Failure Modes</h3>
+  <table>
+    <thead><tr><th>Symptom</th><th>Likely Cause</th><th>Where to Check</th></tr></thead>
+    <tbody>
+      <tr><td>PA flow URL not configured warning at startup</td><td class="t-warn">PA__{event_type} missing from App Settings</td><td>App Settings, startup log</td></tr>
+      <tr><td>DailyChannelFailures logs "failed to mark failures as reported"</td><td class="t-warn">API unavailable at timer run time</td><td>App Insights; /notification-failures/mark-reported endpoint</td></tr>
+      <tr><td>POST /api/invoice/analyze returns 502 ANALYSIS_FAILED</td><td class="t-warn">ADI or OpenAI config missing</td><td>App Insights for InvalidOperationException from GetSecret; verify Key Vault secrets and Managed Identity Get permission</td></tr>
+      <tr><td>403 FORBIDDEN with "OID mismatch."</td><td class="t-warn">PWA sending wrong requested_by_oid</td><td>Verify PWA sends OID from authenticated user's token claims</td></tr>
+      <tr><td>PDF generation throws on cold start</td><td class="t-warn">CustomFontResolver not initialized</td><td>Verify Program.cs font resolver assignment runs before host.Run()</td></tr>
+      <tr><td>Hard startup exception — connection string not configured</td><td class="t-warn">ConnectionStrings:InventoryDb (dev) or DefaultConnection (prod) missing</td><td>local.settings.json or Azure App Settings</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Known Cleanup Items</h3>
+
+  <div class="backlog-item">
+    <span class="icon">⚠️</span>
+    <div class="body"><strong>NotificationQueueFunction misleading comment:</strong> The parse-failure path contains <code>// don't throw — let the message be dead-lettered after retries</code>. The actual behavior is the opposite: returning without throwing causes the message to be consumed and discarded immediately, with no retry and no dead-lettering. The comment should be corrected.</div>
+  </div>
+
+  <div class="backlog-item">
+    <span class="icon">⚠️</span>
+    <div class="body"><strong>AnalyzeInvoiceFunction diagnostic logs:</strong> Contains temporary diagnostic <code>LogInformation</code> calls that log whether the ADI endpoint and key config values are null or set. Should be removed before next production release.</div>
+  </div>
+
+  <div class="backlog-item">
+    <span class="icon">⚠️</span>
+    <div class="body"><strong>PowerAutomateService Console.WriteLine calls:</strong> <code>DispatchAsync</code> contains two <code>Console.WriteLine</code> calls that write the PA payload and response to stdout. These bypass structured logging and Application Insights — should be replaced with <code>LogDebug</code> or removed.</div>
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<div class="doc-footer">
+  <span>ATC Inventory Application</span>
+  <span>Functions Developer Guide · May 2026</span>
+  <span>inventory_functions · Internal Use Only</span>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

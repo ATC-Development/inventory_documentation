@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATC Inventory — API Developer Guide</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2230;
+    --border: #2a3444;
+    --accent: #4fa3e0;
+    --accent2: #3ddc97;
+    --warn: #e6a817;
+    --danger: #e05c5c;
+    --text: #cdd9e5;
+    --muted: #768a9e;
+    --code: #a8d1f0;
+    --white: #f0f6fc;
+  }
+
+  body { font-family: 'Syne', sans-serif; font-size: 14px; color: var(--text); background: var(--bg); line-height: 1.65; }
+
+  .nav-bar { display: flex; align-items: center; gap: 12px; padding: 12px 56px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+  .nav-bar a { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: var(--muted); text-decoration: none; letter-spacing: 1px; transition: color 0.15s; }
+  .nav-bar a:hover { color: var(--accent); }
+  .nav-sep { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--border); }
+  .nav-current { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text); }
+
+  .page { max-width: 1060px; margin: 0 auto; padding: 0 0 80px; }
+
+  .doc-header { padding: 52px 56px 44px; border-bottom: 1px solid var(--border); position: relative; overflow: hidden; }
+  .doc-header::before { content: ""; position: absolute; top: 0; right: 0; width: 420px; height: 100%; background: radial-gradient(ellipse at 80% 40%, rgba(79,163,224,0.07) 0%, transparent 70%); pointer-events: none; }
+  .doc-header .eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 14px; }
+  .doc-header h1 { font-size: 36px; font-weight: 800; color: var(--white); line-height: 1.1; margin-bottom: 8px; }
+  .doc-header .subtitle { font-size: 14px; color: var(--muted); margin-bottom: 32px; max-width: 700px; }
+  .meta-strip { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; width: fit-content; }
+  .meta-cell { padding: 10px 20px; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 3px; }
+  .meta-cell:last-child { border-right: none; }
+  .meta-cell .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+  .meta-cell .val { font-size: 13px; font-weight: 600; color: var(--white); }
+  .meta-cell .val.green { color: var(--accent2); }
+
+  .toc { display: flex; gap: 6px; flex-wrap: wrap; padding: 20px 56px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .toc a { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); text-decoration: none; padding: 5px 12px; border: 1px solid var(--border); border-radius: 20px; transition: all 0.15s; }
+  .toc a:hover { color: var(--accent); border-color: var(--accent); }
+
+  .content { padding: 0 56px; }
+  .section { padding: 44px 0; border-bottom: 1px solid var(--border); }
+  .section:last-child { border-bottom: none; }
+  .section-header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px; }
+  .sn { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 2px; background: rgba(79,163,224,0.08); border: 1px solid rgba(79,163,224,0.2); padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
+  .section-header h2 { font-size: 20px; font-weight: 700; color: var(--white); }
+
+  h3 { font-size: 15px; font-weight: 700; color: var(--white); margin: 28px 0 12px; }
+  h4 { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 1.5px; text-transform: uppercase; margin: 20px 0 10px; }
+
+  p { color: var(--text); margin-bottom: 14px; max-width: 800px; }
+
+  ul { margin: 10px 0 16px 20px; max-width: 800px; }
+  ul li { color: var(--text); font-size: 13px; margin-bottom: 6px; line-height: 1.6; }
+  ul li strong { color: var(--white); }
+
+  ol { margin: 10px 0 16px 20px; max-width: 800px; }
+  ol li { color: var(--text); font-size: 13px; margin-bottom: 6px; line-height: 1.6; }
+
+  /* ── Priority list ── */
+  .sot-list { display: flex; flex-direction: column; gap: 6px; margin: 12px 0 20px; max-width: 800px; }
+  .sot-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--text); line-height: 1.5; }
+  .sot-num { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--accent); flex-shrink: 0; background: rgba(79,163,224,0.1); padding: 1px 6px; border-radius: 3px; min-width: 24px; text-align: center; }
+
+  /* ── Pipeline ── */
+  .pipeline { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 18px 22px; margin: 16px 0; max-width: 800px; }
+  .pipeline-step { display: flex; align-items: flex-start; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text); line-height: 1.5; }
+  .pipeline-step:last-child { border-bottom: none; }
+  .pipeline-arrow { font-family: 'JetBrains Mono', monospace; color: var(--accent); flex-shrink: 0; font-size: 12px; margin-top: 1px; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; margin: 24px 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; max-width: 800px; }
+  .step { display: grid; grid-template-columns: 56px 1fr; border-bottom: 1px solid var(--border); }
+  .step:last-child { border-bottom: none; }
+  .step-num { display: flex; align-items: flex-start; justify-content: center; padding-top: 20px; font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; color: var(--accent); background: var(--surface); border-right: 1px solid var(--border); }
+  .step-body { padding: 18px 22px; background: var(--surface2); }
+  .step-title { font-size: 14px; font-weight: 700; color: var(--white); margin-bottom: 6px; }
+  .step-desc { font-size: 13px; color: var(--muted); margin-bottom: 8px; max-width: 680px; line-height: 1.6; }
+  .step-desc:last-child { margin-bottom: 0; }
+  .step-desc strong { color: var(--white); }
+
+  /* ── Checklist ── */
+  .checklist { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; max-width: 800px; }
+  .check-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--text); line-height: 1.5; }
+  .check-box { width: 14px; height: 14px; border: 1px solid var(--border); border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+
+  /* ── Rule items ── */
+  .rules-list { display: flex; flex-direction: column; gap: 6px; margin: 12px 0 20px; max-width: 800px; }
+  .rule-item { display: flex; align-items: flex-start; gap: 12px; padding: 9px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--text); line-height: 1.5; }
+  .rule-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 5px; }
+  .rule-dot.warn { background: var(--warn); }
+  .rule-dot.danger { background: var(--danger); }
+  .rule-dot.green { background: var(--accent2); }
+
+  /* ── Code ── */
+  pre { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--code); overflow-x: auto; margin: 10px 0 16px; line-height: 1.7; }
+  .pre-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-top: 16px; margin-bottom: 4px; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--code); background: rgba(79,163,224,0.08); padding: 1px 6px; border-radius: 3px; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+
+  /* ── Callouts ── */
+  .callout { display: flex; gap: 14px; padding: 14px 18px; border-radius: 8px; margin: 16px 0; max-width: 800px; }
+  .callout.c-info  { background: rgba(79,163,224,0.07);  border: 1px solid rgba(79,163,224,0.2);  }
+  .callout.c-warn  { background: rgba(230,168,23,0.07);  border: 1px solid rgba(230,168,23,0.2);  }
+  .callout.c-ok    { background: rgba(61,220,151,0.07);  border: 1px solid rgba(61,220,151,0.2);  }
+  .callout .icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .callout .body { font-size: 13px; color: var(--text); line-height: 1.6; }
+  .callout .body strong { color: var(--white); }
+
+  /* ── Tables ── */
+  .table-wrap { overflow-x: auto; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { background: var(--surface); border-bottom: 1px solid var(--border); }
+  th { padding: 10px 14px; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  td { padding: 9px 14px; border-bottom: 1px solid var(--border); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; vertical-align: top; line-height: 1.5; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface); }
+  .t-accent { color: var(--accent); }
+  .t-accent2 { color: var(--accent2); }
+  .t-warn { color: var(--warn); }
+  .t-muted { color: var(--muted); }
+  .t-danger { color: var(--danger); }
+  .t-white { color: var(--white); font-weight: 600; }
+
+  .doc-footer { margin-top: 60px; padding: 20px 56px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 0.5px; }
+</style>
+</head>
+<body>
+
+<div class="nav-bar">
+  <a href="../index.html">← Home</a>
+  <span class="nav-sep">/</span>
+  <span class="nav-current">API Developer Guide</span>
+</div>
+
+<div class="page">
+
+<div class="doc-header">
+  <div class="eyebrow">ATC Inventory Application — inventory_api</div>
+  <h1>API Developer Guide</h1>
+  <p class="subtitle">Primary developer reference for the ASP.NET 10 Minimal API — startup pipeline, authentication, authorization, EF Core, business rules, endpoint inventory, SignalR, testing, deployment, and maintenance procedures.</p>
+  <div class="meta-strip">
+    <div class="meta-cell"><span class="lbl">Repo</span><span class="val">inventory_api</span></div>
+    <div class="meta-cell"><span class="lbl">Runtime</span><span class="val">ASP.NET 10 Minimal API</span></div>
+    <div class="meta-cell"><span class="lbl">Status</span><span class="val">Draft</span></div>
+    <div class="meta-cell"><span class="lbl">Related</span><span class="val">API_CONTRACT · SCHEMA · ARCHITECTURE · PROJECT_RULES</span></div>
+    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">May 2026</span></div>
+  </div>
+</div>
+
+<div class="toc">
+  <a href="#s1">01 Purpose</a>
+  <a href="#s2">02 Source-of-Truth Rules</a>
+  <a href="#s3">03 System Context</a>
+  <a href="#s4">04 Technology Stack</a>
+  <a href="#s5">05 Local Dev Setup</a>
+  <a href="#s6">06 Startup Pipeline</a>
+  <a href="#s7">07 Authentication</a>
+  <a href="#s8">08 Authorization</a>
+  <a href="#s9">09 Database Model</a>
+  <a href="#s10">10 EF Core &amp; Migrations</a>
+  <a href="#s11">11 Core Business Rules</a>
+  <a href="#s12">12 Endpoint Inventory</a>
+  <a href="#s13">13 SignalR</a>
+  <a href="#s14">14 Identifier Resolution</a>
+  <a href="#s15">15 Functions Integration</a>
+  <a href="#s16">16 Error Handling</a>
+  <a href="#s17">17 Testing</a>
+  <a href="#s18">18 Deployment</a>
+  <a href="#s19">19 Observability</a>
+  <a href="#s20">20 Maintenance Procedures</a>
+  <a href="#s21">21 Security Rules</a>
+  <a href="#sa">Appendix A</a>
+  <a href="#sb">Appendix B</a>
+  <a href="#sc">Appendix C</a>
+  <a href="#sd">Appendix D</a>
+</div>
+
+<div class="content">
+
+<!-- §01 PURPOSE -->
+<div class="section" id="s1">
+  <div class="section-header"><span class="sn">01</span><h2>Purpose of This Guide</h2></div>
+  <p>This guide is the primary developer reference for the ATC Inventory API. It is written for developers who need to maintain, troubleshoot, extend, or deploy the API without prior knowledge of the project history.</p>
+  <p>The API is the authoritative system of record for inventory data. It owns validation, authorization, business rules, database integrity, identifier resolution, inventory transactions, and server-side integration points. The frontend may guide users through workflows and Azure Functions may perform side effects, but the API is the only write authority for inventory state.</p>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body"><strong>This guide covers:</strong> system context, local setup, startup pipeline, authentication, authorization, data model, business rules, endpoint inventory, SignalR, enrichment, Functions integration, testing, deployment, troubleshooting, and maintenance checklists.<br><br><strong>This guide does not cover:</strong> per-endpoint request/response shapes, DTO field listings, or the full error code catalog. Those live in <code>API_CONTRACT.html</code>.</div>
+  </div>
+</div>
+
+<!-- §02 SOURCE-OF-TRUTH RULES -->
+<div class="section" id="s2">
+  <div class="section-header"><span class="sn">02</span><h2>Source-of-Truth Rules</h2></div>
+  <div class="sot-list">
+    <div class="sot-item"><span class="sot-num">1</span><span><strong>Current API source code wins for implemented behavior.</strong> The API snapshot is the authority for mapped endpoints, route paths, middleware ordering, auth policies, and implemented DTO behavior.</span></div>
+    <div class="sot-item"><span class="sot-num">2</span><span><strong>EF Core model and migrations win for actual database structure.</strong> <code>SCHEMA.html</code> documents the intended structure, but <code>InventoryDb</code>, entity classes, and migration files determine runtime behavior.</span></div>
+    <div class="sot-item"><span class="sot-num">3</span><span><strong>Architecture and project rules win for design intent and responsibility boundaries.</strong> They explain why responsibilities are separated between the PWA, API, and Azure Functions.</span></div>
+    <div class="sot-item"><span class="sot-num">4</span><span><strong>Frontend integration docs are contract references, not API internals.</strong> They explain how the PWA calls the API but are not a substitute for this developer guide.</span></div>
+  </div>
+
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body"><strong>Known superseded reference — SignalR hub path:</strong> Older architecture documents reference the hub as <code>/inventoryhub</code>. The current implementation maps it at <code>/hubs/inventory</code>. This guide uses <code>/hubs/inventory</code> as canonical. Do not use <code>/inventoryhub</code> in any new code or documentation.</div>
+  </div>
+</div>
+
+<!-- §03 SYSTEM CONTEXT -->
+<div class="section" id="s3">
+  <div class="section-header"><span class="sn">03</span><h2>System Context</h2></div>
+  <table>
+    <thead><tr><th>System</th><th>Repository</th><th>Primary Responsibility</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">React PWA</td><td>inventory_pwa</td><td>UX, MSAL login, token acquisition, mobile and desktop workflows, SignalR client</td></tr>
+      <tr><td class="t-accent">ASP.NET API</td><td>inventory_api</td><td>Validation, authorization, business rules, data integrity, endpoint contracts, transactions, SignalR hub</td></tr>
+      <tr><td class="t-accent">Azure Functions</td><td>inventory_functions</td><td>Scheduled jobs, alerts, Teams notifications, PDF/Excel reports, notification delivery, background automation</td></tr>
+    </tbody>
+  </table>
+
+  <h3>What the API Is</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot green"></div><span>The authoritative inventory system of record</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>The owner of all write-side business rules</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>The validator of JWT bearer tokens issued by Entra ID</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>The enforcer of authorization policies (role-based and property-scoped)</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>The owner of the immutable transaction ledger</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>The host of the SignalR hub at <code>/hubs/inventory</code></span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>The owner of identifier resolution and enrichment workflow state</span></div>
+  </div>
+
+  <h3>What the API Is Not</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot danger"></div><span>A UI layer</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>A background job scheduler or timer host</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>A place to trust frontend authorization decisions</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>A place to store passwords or local user accounts</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>A place for third-party provider API keys to be exposed to the client</span></div>
+  </div>
+
+  <h3>System Request Flow</h3>
+  <div class="pipeline">
+    <div class="pipeline-step"><span class="pipeline-arrow">1 →</span><span>User signs in to the React PWA using MSAL</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">2 →</span><span>PWA requests an access token for the <code>access_as_user</code> API scope</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">3 →</span><span>PWA calls API with <code>Authorization: Bearer &lt;access_token&gt;</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">4 →</span><span>API validates the token using <code>Microsoft.Identity.Web</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">5 →</span><span>API extracts identity and roles from JWT claims</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">6 →</span><span>API enforces route-level and inline authorization checks</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">7 →</span><span>API reads or writes via EF Core</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">8 →</span><span>Successful writes append transaction records where applicable and emit SignalR invalidation events fire-and-forget</span></div>
+  </div>
+</div>
+
+<!-- §04 TECHNOLOGY STACK -->
+<div class="section" id="s4">
+  <div class="section-header"><span class="sn">04</span><h2>Technology Stack</h2></div>
+
+  <h3>API Runtime</h3>
+  <table>
+    <thead><tr><th>Component</th><th>Detail</th></tr></thead>
+    <tbody>
+      <tr><td class="t-muted">Framework</td><td>ASP.NET 10 Minimal APIs</td></tr>
+      <tr><td class="t-muted">Language</td><td>C#</td></tr>
+      <tr><td class="t-muted">ORM</td><td>EF Core 10.0.5</td></tr>
+      <tr><td class="t-muted">Authentication</td><td>Microsoft.Identity.Web</td></tr>
+      <tr><td class="t-muted">Real-time</td><td>ASP.NET Core SignalR</td></tr>
+      <tr><td class="t-muted">API Explorer</td><td>Swagger / OpenAPI (development only)</td></tr>
+      <tr><td class="t-muted">JSON</td><td>System.Text.Json with JsonStringEnumConverter — enums serialized as strings</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Database Providers</h3>
+  <table>
+    <thead><tr><th>Environment</th><th>Provider</th><th>Connection String Key</th></tr></thead>
+    <tbody>
+      <tr><td>Development</td><td class="t-accent">SQLite</td><td>ConnectionStrings:InventoryDb</td></tr>
+      <tr><td>Testing</td><td class="t-accent">SQLite</td><td>ConnectionStrings:InventoryDb</td></tr>
+      <tr><td>Production</td><td class="t-accent">Azure SQL / SQL Server</td><td>ConnectionStrings:DefaultConnection</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">The Testing environment explicitly uses SQLite. The <code>IsProduction()</code> guard in <code>Program.cs</code> controls Azure SignalR and production migration behavior. <strong>Do not use <code>!IsDevelopment()</code> as a production guard</strong> — the Testing environment would be incorrectly captured.</div>
+  </div>
+
+  <h3>Azure Services (Production)</h3>
+  <ul>
+    <li>Microsoft Entra ID — identity provider and JWT issuer</li>
+    <li>Azure App Service — API host</li>
+    <li>Azure SQL — production database</li>
+    <li>Azure SignalR Service — managed WebSocket relay</li>
+    <li>Azure Storage Queue — notification side-effect queue</li>
+    <li>Application Insights — logging and telemetry</li>
+    <li>Azure Key Vault — secret storage (referenced via App Service configuration)</li>
+  </ul>
+</div>
+
+<!-- §05 LOCAL DEV SETUP -->
+<div class="section" id="s5">
+  <div class="section-header"><span class="sn">05</span><h2>Local Development Setup</h2></div>
+
+  <h3>Prerequisites</h3>
+  <table>
+    <thead><tr><th>Tool</th><th>Version</th></tr></thead>
+    <tbody>
+      <tr><td>.NET SDK</td><td>10.x</td></tr>
+      <tr><td>SQLite CLI</td><td>Optional — useful for inspecting local DB</td></tr>
+      <tr><td>IDE</td><td>Visual Studio 2022+ or VS Code with C# extension</td></tr>
+      <tr><td>Azure CLI</td><td>Optional — useful for Key Vault and cloud troubleshooting</td></tr>
+      <tr><td>Git</td><td>Current</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Running Locally</h3>
+  <div class="pre-label">bash</div>
+  <pre>dotnet restore
+dotnet build
+dotnet run</pre>
+  <p>Local URLs from <code>launchSettings.json</code>: <code>http://localhost:5077</code> · <code>https://localhost:7012</code>. In development, navigating to <code>/</code> redirects to <code>/swagger</code>.</p>
+
+  <h3>Local Database</h3>
+  <p>Path: <code>dev_data/inventory_dev.db</code></p>
+  <ul>
+    <li>Delete the SQLite file and re-run the API to reset local state. Migrations re-apply automatically in Development.</li>
+    <li>Open directly with <code>sqlite3 dev_data/inventory_dev.db</code> for inspection or manual data changes.</li>
+    <li>SQLite does <strong>not</strong> enforce foreign keys by default. Run <code>PRAGMA foreign_keys = ON;</code> in the SQLite CLI if testing FK behavior manually.</li>
+    <li>Collation behavior differs from Azure SQL. Do not rely on local tests for case-sensitivity guarantees.</li>
+  </ul>
+
+  <h3>Development Config Keys Required</h3>
+  <ul>
+    <li><code>AzureAd:TenantId</code>, <code>AzureAd:ClientId</code>, <code>AzureAd:Audience</code></li>
+    <li><code>Swagger:ClientId</code> — for Swagger OAuth in development</li>
+    <li><code>ConnectionStrings:InventoryDb</code> — SQLite path</li>
+    <li><code>Enrichment:TimeoutSeconds</code>, <code>Enrichment:RetentionDays</code></li>
+  </ul>
+</div>
+
+<!-- §06 STARTUP PIPELINE -->
+<div class="section" id="s6">
+  <div class="section-header"><span class="sn">06</span><h2>Startup Pipeline</h2></div>
+  <p>Understanding the startup order is required before modifying authentication, authorization, CORS, Swagger, SignalR, or endpoint mapping.</p>
+
+  <h3>Service Registration (builder phase)</h3>
+  <div class="pipeline">
+    <div class="pipeline-step"><span class="pipeline-arrow"> 1 →</span><span>Configure EF Core — SQLite for Development/Testing, SQL Server for Production</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow"> 2 →</span><span>Configure CORS policy (<code>LocalFrontend</code>) — includes local Vite ports and production Static Web App origin</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow"> 3 →</span><span>Add endpoint API explorer</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow"> 4 →</span><span>Configure <code>HttpJsonOptions</code> — register <code>JsonStringEnumConverter</code> so enums serialize as strings</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow"> 5 →</span><span>Configure authorization policies — <code>DatabaseManager</code> and <code>FunctionApp</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow"> 6 →</span><span>Configure authentication — <code>Microsoft.Identity.Web</code> JWT bearer with <code>EnableTokenAcquisitionToCallDownstreamApi</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow"> 7 →</span><span>Configure <code>JwtBearerOptions</code> — adds SignalR query-string token handler (reads <code>?access_token=</code> for hub connections at <code>/hubs/*</code>)</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow"> 8 →</span><span>Configure Swagger / OpenAPI with OAuth2 PKCE definition</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow"> 9 →</span><span>Register scoped services: <code>INameSimilarityService</code>, <code>INameValidationService</code>, <code>IChannelFailureReporter</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">10 →</span><span>Register singleton services: <code>INotificationQueueService</code>, <code>IDmNotificationService</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">11 →</span><span>Configure <code>EnrichmentSettings</code>; register UPC providers (<code>StubUpcProvider</code>); register <code>IdentifierLookupService</code> singleton</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">12 →</span><span>Configure SignalR — in-process for Development/Testing; <code>AddAzureSignalR</code> in Production only</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">13 →</span><span>Register <code>OidUserIdProvider</code> for SignalR user identity mapping</span></div>
+  </div>
+
+  <h3>Application Pipeline (app phase)</h3>
+  <div class="pipeline">
+    <div class="pipeline-step"><span class="pipeline-arrow">14 →</span><span>In Development: apply EF migrations, enable Swagger UI, map <code>/</code> redirect to <code>/swagger</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">15 →</span><span>In Production: apply EF migrations</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">16 →</span><span><code>UseCors("LocalFrontend")</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">17 →</span><span><code>UseAuthentication()</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">18 →</span><span><code>UseAuthorization()</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">19 →</span><span>Map all endpoint groups</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">20 →</span><span>Map SignalR hub at <code>/hubs/inventory</code> — must be after <code>UseAuthentication</code> / <code>UseAuthorization</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">21 →</span><span><code>app.Run()</code></span></div>
+  </div>
+
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">The <code>public partial class Program { }</code> declaration at the bottom of <code>Program.cs</code> is required for <code>WebApplicationFactory&lt;Program&gt;</code> in integration tests.</div>
+  </div>
+</div>
+
+<!-- §07 AUTHENTICATION -->
+<div class="section" id="s7">
+  <div class="section-header"><span class="sn">07</span><h2>Authentication &amp; Identity</h2></div>
+
+  <h3>Authentication Model</h3>
+  <ul>
+    <li>Every protected endpoint requires a valid bearer token</li>
+    <li>Identity is derived from token claims only — no local Users table</li>
+    <li>The frontend is responsible for acquiring the token; the API enforces authorization</li>
+  </ul>
+  <div class="pre-label">http</div>
+  <pre>Authorization: Bearer &lt;access_token&gt;</pre>
+  <p>For SignalR hub connections, the PWA passes the token via query string because WebSocket negotiation cannot send Authorization headers:</p>
+  <div class="pre-label">websocket</div>
+  <pre>wss://api-url/hubs/inventory?access_token=&lt;token&gt;</pre>
+
+  <h3>Claims Extracted by the API</h3>
+  <p>The <code>UserAuditHelper</code> class extracts audit identity from token claims in a defined priority order.</p>
+  <table>
+    <thead><tr><th>Claim</th><th>Read From (priority order)</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">OID</td><td>oid → http://schemas.microsoft.com/identity/claims/objectidentifier</td></tr>
+      <tr><td class="t-accent">Email-like value</td><td>preferred_username → upn → ClaimTypes.Upn → unique_name → email → ClaimTypes.Email → ClaimTypes.Name</td></tr>
+      <tr><td class="t-accent">Roles</td><td>roles claim in JWT; multiple values supported</td></tr>
+    </tbody>
+  </table>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">If the OID is missing on a write path, the helper throws an exception. OID is the stable user identifier for audit purposes. Email-like values may change if a user's UPN changes, but OID does not.</div>
+  </div>
+
+  <h3>Diagnostic Identity Endpoint</h3>
+  <p><code>GET /me</code> — returns the token-derived OID, email, and current roles for the authenticated user. Use to debug claims and role assignments during development, confirm a new user has expected roles, and verify token content after a role change.</p>
+</div>
+
+<!-- §08 AUTHORIZATION -->
+<div class="section" id="s8">
+  <div class="section-header"><span class="sn">08</span><h2>Authorization</h2></div>
+
+  <h3>Principles</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot"></div><span>The API is the enforcement boundary. Frontend role checks are UX conveniences only.</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span><code>401 Unauthorized</code> means the token is missing or invalid. <code>403 Forbidden</code> means the token is valid but the user lacks the required permission.</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span><code>DatabaseManager</code> overrides all property-scoped restrictions.</span></div>
+  </div>
+
+  <h3>Role Tiers</h3>
+  <table>
+    <thead><tr><th>Tier</th><th>Role Claim</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td class="t-warn">Database Manager</td><td>DatabaseManager</td><td>Full access to all warehouses; all bulk, destructive, and administrative operations</td></tr>
+      <tr><td class="t-accent">Property Warehouse</td><td>{propCode}_wh e.g. ms_wh</td><td>Warehouse write access for property-scoped operations on the matching warehouse</td></tr>
+      <tr><td class="t-muted">Baseline Authenticated</td><td>Valid token, no app role</td><td>Authenticated reads, single-record creates, scan and adjustment workflows where the route permits</td></tr>
+      <tr><td class="t-muted">Function App</td><td>PropertyChannelFailure.Write</td><td>Notification failure logging endpoints — used by Azure Functions, not human users</td></tr>
+      <tr><td class="t-danger">Unauthenticated</td><td>No valid token</td><td>Only routes that explicitly omit .RequireAuthorization()</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Baseline Authenticated Access</h3>
+  <p>Baseline authenticated access is <strong>not</strong> fully read-only. A baseline authenticated user can:</p>
+  <ul>
+    <li>Read all inventory data where the route uses <code>.RequireAuthorization()</code></li>
+    <li>Create single parts, single identifiers, single supplies</li>
+    <li>Perform scan consume and scan stock-in operations</li>
+    <li>Perform manual supply adjustments</li>
+    <li>Create inventory orders</li>
+  </ul>
+  <p>A baseline authenticated user cannot: perform bulk creates, delete parts/supplies/identifiers, create/update/delete warehouses/categories/vendors, or access notification failure endpoints.</p>
+
+  <h3>Property Warehouse Roles</h3>
+  <table>
+    <thead><tr><th>Property</th><th>PropCode</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td>McHenry Square</td><td class="t-muted">ms</td><td class="t-accent">ms_wh</td></tr>
+      <tr><td>The Augustan</td><td class="t-muted">aug</td><td class="t-accent">aug_wh</td></tr>
+      <tr><td>Helena Springs</td><td class="t-muted">hs</td><td class="t-accent">hs_wh</td></tr>
+      <tr><td>901 / ATC Office</td><td class="t-muted">901</td><td class="t-danger">No property role — DatabaseManager only for writes</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout c-ok">
+    <span class="icon">✅</span>
+    <div class="body">Test the DatabaseManager policy is working with <code>GET /dm-test</code>. It returns <code>200</code> for DatabaseManager users and <code>403</code> for everyone else.</div>
+  </div>
+</div>
+
+<!-- §09 DATABASE MODEL -->
+<div class="section" id="s9">
+  <div class="section-header"><span class="sn">09</span><h2>Database Model</h2></div>
+  <p>See <a href="schema.html" style="color:var(--accent);">schema.html</a> for full table definitions, column types, constraints, and relationships. This section covers the DbSets and key design decisions.</p>
+
+  <h3>InventoryDb DbSets</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Domain</th><th>DbSets</th></tr></thead>
+      <tbody>
+        <tr><td class="t-accent">Core inventory</td><td>Warehouses, Categories, Vendors, Parts, Identifiers, Supplies, Transactions, VendorParts</td></tr>
+        <tr><td class="t-accent">Identifier enrichment</td><td>IdentifierLookups</td></tr>
+        <tr><td class="t-accent">Equipment</td><td>Equipment, EquipmentIdentifiers, EquipmentStatuses, EquipmentTransactions</td></tr>
+        <tr><td class="t-accent">Orders</td><td>InventoryOrders</td></tr>
+        <tr><td class="t-accent">Invoice matching</td><td>VendorAliases</td></tr>
+        <tr><td class="t-accent">Quote requests</td><td>QuoteRequests, QuoteRequestItems, QuoteRequestEmailEvents</td></tr>
+        <tr><td class="t-accent">Notification routing</td><td>PropertyChannels, ManagedProperties, PropertyChannelFailureLogs</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Unique Constraints Summary</h3>
+  <table>
+    <thead><tr><th>Table</th><th>Constraint</th></tr></thead>
+    <tbody>
+      <tr><td>Part</td><td>UNIQUE(Name)</td></tr>
+      <tr><td>Vendor</td><td>UNIQUE(Name)</td></tr>
+      <tr><td>Category</td><td>UNIQUE(Name)</td></tr>
+      <tr><td>Warehouse</td><td>UNIQUE(PropCode, Name)</td></tr>
+      <tr><td>Identifier</td><td>UNIQUE(Id_value)</td></tr>
+      <tr><td>Supply</td><td>UNIQUE(Part_id, Warehouse_id)</td></tr>
+      <tr><td>VendorParts</td><td>UNIQUE(Vendor_id, Part_id)</td></tr>
+      <tr><td>Equipment</td><td>UNIQUE(Name), UNIQUE(Serial_number) when provided</td></tr>
+      <tr><td>EquipmentIdentifier</td><td>UNIQUE(Id_value)</td></tr>
+      <tr><td>EquipmentStatus</td><td>UNIQUE(Equipment_id)</td></tr>
+      <tr><td>ManagedProperty</td><td>UNIQUE(Prop_code)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §10 EF CORE & MIGRATIONS -->
+<div class="section" id="s10">
+  <div class="section-header"><span class="sn">10</span><h2>EF Core &amp; Migrations</h2></div>
+
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body"><strong>Always generate migrations with <code>ASPNETCORE_ENVIRONMENT=Production</code>.</strong> Running without this prefix defaults to the Development environment (SQLite), generating SQLite types (<code>TEXT</code>, <code>INTEGER</code>) instead of SQL Server types (<code>nvarchar</code>, <code>int</code>, <code>datetime2</code>). This corrupts the EF model snapshot and causes cascading migration failures on both databases.</div>
+  </div>
+
+  <h3>Full Migration Procedure</h3>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Update entity class and affected DTOs</div>
+        <div class="step-desc">Add or modify properties on entity classes in <code>Entities/</code>. Update any relevant DTOs.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Generate the migration with the Production prefix</div>
+        <div class="step-desc">Verify the generated <code>Up()</code> method contains only expected changes in SQL Server types. If it contains <code>TEXT</code> or <code>INTEGER</code> types, run <code>dotnet ef migrations remove</code> and repeat.</div>
+        <div class="step-desc"><pre style="margin:8px 0 0;">ASPNETCORE_ENVIRONMENT=Production dotnet ef migrations add &lt;MigrationName&gt;</pre></div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Apply equivalent changes to local SQLite manually</div>
+        <div class="step-desc">Open the local SQLite database and apply equivalent schema changes using SQLite-compatible types. Then insert a record into <code>__EFMigrationsHistory</code>.</div>
+        <div class="step-desc"><pre style="margin:8px 0 0;">sqlite3 dev_data/inventory_dev.db
+
+ALTER TABLE "TableName" ADD "ColumnName" TEXT NULL;
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260407140513_YourMigrationName', '10.0.5');
+
+.quit</pre></div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Test locally</div>
+        <div class="step-desc">Run <code>dotnet run</code>. The API should start cleanly. EF sees the migration in <code>__EFMigrationsHistory</code> and skips it. Test data is preserved.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-title">Push to GitHub</div>
+        <div class="step-desc">Commit and push. On production deployment, <code>db.Database.Migrate()</code> runs at startup and applies the migration to Azure SQL automatically.</div>
+      </div>
+    </div>
+  </div>
+
+  <h3>High-Risk Migration Changes</h3>
+  <p>Treat these with extra caution and verify against production data volume before deploying:</p>
+  <ul>
+    <li>New unique constraints on populated tables</li>
+    <li>Required columns without defaults</li>
+    <li>Changes to identifier or supply uniqueness constraints</li>
+    <li>Any change to the transaction ledger structure</li>
+    <li>Changing FK delete behavior</li>
+    <li>Changing audit field names</li>
+  </ul>
+
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body"><strong>Migration failure = app startup failure.</strong> If a migration fails against Azure SQL, the app will not start. The schema in Azure SQL is unaffected since the failed migration never completed. Roll back the commit to recover.</div>
+  </div>
+</div>
+
+<!-- §11 CORE BUSINESS RULES -->
+<div class="section" id="s11">
+  <div class="section-header"><span class="sn">11</span><h2>Core Business Rules</h2></div>
+
+  <h3>Part Creation Rules</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot"></div><span>Part creation is atomic — if any component fails, the entire operation rolls back</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Part name is required and must be unique; similar-name check runs before hitting the unique index (threshold: 0.85)</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span><code>ATC_MASTER</code> identifier is auto-generated by the server — never caller-supplied</span></div>
+  </div>
+
+  <h3>ATC_MASTER Identifier Rules</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot"></div><span>Generated at part creation — never caller-supplied</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Format: zero-padded 7-digit integer (e.g. <code>0000001</code>). Always <code>Issue_uom = EA</code> and <code>Unit_multiplier_to_base = 1</code> — hardcoded, never caller-controlled</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span><code>POST /identifiers/create</code> and <code>POST /identifiers/create/multiple</code> both reject caller-supplied <code>ATC_MASTER</code> with <code>400 ATC_MASTER_NOT_ALLOWED</code></span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>A Part must have an ATC_MASTER identifier before it can receive supply — <code>422 PART_MISSING_ATC_MASTER</code> if missing</span></div>
+  </div>
+
+  <h3>Supply Rules</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot"></div><span>One supply row per part per warehouse — <code>UNIQUE(Part_id, Warehouse_id)</code></span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Quantity is always stored in EA (base units)</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span><strong>Negative inventory is blocked on every quantity-changing path</strong> — this check must never be bypassed</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Every quantity change automatically appends an immutable transaction row</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span><code>POST /supplies/scan/stockin</code> auto-creates the supply row if missing — triggers <code>"New Part in Warehouse"</code> transaction and DatabaseManager notification</span></div>
+  </div>
+
+  <h3>Transaction Ledger Rules</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Transactions are append-only — may not be created or deleted via public API routes</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Every stock change records: Part/warehouse, quantity before/change/after, reason string and reason type, edited by OID and email, timestamp</span></div>
+  </div>
+
+  <h3>Equipment Rules</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Equipment is separate from parts/supplies — do not treat equipment as inventory parts</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>One physical item = one <code>Equipment</code> row; each has exactly one <code>EquipmentStatus</code> row (upserted on movement)</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Equipment movements are recorded as <code>EquipmentTransactions</code> (immutable, append-only)</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Create/edit/delete and permanent transfers require <code>DatabaseManager</code>. Checkout, checkin, and location update are open to any authenticated user.</span></div>
+  </div>
+
+  <h3>Scan Rules</h3>
+  <table>
+    <thead><tr><th>Operation</th><th>Endpoint</th></tr></thead>
+    <tbody>
+      <tr><td>Consume stock (scan out)</td><td class="t-accent">POST /supplies/scan/consume</td></tr>
+      <tr><td>Receive stock (scan in)</td><td class="t-accent">POST /supplies/scan/stockin</td></tr>
+      <tr><td>Unknown barcode (after 404)</td><td class="t-accent">GET /identifiers/resolve/{code}</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §12 ENDPOINT INVENTORY -->
+<div class="section" id="s12">
+  <div class="section-header"><span class="sn">12</span><h2>Endpoint Group Inventory</h2></div>
+  <p>Per-endpoint request/response shapes, DTOs, and error codes are in <code>API_CONTRACT.html</code>. This section is the summary inventory of all mapped groups.</p>
+
+  <table>
+    <thead><tr><th>Method</th><th>Endpoint Group</th><th>Base Path</th></tr></thead>
+    <tbody>
+      <tr><td>MapWarehouseEndpoints</td><td class="t-accent">Warehouses</td><td>/warehouses</td></tr>
+      <tr><td>MapPartEndpoints</td><td class="t-accent">Parts</td><td>/parts</td></tr>
+      <tr><td>MapCategoryEndpoints</td><td class="t-accent">Categories</td><td>/categories</td></tr>
+      <tr><td>MapSupplyEndpoints</td><td class="t-accent">Supplies</td><td>/supplies</td></tr>
+      <tr><td>MapIdentifierEndpoints</td><td class="t-accent">Identifiers</td><td>/identifiers</td></tr>
+      <tr><td>MapTestEndpoints</td><td class="t-accent">Diagnostics</td><td>/me, /dm-test</td></tr>
+      <tr><td>MapVendorEndpoints</td><td class="t-accent">Vendors</td><td>/vendors</td></tr>
+      <tr><td>MapTransactionEndpoints</td><td class="t-accent">Transactions</td><td>/transactions</td></tr>
+      <tr><td>MapVendorPartsEndpoints</td><td class="t-accent">VendorParts</td><td>/vendorparts</td></tr>
+      <tr><td>MapEquipmentEndpoints</td><td class="t-accent">Equipment</td><td>/equipment</td></tr>
+      <tr><td>MapInventoryOrderEndpoints</td><td class="t-accent">Orders</td><td>/orders</td></tr>
+      <tr><td>MapVendorAliasesEndpoints</td><td class="t-accent">Vendor Aliases</td><td>/vendor-aliases</td></tr>
+      <tr><td>MapPropertyChannelEndpoints</td><td class="t-accent">Property Channels</td><td>/property-channels</td></tr>
+      <tr><td>MapManagedPropertyEndpoints</td><td class="t-accent">Managed Properties</td><td>/managed-properties</td></tr>
+      <tr><td>MapNotificationFailureEndpoints</td><td class="t-accent">Notification Failures</td><td>/notification-failures</td></tr>
+      <tr><td>MapHub&lt;InventoryHub&gt;</td><td class="t-accent">SignalR Hub</td><td>/hubs/inventory</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Quick Auth Reference by Group</h3>
+  <table>
+    <thead><tr><th>Group</th><th>Minimum Auth</th><th>DatabaseManager Required For</th></tr></thead>
+    <tbody>
+      <tr><td>Warehouses</td><td>Authenticated (reads)</td><td>Create, update, delete, bulk create</td></tr>
+      <tr><td>Categories</td><td>Authenticated (reads)</td><td>Create, update, delete, bulk create</td></tr>
+      <tr><td>Vendors</td><td>Authenticated (reads)</td><td>Create, update, delete</td></tr>
+      <tr><td>Parts</td><td>Authenticated</td><td>Bulk create, delete</td></tr>
+      <tr><td>Identifiers</td><td>Anonymous (/lookup only) / Authenticated (others)</td><td>Bulk create, delete, patch</td></tr>
+      <tr><td>Supplies</td><td>Authenticated</td><td>Bulk create, delete</td></tr>
+      <tr><td>Transactions</td><td>Authenticated</td><td>None — read-only</td></tr>
+      <tr><td>VendorParts</td><td>Authenticated</td><td>Delete, bulk create</td></tr>
+      <tr><td>Equipment</td><td>Authenticated (reads, scan ops)</td><td>Create single, bulk create, update, delete, identifier create/delete</td></tr>
+      <tr><td>Orders</td><td>Authenticated</td><td>None — group-level Authenticated only</td></tr>
+      <tr><td>Vendor Aliases</td><td>Authenticated (create) / DatabaseManager (GET, delete)</td><td>GET list, delete</td></tr>
+      <tr><td>Notification Failures</td><td class="t-muted">FunctionApp role</td><td>All routes</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §13 SIGNALR -->
+<div class="section" id="s13">
+  <div class="section-header"><span class="sn">13</span><h2>SignalR</h2></div>
+
+  <table>
+    <thead><tr><th>Property</th><th>Value</th></tr></thead>
+    <tbody>
+      <tr><td class="t-muted">Hub class</td><td>InventoryHub : Hub</td></tr>
+      <tr><td class="t-muted">Hub URL</td><td class="t-accent">/hubs/inventory</td></tr>
+      <tr><td class="t-muted">Auth</td><td>Bearer token via ?access_token= query string during WebSocket negotiation</td></tr>
+      <tr><td class="t-muted">User identity</td><td>OID claim mapped via OidUserIdProvider</td></tr>
+      <tr><td class="t-muted">Development</td><td>In-process — no Azure SignalR Service resource required</td></tr>
+      <tr><td class="t-muted">Production</td><td>Azure SignalR Service — connection string at Azure:SignalR:ConnectionString in config</td></tr>
+      <tr><td class="t-muted">Environment guard</td><td class="t-warn">IsProduction() only — NOT !IsDevelopment()</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Purpose</h3>
+  <p>SignalR is used for real-time cache invalidation only — not as a source of truth. The flow is: API writes to database → emits SignalR event fire-and-forget → PWA receives event → PWA invalidates React Query cache → PWA re-fetches authoritative state from API.</p>
+
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body"><strong>SignalR event payloads are invalidation signals, not data payloads.</strong> The PWA must always re-fetch from the API. Hub broadcasts are fire-and-forget — if a broadcast fails, the inventory write has already succeeded. Log the failure; do not roll back.</div>
+  </div>
+
+  <h3>Warehouse Groups</h3>
+  <table>
+    <thead><tr><th>Hub Method</th><th>Effect</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">JoinWarehouse(int warehouseId)</td><td>Adds connection to warehouse_{warehouseId} group</td></tr>
+      <tr><td class="t-accent">LeaveWarehouse(int warehouseId)</td><td>Removes connection from group</td></tr>
+    </tbody>
+  </table>
+  <p>DatabaseManager users are automatically joined to all warehouse groups in <code>OnConnectedAsync</code> — they do not need to call <code>JoinWarehouse</code>.</p>
+
+  <h3>Known Events</h3>
+  <table>
+    <thead><tr><th>Event</th><th>Scope</th><th>Triggered By</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">supply.updated</td><td>warehouse_{id} group</td><td>Any supply write</td></tr>
+      <tr><td class="t-accent">supply.low_stock</td><td>warehouse_{id} group</td><td>Consume/adjust bringing quantity at or below Min_level</td></tr>
+      <tr><td class="t-accent">part.created</td><td>All clients</td><td>Single part created or bulk batch completed</td></tr>
+      <tr><td class="t-accent">part.updated</td><td>All clients</td><td>Part updated or deleted</td></tr>
+      <tr><td class="t-accent">warehouses.changed</td><td>All clients</td><td>Warehouse create, update, or delete</td></tr>
+      <tr><td class="t-accent">categories.changed</td><td>All clients</td><td>Category create, update, or delete</td></tr>
+      <tr><td class="t-accent">vendors.changed</td><td>All clients</td><td>Vendor create, update, or delete</td></tr>
+      <tr><td class="t-accent">equipment.changed</td><td>All clients</td><td>Any equipment write</td></tr>
+      <tr><td class="t-accent">orders.updated</td><td>All clients</td><td>Order created or status changed</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body"><code>enrichment.resolved</code> appeared in older documentation but is <strong>not present</strong> in the current snapshot broadcast calls. Do not implement PWA handlers for it until a broadcast is added to the API.</div>
+  </div>
+</div>
+
+<!-- §14 IDENTIFIER RESOLUTION -->
+<div class="section" id="s14">
+  <div class="section-header"><span class="sn">14</span><h2>Identifier Resolution &amp; Enrichment</h2></div>
+
+  <h3>Resolve Endpoint Behavior</h3>
+  <p><code>GET /identifiers/resolve/{code}</code> — Auth: Authenticated</p>
+  <ul>
+    <li><strong>Known code:</strong> Returns the matched part and identifier. Status: <code>FOUND</code>.</li>
+    <li><strong>Unknown code:</strong> Creates an <code>IdentifierLookup</code> row, starts enrichment asynchronously, and returns <code>Lookup_Started</code> status with a <code>lookup_id</code> for polling.</li>
+  </ul>
+
+  <h3>Polling</h3>
+  <p><code>GET /identifiers/lookup/{lookupId}</code> — Auth: Anonymous (the <code>lookupId</code> is a GUID and not guessable)</p>
+  <table>
+    <thead><tr><th>State</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td class="t-muted">Pending</td><td>Enrichment in progress</td></tr>
+      <tr><td class="t-accent2">Complete</td><td>Provider returned a result — result_json is populated</td></tr>
+      <tr><td class="t-warn">Exhausted</td><td>All providers tried with no result</td></tr>
+      <tr><td class="t-danger">Failed</td><td>Enrichment encountered an error</td></tr>
+      <tr><td class="t-danger">TimedOut</td><td>Exceeded configured timeout</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Current Provider State</h3>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">The enrichment provider is <strong>currently stubbed</strong>. The <code>StubUpcProvider</code> is registered in DI. Real provider integration is future work. Provider API keys must remain server-side — never exposed to the frontend.</div>
+  </div>
+</div>
+
+<!-- §15 FUNCTIONS INTEGRATION -->
+<div class="section" id="s15">
+  <div class="section-header"><span class="sn">15</span><h2>Azure Functions Integration</h2></div>
+
+  <h3>Functions May</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot green"></div><span>Send Teams alerts and notifications</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Generate PDF and Excel reports</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Read the database directly for reporting (read-only via Managed Identity)</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Call the API for write operations</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Process notification queues</span></div>
+  </div>
+
+  <h3>Functions Must Not</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Reimplement inventory business rules</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Bypass API write authority with direct DB writes</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Block user-facing API requests</span></div>
+  </div>
+
+  <h3>API/Functions Touchpoints</h3>
+  <table>
+    <thead><tr><th>Touchpoint</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">NotificationQueue config</td><td>Azure Storage Queue for inventory notification messages</td></tr>
+      <tr><td class="t-accent">"New Part in Warehouse" transaction reason</td><td>Triggers DatabaseManager alert and label print workflow</td></tr>
+      <tr><td class="t-accent">POST /notification-failures/</td><td>Functions log delivery failures</td></tr>
+      <tr><td class="t-accent">POST /notification-failures/delivery-successes</td><td>Functions mark successful recoveries</td></tr>
+      <tr><td class="t-accent">/property-channels endpoints</td><td>Configure where notifications are delivered per property</td></tr>
+      <tr><td class="t-accent">/managed-properties endpoints</td><td>Configure property ownership and routing</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §16 ERROR HANDLING -->
+<div class="section" id="s16">
+  <div class="section-header"><span class="sn">16</span><h2>Error Handling</h2></div>
+
+  <h3>Standard Error Shape</h3>
+  <div class="pre-label">json</div>
+  <pre>{
+  "error": "ERROR_CODE",
+  "message": "Human-readable explanation"
+}</pre>
+
+  <h3>HTTP Status Code Conventions</h3>
+  <table>
+    <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">400 Bad Request</td><td>Invalid input or validation failure</td></tr>
+      <tr><td class="t-danger">401 Unauthorized</td><td>Missing or invalid token</td></tr>
+      <tr><td class="t-danger">403 Forbidden</td><td>Valid token, insufficient permission</td></tr>
+      <tr><td class="t-warn">404 Not Found</td><td>Entity or resource not found</td></tr>
+      <tr><td class="t-warn">409 Conflict</td><td>Uniqueness violation or state conflict</td></tr>
+      <tr><td class="t-warn">422 Unprocessable Entity</td><td>Business rule violation (valid request, rejected by rule)</td></tr>
+      <tr><td class="t-danger">500 Internal Server Error</td><td>Unexpected server failure</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">Never leak stack traces, SQL errors, bearer tokens, Key Vault secrets, or provider API keys in error responses. Always return a machine-readable <code>error</code> code alongside the human-readable <code>message</code>.</div>
+  </div>
+</div>
+
+<!-- §17 TESTING -->
+<div class="section" id="s17">
+  <div class="section-header"><span class="sn">17</span><h2>Testing</h2></div>
+
+  <p>Integration tests use <code>WebApplicationFactory&lt;Program&gt;</code> from <code>Microsoft.AspNetCore.Mvc.Testing</code> with a test SQLite database. Auth is injected using test-specific claim principals. As of the last snapshot: <strong>116 integration tests, all passing.</strong></p>
+
+  <h3>Required Tests for New Endpoints</h3>
+  <div class="checklist">
+    <div class="check-item"><div class="check-box"></div><span>Authenticated success path</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Missing token (<code>401</code>)</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Insufficient role (<code>403</code>) if elevated auth is required</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Validation failure (<code>400</code>)</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Not-found behavior (<code>404</code>)</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Conflict behavior (<code>409</code>) if unique constraints apply</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Business rule rejection (<code>422</code>)</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Expected database side effects (rows written, quantities changed)</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Expected transaction row written, where applicable</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Expected SignalR broadcast on success; no broadcast on failure</span></div>
+  </div>
+
+  <h3>Test Data Rules</h3>
+  <ul>
+    <li>Keep test data deterministic; avoid test-order dependencies</li>
+    <li>Never depend on local developer database state</li>
+    <li>SQLite requires <code>PRAGMA foreign_keys = ON</code> to enforce FK constraints — test setup must enable this explicitly or FK violations will silently pass</li>
+  </ul>
+
+  <h3>Running Tests</h3>
+  <div class="pre-label">bash</div>
+  <pre>dotnet test
+
+# Run targeted tests by filter:
+dotnet test --filter "FullyQualifiedName~PartEndpointTests"</pre>
+</div>
+
+<!-- §18 DEPLOYMENT -->
+<div class="section" id="s18">
+  <div class="section-header"><span class="sn">18</span><h2>Deployment</h2></div>
+
+  <p>The API deploys independently from the PWA and Azure Functions.</p>
+  <div class="pre-label">pipeline</div>
+  <pre>GitHub → GitHub Actions (OIDC via ATC-Github-Actions-Deployer) → Azure App Service</pre>
+
+  <h3>Production Configuration Required</h3>
+  <table>
+    <thead><tr><th>Setting</th><th>Config Key</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Azure SQL connection</td><td class="t-accent">ConnectionStrings__DefaultConnection</td><td>Double-underscore convention required</td></tr>
+      <tr><td>Azure SignalR</td><td class="t-accent">Azure__SignalR__ConnectionString</td><td>Double-underscore convention required</td></tr>
+      <tr><td>Entra tenant</td><td class="t-accent">AzureAd__TenantId</td><td></td></tr>
+      <tr><td>Entra client ID</td><td class="t-accent">AzureAd__ClientId</td><td></td></tr>
+      <tr><td>Entra audience</td><td class="t-accent">AzureAd__Audience</td><td></td></tr>
+      <tr><td>Notification queue</td><td class="t-accent">NotificationQueue</td><td>Azure Storage Queue connection string or name</td></tr>
+      <tr><td>App Insights</td><td class="t-accent">ApplicationInsights__ConnectionString</td><td></td></tr>
+    </tbody>
+  </table>
+
+  <h3>Post-Deploy Smoke Tests</h3>
+  <div class="checklist">
+    <div class="check-item"><div class="check-box"></div><span>Confirm the API starts without migration failure (check App Service log stream)</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Confirm <code>GET /me</code> returns expected identity for a valid token</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Confirm <code>GET /dm-test</code> returns <code>200</code> for a DatabaseManager user</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Confirm a read endpoint returns data (e.g. <code>GET /warehouses</code>)</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Confirm SignalR connection succeeds from the PWA</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Confirm Application Insights shows no startup errors</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Confirm Functions can call or read required API/DB resources</span></div>
+  </div>
+</div>
+
+<!-- §19 OBSERVABILITY -->
+<div class="section" id="s19">
+  <div class="section-header"><span class="sn">19</span><h2>Observability &amp; Troubleshooting</h2></div>
+
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body"><strong>Application Insights KQL note:</strong> This workspace uses <code>outerMessage</code>, not <code>innermostMessage</code>, for exception messages. The <code>parsedStack</code> array exposes <code>fileName</code> and <code>method</code> fields. Use the App Service log stream for near-real-time <code>Information</code>-level output. Full stack traces appear in Application Insights.</div>
+  </div>
+
+  <h3>Common Troubleshooting</h3>
+  <table>
+    <thead><tr><th>Symptom</th><th>Likely Cause</th><th>Where to Check</th></tr></thead>
+    <tbody>
+      <tr><td>401 from API</td><td class="t-warn">Missing or invalid token</td><td>PWA token acquisition, Swagger OAuth, API scope config</td></tr>
+      <tr><td>403 from API</td><td class="t-warn">Missing role or property access</td><td>GET /me, Entra Enterprise App role assignment</td></tr>
+      <tr><td>Role changed but still denied</td><td class="t-warn">Token not refreshed</td><td>User must log out and back in; clear PWA session</td></tr>
+      <tr><td>Migration fails at startup</td><td class="t-warn">Bad migration or provider mismatch</td><td>App Service log stream, migration Up() method, __EFMigrationsHistory table</td></tr>
+      <tr><td>SignalR does not connect</td><td class="t-warn">Wrong hub path or token issue</td><td>Use /hubs/inventory; check browser console; check API logs for auth failure</td></tr>
+      <tr><td>SignalR connected but UI stale</td><td class="t-warn">Client cache invalidation bug</td><td>PWA useInventorySync handler, React Query invalidation keys</td></tr>
+      <tr><td>Scan returns identifier not found</td><td class="t-warn">Barcode not in Identifiers table</td><td>Check identifiers table directly; begin resolve/enrichment flow</td></tr>
+      <tr><td>Negative inventory rejected</td><td class="t-warn">Consume quantity exceeds current stock</td><td>Check current Supplies.Quantity and recent transactions</td></tr>
+      <tr><td>Notification not delivered</td><td class="t-warn">Channel config missing or Function failure</td><td>PropertyChannels table, PropertyChannelFailureLogs, Function app logs</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §20 MAINTENANCE PROCEDURES -->
+<div class="section" id="s20">
+  <div class="section-header"><span class="sn">20</span><h2>Maintenance Procedures</h2></div>
+
+  <h3>Adding a New Endpoint</h3>
+  <div class="checklist">
+    <div class="check-item"><div class="check-box"></div><span>Define route and HTTP method; choose canonical auth label: Anonymous, Authenticated, PropertyWrite, DatabaseManager, or FunctionApp</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Define request and response DTOs</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Add input validation and business rule checks</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Write EF query or update</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Add transaction write if inventory quantity changes</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Add SignalR broadcast if UI cache invalidation is needed</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Write integration tests (see Section 17)</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Update <code>API_CONTRACT.html</code> with the full endpoint entry</span></div>
+  </div>
+
+  <h3>Adding a New Table</h3>
+  <div class="checklist">
+    <div class="check-item"><div class="check-box"></div><span>Add entity class in <code>Entities/</code>; add DbSet to <code>InventoryDb</code></span></div>
+    <div class="check-item"><div class="check-box"></div><span>Configure indexes, constraints, and FK delete behavior in <code>OnModelCreating</code></span></div>
+    <div class="check-item"><div class="check-box"></div><span>Generate migration: <code>ASPNETCORE_ENVIRONMENT=Production dotnet ef migrations add &lt;Name&gt;</code></span></div>
+    <div class="check-item"><div class="check-box"></div><span>Apply SQLite equivalent manually to local dev DB</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Update <code>SCHEMA.html</code></span></div>
+  </div>
+
+  <h3>Adding a New Property</h3>
+  <div class="checklist">
+    <div class="check-item"><div class="check-box"></div><span>Create or confirm the warehouse record with the correct <code>PropCode</code></span></div>
+    <div class="check-item"><div class="check-box"></div><span>Create the Entra App Role value <code>{propCode}_wh</code> on <code>ATC_InventoryAPI</code></span></div>
+    <div class="check-item"><div class="check-box"></div><span>Assign the property M365 group to the role in Enterprise Applications</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Have the user log out and back in; confirm <code>GET /me</code> shows the expected role claim</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Configure property channel in <code>PropertyChannels</code> if Teams notifications are needed</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Add a <code>ManagedProperty</code> mapping record</span></div>
+  </div>
+
+  <h3>Adding a New SignalR Event</h3>
+  <div class="checklist">
+    <div class="check-item"><div class="check-box"></div><span>Define the event name (lowercase dot-notation, e.g. <code>entity.action</code>)</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Define scope: all clients or warehouse group</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Add broadcast call after successful DB write; keep payload minimal (IDs only)</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Ensure no broadcast occurs on failed writes</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Update Section 13 Known Events in this guide</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Coordinate with PWA to add cache invalidation handler</span></div>
+  </div>
+</div>
+
+<!-- §21 SECURITY RULES -->
+<div class="section" id="s21">
+  <div class="section-header"><span class="sn">21</span><h2>Security Rules</h2></div>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Never store passwords or local user accounts</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Never trust frontend authorization decisions — API enforces all rules server-side</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Never expose third-party provider API keys to the PWA or in error responses</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Never commit secrets to source control</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Never log bearer tokens, connection strings, or Key Vault values</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>Use Entra OID as the stable identifier for durable audit fields — not email</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>Enforce <code>DatabaseManager</code> for all structural and destructive operations</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>Preserve identifier value global uniqueness on every write path</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Block negative inventory in every quantity-changing path without exception</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Preserve transaction immutability — no public delete or update routes on transactions</span></div>
+  </div>
+</div>
+
+<!-- APPENDIX A -->
+<div class="section" id="sa">
+  <div class="section-header"><span class="sn">A</span><h2>Appendix A — Canonical Auth Labels</h2></div>
+  <p>Use exactly one of these five labels when documenting or discussing endpoint authorization. These labels must be consistent across both <code>API_DEVELOPER_GUIDE.html</code> and <code>API_CONTRACT.html</code>.</p>
+  <table>
+    <thead><tr><th>Label</th><th>Required Access</th><th>Maps To</th></tr></thead>
+    <tbody>
+      <tr><td class="t-muted">Anonymous</td><td>No token</td><td>No .RequireAuthorization() call</td></tr>
+      <tr><td class="t-accent">Authenticated</td><td>Valid Entra token</td><td>.RequireAuthorization()</td></tr>
+      <tr><td class="t-accent">PropertyWrite</td><td>Valid token + matching {propCode}_wh role or DatabaseManager</td><td>.RequireAuthorization() + inline property check</td></tr>
+      <tr><td class="t-warn">DatabaseManager</td><td>Valid token + DatabaseManager role</td><td>.RequireAuthorization("DatabaseManager")</td></tr>
+      <tr><td class="t-muted">FunctionApp</td><td>Valid token + PropertyChannelFailure.Write role</td><td>.RequireAuthorization("FunctionApp")</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- APPENDIX B -->
+<div class="section" id="sb">
+  <div class="section-header"><span class="sn">B</span><h2>Appendix B — Reserved Transaction Reason Types</h2></div>
+  <p>These reason strings and types have known meaning to Azure Functions. Do not reuse them for unrelated operations.</p>
+
+  <h3>Reason Type Constants</h3>
+  <div class="pre-label">values</div>
+  <pre>SCAN_IN
+SCAN_CONSUME
+MANUAL_ADJUST
+INITIAL_STOCK
+ORDER_RECEIPT
+CORRECTION</pre>
+
+  <h3>Reserved Reason String</h3>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body"><strong>"New Part in Warehouse"</strong> — this string triggers the DatabaseManager alert and label print workflow in Azure Functions. Before adding or renaming reason values, confirm whether any Function timer, notification, or report logic depends on the value.</div>
+  </div>
+</div>
+
+<!-- APPENDIX C -->
+<div class="section" id="sc">
+  <div class="section-header"><span class="sn">C</span><h2>Appendix C — Developer Change Impact Matrix</h2></div>
+  <table>
+    <thead><tr><th>Change</th><th>Also Review</th></tr></thead>
+    <tbody>
+      <tr><td>New part field</td><td>DTOs, EF migration, PWA forms, exports, API_CONTRACT.html, SCHEMA.html</td></tr>
+      <tr><td>New supply behavior</td><td>Transactions, SignalR broadcast, reports, Functions touchpoints</td></tr>
+      <tr><td>New identifier behavior</td><td>Scan flow, enrichment, duplicate prevention, barcode normalization</td></tr>
+      <tr><td>New role</td><td>Entra guide, Program.cs policy, PWA role checks, auth tests, this guide</td></tr>
+      <tr><td>New SignalR event</td><td>PWA cache invalidation handler, SignalR tests, Section 13</td></tr>
+      <tr><td>New notification event</td><td>Functions, PropertyChannels, PropertyChannelFailureLogs, failure handling</td></tr>
+      <tr><td>New order status</td><td>PWA order UI, reports, Functions dependencies, transition tests</td></tr>
+      <tr><td>New equipment status</td><td>Mobile tools UX, EquipmentTransactions, status transition tests</td></tr>
+      <tr><td>CORS origin change</td><td>Program.cs LocalFrontend policy, production SWA URL</td></tr>
+      <tr><td>EF migration</td><td>SCHEMA.html, local SQLite manual apply, migration test</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- APPENDIX D -->
+<div class="section" id="sd">
+  <div class="section-header"><span class="sn">D</span><h2>Appendix D — Glossary</h2></div>
+  <table>
+    <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">API</td><td>The ASP.NET 10 Minimal API — system of record for all inventory data</td></tr>
+      <tr><td class="t-accent">PWA</td><td>The React frontend, used on both mobile and desktop</td></tr>
+      <tr><td class="t-accent">Functions</td><td>The Azure Functions app for side effects and background automation</td></tr>
+      <tr><td class="t-accent">DatabaseManager</td><td>Entra App Role granting full administrative access</td></tr>
+      <tr><td class="t-accent">Property role</td><td>{propCode}_wh App Role granting warehouse write access for a specific property</td></tr>
+      <tr><td class="t-accent">FunctionApp role</td><td>PropertyChannelFailure.Write App Role used by Azure Functions for notification failure endpoints</td></tr>
+      <tr><td class="t-accent">Part</td><td>A catalog inventory item that can be stocked and consumed</td></tr>
+      <tr><td class="t-accent">Identifier</td><td>A barcode, UPC, SKU, or internal code mapped to a Part</td></tr>
+      <tr><td class="t-accent">ATC_MASTER</td><td>The system-generated internal part identifier; zero-padded 7-digit integer</td></tr>
+      <tr><td class="t-accent">Supply</td><td>The current stock row for one Part in one Warehouse</td></tr>
+      <tr><td class="t-accent">Transaction</td><td>An immutable inventory quantity ledger row</td></tr>
+      <tr><td class="t-accent">Equipment</td><td>A reusable physical tool or asset tracked by location, not quantity</td></tr>
+      <tr><td class="t-accent">VendorAlias</td><td>A mapping from a raw invoice vendor description to a known Part</td></tr>
+      <tr><td class="t-accent">PropertyChannel</td><td>Notification delivery channel configuration for a property</td></tr>
+      <tr><td class="t-accent">PropCode</td><td>Short property code used in role naming and warehouse identity (e.g. ms, aug)</td></tr>
+      <tr><td class="t-accent">OID</td><td>Entra Object ID — the stable, immutable user identifier used in audit fields</td></tr>
+      <tr><td class="t-accent">Fire-and-forget</td><td>A SignalR broadcast pattern where the API does not wait for delivery confirmation</td></tr>
+    </tbody>
+  </table>
+</div>
+
+</div><!-- /content -->
+
+<div class="doc-footer">
+  <span>ATC Inventory Application</span>
+  <span>API Developer Guide · May 2026</span>
+  <span>inventory_api · Internal Use Only</span>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

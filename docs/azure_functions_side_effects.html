@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Azure Functions — Side Effects &amp; Automation Register</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
+
+    :root {
+      --navy: #0F2B4E;
+      --blue: #1565C0;
+      --blue-mid: #1976D2;
+      --blue-light: #E3F0FB;
+      --accent: #0097A7;
+      --accent-light: #E0F7FA;
+      --green: #1B7A3E;
+      --green-light: #E8F5E9;
+      --amber: #B45309;
+      --amber-light: #FEF3C7;
+      --gray-dark: #1E293B;
+      --gray-mid: #475569;
+      --gray-line: #CBD5E1;
+      --gray-bg: #F8FAFC;
+      --white: #FFFFFF;
+      --font: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+      --mono: 'IBM Plex Mono', 'Courier New', monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body { font-family: var(--font); font-size: 11pt; color: var(--gray-dark); background: #F0F4F8; line-height: 1.5; }
+
+    .page { max-width: 900px; margin: 32px auto; background: var(--white); box-shadow: 0 4px 32px rgba(15,43,78,0.12); }
+
+    .doc-header { background: var(--navy); padding: 36px 48px 28px; position: relative; overflow: hidden; }
+    .doc-header::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--accent) 0%, var(--blue-mid) 100%); }
+    .doc-header .app-label { font-family: var(--mono); font-size: 8.5pt; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+    .doc-header h1 { font-size: 22pt; font-weight: 700; color: var(--white); letter-spacing: -0.3px; line-height: 1.2; margin-bottom: 6px; }
+    .doc-header .subtitle { font-size: 10pt; color: rgba(255,255,255,0.6); font-weight: 300; }
+    .doc-meta { margin-top: 20px; display: flex; gap: 24px; flex-wrap: wrap; }
+    .meta-item { display: flex; align-items: center; gap: 7px; }
+    .meta-label { font-family: var(--mono); font-size: 7.5pt; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,0.45); }
+    .meta-value { font-size: 8.5pt; font-weight: 500; color: rgba(255,255,255,0.75); }
+
+    .doc-body { padding: 40px 48px 48px; }
+
+    .summary-bar { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--gray-line); border: 1px solid var(--gray-line); border-radius: 6px; overflow: hidden; margin-bottom: 36px; }
+    .summary-cell { background: var(--white); padding: 14px 16px; text-align: center; }
+    .summary-cell .num { font-family: var(--mono); font-size: 22pt; font-weight: 700; color: var(--navy); line-height: 1; margin-bottom: 3px; }
+    .summary-cell .lbl { font-size: 7.5pt; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--gray-mid); }
+
+    .section { margin-bottom: 40px; }
+    .section-title { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 2px solid var(--navy); }
+    .section-num { font-family: var(--mono); font-size: 8pt; font-weight: 700; color: var(--white); background: var(--navy); padding: 3px 8px; border-radius: 3px; letter-spacing: 1px; }
+    .section-title h2 { font-size: 13pt; font-weight: 700; color: var(--navy); letter-spacing: -0.2px; }
+    .section-intro { font-size: 9.5pt; color: var(--gray-mid); margin-bottom: 16px; line-height: 1.6; font-style: italic; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin-bottom: 0; }
+    thead tr { background: var(--navy); }
+    thead th { padding: 9px 12px; text-align: left; font-family: var(--mono); font-size: 7.5pt; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.85); border: none; }
+    tbody tr { border-bottom: 1px solid var(--gray-line); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:nth-child(even) { background: var(--gray-bg); }
+    tbody tr:hover { background: var(--blue-light); }
+    td { padding: 10px 12px; vertical-align: top; line-height: 1.45; }
+    td:first-child { font-family: var(--mono); font-size: 8pt; font-weight: 600; color: var(--navy); white-space: nowrap; }
+    .td-name { font-weight: 600; color: var(--gray-dark); }
+    .td-name-retired { font-weight: 600; color: #94a3b8; text-decoration: line-through; }
+    .td-notes { font-size: 8.5pt; color: var(--gray-mid); line-height: 1.5; }
+
+    .badge { display: inline-block; font-family: var(--mono); font-size: 7pt; font-weight: 700; padding: 2px 7px; border-radius: 3px; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap; }
+    .badge-timer    { background: var(--blue-light);   color: var(--blue);   }
+    .badge-event    { background: var(--accent-light);  color: var(--accent); }
+    .badge-live     { background: var(--green);         color: var(--white);  }
+    .badge-complete { background: var(--green-light);   color: var(--green);  }
+    .badge-partial  { background: var(--amber-light);   color: var(--amber);  }
+    .badge-open     { background: #F1F5F9;              color: #64748B;       }
+    .badge-retired  { background: #FDECEA;              color: #C00000;       }
+
+    .info-note { background: var(--blue-light); border-left: 4px solid var(--blue-mid); border-radius: 0 6px 6px 0; padding: 14px 18px; margin-bottom: 16px; font-size: 9pt; color: var(--blue); display: flex; gap: 10px; align-items: flex-start; }
+    .opp-note { background: var(--amber-light); border-left: 4px solid var(--amber); border-radius: 0 6px 6px 0; padding: 14px 18px; margin-bottom: 16px; font-size: 9pt; color: var(--amber); display: flex; gap: 10px; align-items: flex-start; }
+    .opp-note .opp-icon, .info-note .opp-icon { font-size: 11pt; line-height: 1; flex-shrink: 0; }
+
+    .legend { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 28px; padding: 14px 16px; background: var(--gray-bg); border: 1px solid var(--gray-line); border-radius: 6px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 8.5pt; color: var(--gray-mid); }
+    .legend-title { font-family: var(--mono); font-size: 7.5pt; font-weight: 700; letter-spacing: 1px; color: var(--gray-dark); text-transform: uppercase; margin-right: 4px; }
+
+    .doc-footer { background: var(--gray-bg); border-top: 1px solid var(--gray-line); padding: 16px 48px; display: flex; justify-content: space-between; align-items: center; font-size: 8pt; color: var(--gray-mid); }
+    .doc-footer .footer-mono { font-family: var(--mono); font-size: 7.5pt; color: var(--gray-line); }
+
+    @media print { body { background: white; } .page { box-shadow: none; margin: 0; max-width: 100%; } .section { page-break-inside: avoid; } }
+    @page { margin: 0.5in; size: letter; }
+  </style>
+</head>
+<body>
+  <!-- ── NAV BAR ── -->
+<div style="display:flex;align-items:center;gap:12px;padding:12px 56px;background:#161b22;border-bottom:1px solid #2a3444;position:sticky;top:0;z-index:100;">
+  <a href="../index.html" style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:#768a9e;text-decoration:none;letter-spacing:1px;">← Home</a>
+  <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#2a3444;">/</span>
+  <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#cdd9e5;">Azure Functions Side Effects</span>
+</div>
+<div class="page">
+
+  <div class="doc-header">
+    <div class="app-label">ATC Inventory Application · Repo 3 — Azure Functions</div>
+    <h1>Side Effects &amp; Automation Register</h1>
+    <div class="subtitle">Complete function inventory: status, design decisions, and implementation notes</div>
+    <div class="doc-meta">
+      <div class="meta-item"><span class="meta-label">Version</span><span class="meta-value">2.5</span></div>
+      <div class="meta-item"><span class="meta-label">Date</span><span class="meta-value">May 17, 2026</span></div>
+      <div class="meta-item"><span class="meta-label">Repo</span><span class="meta-value">inventory_functions</span></div>
+      <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">Active Development</span></div>
+    </div>
+  </div>
+
+  <div class="doc-body">
+
+    <div class="summary-bar">
+      <div class="summary-cell"><div class="num">23</div><div class="lbl">Total Functions</div></div>
+      <div class="summary-cell"><div class="num">9</div><div class="lbl">Live</div></div>
+      <div class="summary-cell"><div class="num">0</div><div class="lbl">Partial / Designed</div></div>
+      <div class="summary-cell"><div class="num">5</div><div class="lbl">Open / Planned</div></div>
+      <div class="summary-cell"><div class="num">9</div><div class="lbl">Retired</div></div>
+    </div>
+
+    <div class="legend">
+      <span class="legend-title">Trigger:</span>
+      <div class="legend-item"><span class="badge badge-timer">Timer</span> Scheduled (cron-based)</div>
+      <div class="legend-item"><span class="badge badge-event">Event</span> Reactive (API/system trigger)</div>
+      <span class="legend-title" style="margin-left:16px">Status:</span>
+      <div class="legend-item"><span class="badge badge-live">Live</span> Deployed &amp; confirmed in production</div>
+      <div class="legend-item"><span class="badge badge-complete">Complete</span> Built &amp; tested in dev, pending production smoke test</div>
+      <div class="legend-item"><span class="badge badge-partial">Partial</span> Designed, not yet fully implemented</div>
+      <div class="legend-item"><span class="badge badge-open">Open</span> Planned, not yet designed or blocked on external dependency</div>
+      <div class="legend-item"><span class="badge badge-retired">Retired</span> Superseded or deferred indefinitely</div>
+    </div>
+
+    <!-- SECTION 1: Active Functions -->
+    <div class="section">
+      <div class="section-title">
+        <span class="section-num">§01</span>
+        <h2>Active Functions</h2>
+      </div>
+      <p class="section-intro">Functions that are live, in progress, or actively designed. Retired functions are in §02.</p>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:52px">#</th>
+            <th style="width:220px">Function</th>
+            <th style="width:100px">Trigger</th>
+            <th style="width:90px">Status</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          <tr>
+            <td>F-01</td>
+            <td class="td-name">Scan Invoice / Receipt → Add to Inventory</td>
+            <td><span class="badge badge-event">Event</span></td>
+            <td><span class="badge badge-live">Live</span></td>
+            <td class="td-notes">Implemented, tested, and production verified. Image or PDF input → parse line items → stock-in or part creation. B-01 resolved. Drag-and-drop desktop upload (B-06) complete.</td>
+          </tr>
+
+          <tr>
+            <td>F-03</td>
+            <td class="td-name">Notifications to Database Manager</td>
+            <td><span class="badge badge-event">Event</span></td>
+            <td><span class="badge badge-live">Live</span></td>
+            <td class="td-notes">
+              Live. Routes via PA dispatcher (F-18) using DM Teams channel stored in Key Vault config (<code>DM__TeamId</code> + <code>DM__ChannelId</code>) — not in the channel registry.<br><br>
+              <strong>Live DM Events:</strong><br>
+              1. New part created (any creation path) — <code>new_part_created</code><br>
+              2. New part added to a warehouse (auto-created supply row on first stock-in) — <code>new_part_in_warehouse</code><br>
+              3. Bulk parts created — <code>bulk_parts_created</code><br>
+              4. Bulk supplies created — <code>bulk_supplies_created</code><br><br>
+              <strong>Future DM Events (pending F-20):</strong><br>
+              — New PropCode detected — YARDI property with no warehouse or managed property record<br>
+              — GL Code vs. Category mismatch — YARDI reconciliation discrepancy<br><br>
+              <strong>Note:</strong> Channel failure alerting is handled by <code>DailyChannelFailuresFunction</code> (F-19) — a scheduled daily report to DM, not a per-failure event. Enrichment-related events retired alongside F-06/F-14. Bulk skip alerting is covered by the PA bulk flows directly.
+            </td>
+          </tr>
+
+          <tr>
+            <td>F-04</td>
+            <td class="td-name">Create and Print Labels</td>
+            <td><span class="badge badge-event">Event</span></td>
+            <td><span class="badge badge-live">Live</span></td>
+            <td class="td-notes">
+              Implemented, tested, and production verified. PdfSharpCore (MIT) + ZXing.Net. Barcode + part name + ATC_MASTER ID. NotoSans custom font resolver in place for Linux.<br><br>
+              <strong>Note:</strong> QuestPDF was evaluated and rejected — commercial licensing requirements at PAX8's revenue level. PdfSharpCore used throughout for all PDF generation.<br><br>
+              B-05 (multiple copies selector, 1–30 ceiling) complete. B-09 (browser print via PDF) complete. Dedicated label printer hardware (Dymo, Zebra) is a future decision — deferred indefinitely.
+            </td>
+          </tr>
+
+          <tr>
+            <td>F-05</td>
+            <td class="td-name">Weekly Inventory Report</td>
+            <td><span class="badge badge-timer">Timer</span></td>
+            <td><span class="badge badge-complete">Complete</span></td>
+            <td class="td-notes">Built and tested in dev. Live production smoke test pending natural schedule (Friday 6:00 AM). Implemented as <code>WeeklyOrderedItemsFunction</code> — fires weekly per active warehouse channel. Delivers consolidated report covering: below-minimum items (with correlated order status), pending orders, and ordered items awaiting stock-in. Delivered to property Teams channel via PA dispatcher (F-18). <code>SanitizeForNotification</code> applied to all string fields read from DB to prevent PA Adaptive Card JSON failures on part names containing special characters (e.g. inch marks).</td>
+          </tr>
+
+          <tr>
+            <td>F-09</td>
+            <td class="td-name">PDF Report Generation</td>
+            <td><span class="badge badge-event">Event</span></td>
+            <td><span class="badge badge-live">Live</span></td>
+            <td class="td-notes">
+              Implemented, tested, and production verified (B-08). PdfSharpCore (MIT) used throughout — QuestPDF evaluated and rejected due to commercial licensing at PAX8's revenue level.<br><br>
+              <strong>Implementation:</strong> <code>ReportDataService</code> (SQL via Managed Identity, read-only), <code>ExcelReportService</code> (ClosedXML), <code>PdfReportService</code> (PdfSharpCore, coordinate-based layout with per-page header repetition), <code>TabularReportFunction</code> (HTTP trigger, dispatches Excel or PDF by format param). NotoSans custom font resolver in place for Linux.<br><br>
+              <strong>Report types (all 6, Excel + PDF):</strong> Transactions, Part Trend, Order History, On Order, Parts Catalog, Cross Reference.<br><br>
+              <strong>Delivery flow:</strong> PWA sends filters + <code>report_meta</code> only (no raw data). Function fetches data from DB via Managed Identity, generates file, and returns the binary file directly as an HTTP response (<code>Content-Disposition: attachment</code>). PWA calls <code>response.blob()</code>, creates an object URL, and triggers a browser download.
+            </td>
+          </tr>
+
+          <tr>
+            <td>F-10</td>
+            <td class="td-name">Vendor Quote Request — Graph OBO Send</td>
+            <td><span class="badge badge-event">Event</span></td>
+            <td><span class="badge badge-live">Live</span></td>
+            <td class="td-notes">
+              Implemented, tested, and production verified. Quote request emails are sent directly from the API on behalf of the logged-in user via Microsoft Graph On-Behalf-Of (OBO) flow — no Azure Function involved.<br><br>
+              <strong>Architecture:</strong> PWA calls <code>POST /quote-requests/{token}/send</code> with Bearer token. API performs OBO exchange (API-scoped token → Graph <code>Mail.Send</code> scope) using the <code>ATC-InventoryAPI-GraphOBO</code> certificate from Key Vault. API calls Graph <code>sendMail</code> as the user. On success: sets <code>Graph_sent_dt</code>, <code>Email_detected_dt</code>, status → <code>email_detected</code>; creates <code>QuoteRequestEmailEvent</code> record; fires SignalR <code>orders.updated</code>.<br><br>
+              <strong>TestMode:</strong> <code>QuoteTracking__TestMode</code> App Setting — when <code>true</code>, overrides <code>To</code> address with <code>IT.Department@atcdevelopment.com</code> and prefixes subject with <code>[TEST]</code>. Currently <code>false</code> in production.<br><br>
+              <strong>PA flow retired:</strong> <code>new_quote_email_detected</code> Power Automate flow has been turned off. The <code>POST /{token}/email-detected</code> API endpoint remains intact (gated by <code>FunctionAppQuote</code> auth policy) but the PA flow that called it is no longer active. The <code>QuoteEmailDetectedFunction</code> and its service have been removed from the Functions repo.
+            </td>
+          </tr>
+
+          <tr>
+            <td>F-11</td>
+            <td class="td-name">Scheduled Order Status Report</td>
+            <td><span class="badge badge-timer">Timer</span></td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td class="td-notes">Superseded. Daily pending orders are covered by <code>DailyPendingOrdersFunction</code> (fires daily at 6:00 AM, delivers pending orders per warehouse channel). Weekly ordered items are covered by <code>WeeklyOrderedItemsFunction</code> (fires Fridays at 6:00 AM, delivers below-minimum + pending + ordered per warehouse channel). Both implemented as part of F-18. No standalone F-11 implementation needed — retiring in next doc update once timer functions are production-verified.</td>
+          </tr>
+
+          <tr>
+            <td>F-13</td>
+            <td class="td-name">VendorParts Reorder Suggestion</td>
+            <td><span class="badge badge-timer">Timer</span></td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td class="td-notes">Deferred, future use. Auto-generate grouped reorder drafts by vendor when parts fall below minimum. Closely related to F-10 (vendor quote requests). <code>VendorParts</code> table already captures vendor SKU, stock number, and pricing context — data model is ready. Revisit when vendor procurement workflow is designed.</td>
+          </tr>
+
+          <tr>
+            <td>F-15</td>
+            <td class="td-name">Audit / Compliance Report</td>
+            <td><span class="badge badge-timer">Timer</span></td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td class="td-notes">Monthly compliance report for DatabaseManagers. Covers destructive operations, bulk actions, supply adjustments, and per-warehouse transaction accountability. Absorbs F-12 (Transaction History Digest — retired). Powered by existing Transactions ledger and <code>*_by_oid</code> / <code>*_by_email</code> audit fields. Cadence and format not yet decided.</td>
+          </tr>
+
+          <tr>
+            <td>F-17</td>
+            <td class="td-name">YARDI Work Order vs. Inventory Consumption Comparison</td>
+            <td><span class="badge badge-event">Event</span></td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td class="td-notes">
+              User uploads YARDI work order export (CSV) via PWA Reports section.<br><br>
+              <strong>1. CSV Parse</strong> — Extracts work order line items (material, quantity, property, date range).<br>
+              <strong>2. AI Matching</strong> — Fuzzy-matches WO material descriptions to parts catalog.<br>
+              <strong>3. Consumption Pull</strong> — Queries transactions filtered by matched parts, warehouse, and date range.<br>
+              <strong>4. Discrepancy Report</strong> — Flags over-consumed, under-consumed, and unmatched items.<br>
+              <strong>5. Results</strong> — Stored as comparison job record. SignalR <code>yardi.comparison.complete { job_id }</code> fires to requesting user OID.<br><br>
+              <strong>Unresolved dependencies:</strong> YARDI CSV column schema, AI provider selection, new API endpoints, new DB table for comparison jobs.
+            </td>
+          </tr>
+
+          <tr>
+            <td>F-18</td>
+            <td class="td-name">Teams Notification Dispatcher</td>
+            <td><span class="badge badge-event">Event</span></td>
+            <td><span class="badge badge-live">Live</span></td>
+            <td class="td-notes">
+              Live and production verified. Single Power Automate inbound HTTP trigger per event type — 7 PA flows total, one per event. All routing logic lives in the Function — PA is a formatting and delivery layer only.<br><br>
+              <strong>Flow:</strong> Function resolves <code>TeamId</code> and <code>ChannelId</code> from <code>PropertyChannels</code> table via Managed Identity (read-only DB access). POST to PA includes fully-resolved payload:<br>
+              <code>{ event, teamId, channelId, subject, body, timestamp }</code><br><br>
+              PA reads <code>event</code> field to select the appropriate adaptive card template and POSTs to the resolved Teams channel using the provided <code>teamId</code> + <code>channelId</code>.<br><br>
+              <strong>PA flow URLs</strong> stored as per-event Azure App Settings: <code>PA__new_part_created</code>, <code>PA__new_part_in_warehouse</code>, <code>PA__bulk_parts_created</code>, <code>PA__bulk_supplies_created</code>, <code>PA__daily_pending_orders</code>, <code>PA__weekly_warehouse_report</code>, <code>PA__daily_channel_failures</code>. Never hardcoded in source.<br><br>
+              <strong>String sanitization:</strong> <code>SanitizeForNotification</code> helper applied at all notification body construction points (API enqueue and Function DB reads) — replaces <code>"</code> with <code>in</code> to prevent PA Adaptive Card JSON failures on user-entered strings containing inch marks or quotes.<br><br>
+              <strong>DM channel:</strong> DatabaseManager Teams channel stored in Key Vault config (<code>DM__TeamId</code> + <code>DM__ChannelId</code>) — not in the channel registry.<br><br>
+              <strong>Test override:</strong> <code>NotificationOverride__TeamId</code> + <code>NotificationOverride__ChannelId</code> App Settings route all dispatches to a test channel when both are set. Failure reporting suppressed when override is active.<br><br>
+              <strong>Production verified:</strong> new_part_created, new_part_in_warehouse, bulk_parts_created, bulk_supplies_created. Daily/weekly timer flows pending natural schedule validation.
+            </td>
+          </tr>
+
+          <tr>
+            <td>F-19</td>
+            <td class="td-name">Property Channel Failure Reporter</td>
+            <td><span class="badge badge-event">Event</span></td>
+            <td><span class="badge badge-live">Live</span></td>
+            <td class="td-notes">
+              Live. <code>DailyChannelFailuresFunction</code> — timer-triggered daily report to the DM Teams channel summarizing any unreported PA delivery failures. Called internally by any Function that uses F-18 when PA returns a failure response.<br><br>
+              <strong>Flow:</strong> PA failure → Function calls <code>PATCH /property-channels/{id}/failure</code> on the API via Managed Identity token (<code>PropertyChannelFailure.Write</code> App Role, configured and live). API writes <code>LastFailedAt</code> to <code>PropertyChannels</code>. Daily timer function queries unreported failures and posts consolidated report to DM channel.<br><br>
+              <strong>Note:</strong> If <code>NotificationOverride__TeamId</code> + <code>NotificationOverride__ChannelId</code> are both active, failure reporting is skipped entirely — test channel failures must not mark production channel records. Functions remain read-only against the database — all writes route through the API.
+            </td>
+          </tr>
+
+          <tr>
+            <td>F-20</td>
+            <td class="td-name">YARDI Property Reconciliation</td>
+            <td><span class="badge badge-timer">Timer</span></td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td class="td-notes">
+              Timer-triggered. Consumes YARDI scheduled report — delivery mechanism TBD (email attachment, Azure Blob, SFTP).<br><br>
+              <strong>Diff logic:</strong> Compares active YARDI properties against <code>Warehouses</code> + <code>ManagedProperties</code> tables via Managed Identity read-only access.<br><br>
+              <strong>Alerts DM via F-18 when:</strong><br>
+              — New YARDI property with no corresponding warehouse or managed property record<br>
+              — Warehouse record exists with no corresponding YARDI property<br>
+              — <code>PropertyChannels</code> channel consistently failing (channel deleted or renamed)<br>
+              — New PropCode detected — YARDI property with no warehouse or managed property record in the inventory app (formerly F-03 event #3)<br>
+              — GL Code vs. Category mismatch — YARDI reconciliation discrepancy (formerly F-03 event #4, design pending)<br><br>
+              No direct DB writes — all alerts route through the API. Dependent on YARDI report format confirmation and F-18 being live.<br><br>
+              <strong>ManagedProperties:</strong> A <code>propCode</code> found in this table is considered reconciled — not a gap.
+            </td>
+          </tr>
+
+          <tr>
+            <td>F-21</td>
+            <td class="td-name">Equipment Overdue Check-Out Alert</td>
+            <td><span class="badge badge-timer">Timer</span></td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td class="td-notes">Timer-triggered. Alerts DatabaseManager via F-18 when a tool has been in <code>CheckedOut</code> status for longer than a configurable threshold without a Check In. Threshold and cadence not yet decided. Data model is ready — <code>EquipmentStatuses.Last_moved_dt</code> captures the last transition timestamp.</td>
+          </tr>
+
+          <tr>
+            <td>F-22</td>
+            <td class="td-name">Daily Equipment Location Report</td>
+            <td><span class="badge badge-timer">Timer</span></td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td class="td-notes">Timer-triggered. Daily report of all equipment items not currently in a warehouse (<code>Status = CheckedOut</code>), grouped by responsible property, showing last moved by and timestamp. Delivered to DatabaseManager via F-18. Cadence and format not yet decided.</td>
+          </tr>
+
+        </tbody>
+      </table>
+    </div>
+
+    <!-- SECTION 2: Retired Functions -->
+    <div class="section">
+      <div class="section-title">
+        <span class="section-num">§02</span>
+        <h2>Retired Functions</h2>
+      </div>
+      <p class="section-intro">Functions that have been superseded, folded into other entries, or deferred indefinitely. Retained for audit trail.</p>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:52px">#</th>
+            <th style="width:220px">Function</th>
+            <th style="width:100px">Trigger</th>
+            <th style="width:90px">Status</th>
+            <th>Reason</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          <tr>
+            <td>F-02</td>
+            <td class="td-name-retired">After-Hours Supplies Use Notification</td>
+            <td><span class="badge badge-event">Event</span></td>
+            <td><span class="badge badge-retired">Retired</span></td>
+            <td class="td-notes">Retired. No operational value identified for time-of-day alerting.</td>
+          </tr>
+
+          <tr>
+            <td>F-06</td>
+            <td class="td-name-retired">Enrichment Completion Notification</td>
+            <td><span class="badge badge-event">Event</span></td>
+            <td><span class="badge badge-retired">Retired</span></td>
+            <td class="td-notes">Tabled indefinitely alongside the UPC enrichment provider decision. Enrichment flow remains stubbed. Revisit when enrichment is activated.</td>
+          </tr>
+
+          <tr>
+            <td>F-07</td>
+            <td class="td-name-retired">Low-Stock SignalR Push Notification</td>
+            <td><span class="badge badge-timer">Timer</span></td>
+            <td><span class="badge badge-retired">Retired</span></td>
+            <td class="td-notes">Retired. <code>supply.low_stock</code> is broadcast directly by the API from <code>ApplySupplyChangeAsync</code> (including <code>partName</code> and <code>warehouseName</code>). PWA toast notification (B-07) is complete and live. No Functions involvement required. The weekly low-stock report (F-05) remains a separate scheduled Function.</td>
+          </tr>
+
+          <tr>
+            <td>F-08</td>
+            <td class="td-name-retired">Reorder Alerts</td>
+            <td><span class="badge badge-timer">Timer</span></td>
+            <td><span class="badge badge-retired">Retired</span></td>
+            <td class="td-notes">Retired. Superseded by: (1) F-05 weekly low-stock report via PA for scheduled awareness; (2) PWA in-app toast (B-07) responding to <code>supply.low_stock</code> SignalR event for real-time awareness.</td>
+          </tr>
+
+          <tr>
+            <td>F-12</td>
+            <td class="td-name-retired">Transaction History Digest</td>
+            <td><span class="badge badge-timer">Timer</span></td>
+            <td><span class="badge badge-retired">Retired</span></td>
+            <td class="td-notes">Retired. Concept folded into F-15 (Audit / Compliance Report).</td>
+          </tr>
+
+          <tr>
+            <td>F-14</td>
+            <td class="td-name-retired">Enrichment Retry / Stale Lookup Cleanup</td>
+            <td><span class="badge badge-timer">Timer</span></td>
+            <td><span class="badge badge-retired">Retired</span></td>
+            <td class="td-notes">Retired alongside F-06. Enrichment flow is stubbed indefinitely.</td>
+          </tr>
+
+          <tr>
+            <td>F-16</td>
+            <td class="td-name-retired">New Part Created Notification</td>
+            <td><span class="badge badge-event">Event</span></td>
+            <td><span class="badge badge-retired">Retired</span></td>
+            <td class="td-notes">Retired. Folded into F-03 DM event catalog as item #1 (New part created). No standalone Function needed.</td>
+          </tr>
+
+          <tr>
+            <td>—</td>
+            <td class="td-name-retired">Quote Email Detected — PA Flow</td>
+            <td><span class="badge badge-event">Event</span></td>
+            <td><span class="badge badge-retired">Retired</span></td>
+            <td class="td-notes">Retired May 2026. The <code>new_quote_email_detected</code> Power Automate flow and <code>QuoteEmailDetectedFunction</code> / <code>QuoteEmailDetectedService</code> have been removed from the Functions repo. Their purpose (setting <code>Email_detected_dt</code>, status → <code>email_detected</code>, creating <code>QuoteRequestEmailEvent</code>, firing SignalR <code>orders.updated</code>) is now handled synchronously by the API's <code>POST /quote-requests/{token}/send</code> endpoint after Graph OBO send succeeds. The <code>POST /{token}/email-detected</code> API endpoint remains in place gated by <code>FunctionAppQuote</code> auth policy in case it is needed in the future.</td>
+          </tr>
+
+        </tbody>
+      </table>
+    </div>
+
+    <!-- SECTION 3: Infrastructure & Data Model Notes -->
+    <div class="section">
+      <div class="section-title">
+        <span class="section-num">§03</span>
+        <h2>Notification Infrastructure &amp; Data Model</h2>
+      </div>
+      <p class="section-intro">Decisions made April 2026 that underpin F-18, F-19, F-20, and all future notification functions. B-11 schema is complete and deployed. B-12 (PA flow + Functions code) is next.</p>
+
+      <div class="info-note">
+        <span class="opp-icon">ℹ️</span>
+        <span>Schema migrations for PropertyChannels and ManagedProperties are deployed to production (April 22, 2026). API endpoints and PWA UI are live. All Teams channels are created. F-18 (B-12) is complete and production verified — 7 PA flows live, per-event PA__ App Settings configured in Azure. Timer-triggered flows (daily/weekly) pending natural schedule validation.</span>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width:200px">Topic</th>
+            <th>Decision</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>PA Service Account</strong></td>
+            <td class="td-notes">
+              PA flow is owned by and runs under the <strong>ATC Office</strong> licensed service account — not the Flow bot. Flow bot was rejected due to permission issues with shared channels and posting reliability.<br><br>
+              ATC Office is a member of every team it needs to post in. This account persists regardless of personnel changes. PA Teams connector is authenticated as ATC Office — if the account password changes or MFA prompt expires, the connection must be re-authenticated in PA before flows resume.<br><br>
+              Posts appear as "ATC Office (DO NOT REPLY)" in Teams channels.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>DatabaseManager Channel</strong></td>
+            <td class="td-notes">
+              <strong>Host team:</strong> IT Team<br>
+              <strong>Channel type:</strong> Shared channel — allows non-IT DatabaseManager users to be invited as members without joining the IT Team itself.<br>
+              <strong>Channel name:</strong> Inventory - DB Manager<br><br>
+              ATC Office must be a member of the IT Team (host team) for posting rights. <code>DM__TeamId</code> in Key Vault must contain the IT Team's <code>teamId</code> — not the shared channel's own team reference. <code>DM__ChannelId</code> contains the shared channel's ID.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>PA Architecture</strong></td>
+            <td class="td-notes">Single Power Automate inbound HTTP trigger handles all Teams notifications. Function always resolves routing before calling PA — PA receives a fully-resolved <code>teamId</code> and <code>channelId</code> in every payload. PA has zero awareness of warehouses, propCodes, or channel registry. PA reads the <code>event</code> field to select the adaptive card template.</td>
+          </tr>
+          <tr>
+            <td><strong>Routing Protocol</strong></td>
+            <td class="td-notes">No incoming webhook URLs. Routing uses <code>TeamId</code> + <code>ChannelId</code> only — consistent with the existing Python oncall parser pattern used across other ATC systems. <code>PropertyChannels</code> table stores <code>TeamId</code> (nvarchar 100) and <code>ChannelId</code> (nvarchar 200) per warehouse channel.</td>
+          </tr>
+          <tr>
+            <td><strong>PropertyChannels Table</strong></td>
+            <td class="td-notes">Deployed. Schema: <code>Id</code>, <code>WarehouseId</code> (FK → Warehouses), <code>ChannelType</code> (nvarchar 50), <code>TeamId</code> (nvarchar 100), <code>ChannelId</code> (nvarchar 200), <code>IsActive</code> (bit), <code>LastFailedAt</code> (datetime2, nullable). One warehouse → many channels.</td>
+          </tr>
+          <tr>
+            <td><strong>ManagedProperties Table</strong></td>
+            <td class="td-notes">Deployed. Schema: <code>Id</code>, <code>PropCode</code> (unique), <code>DisplayName</code>, <code>ManagedByWarehouseId</code> (FK → Warehouses, required), <code>Notes</code> (nullable), <code>CreatedDt</code>. Satellite properties (no independent warehouse, no independent stock) are recorded here. A propCode in this table is considered reconciled by F-20 — not a gap.</td>
+          </tr>
+          <tr>
+            <td><strong>PATCH /failure Auth</strong></td>
+            <td class="td-notes"><code>PATCH /property-channels/{id}/failure</code> is gated to the <code>PropertyChannelFailure.Write</code> App Role (not DatabaseManager). This role is assigned to the <code>atc-inventory-functions</code> Managed Identity via Graph API — service-to-service auth, not user-based. Configured and live.</td>
+          </tr>
+          <tr>
+            <td><strong>Test Override</strong></td>
+            <td class="td-notes">
+              Two Azure App Settings on the Function App (also in <code>local.settings.json</code> for dev):<br>
+              — <code>NotificationOverride__TeamId</code><br>
+              — <code>NotificationOverride__ChannelId</code><br>
+              When both are present and non-empty, all PA dispatches use these values regardless of what <code>PropertyChannels</code> resolves. Failure reporting (F-19 / <code>PATCH /property-channels/{id}/failure</code>) is suppressed when override is active. When either is absent or empty, normal routing applies. Zero code path impact in production when unset. Values set in Azure Portal App Settings — never in source control.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>PA Flow URL</strong></td>
+            <td class="td-notes">PA HTTP trigger URL stored as Azure App Setting: <code>PowerAutomate__FlowUrl</code>. Generated when the PA flow is created (B-12 Step 2). Never hardcoded in source.</td>
+          </tr>
+          <tr>
+            <td><strong>Channel Routing</strong></td>
+            <td class="td-notes">Given a <code>propCode</code>: check <code>Warehouses</code> (self-managed) → if not found, check <code>ManagedProperties</code> → get <code>ManagedByWarehouseId</code> → query <code>PropertyChannels</code> where <code>WarehouseId = [resolved]</code> and <code>IsActive = 1</code>.</td>
+          </tr>
+          <tr>
+            <td><strong>Failure Handling</strong></td>
+            <td class="td-notes">PA failure → Function calls <code>PATCH /property-channels/{id}/failure</code> via Managed Identity. API writes <code>LastFailedAt</code>. API fires DM alert. Functions remain read-only against the database — all writes route through the API per architectural rule.</td>
+          </tr>
+          <tr>
+            <td><strong>Satellite Properties</strong></td>
+            <td class="td-notes">Properties managed by another warehouse do not receive their own warehouse record, Teams channel, or App Role. Stock is held at the managing warehouse. Financial attribution is YARDI's domain — the inventory app tracks physical location only.</td>
+          </tr>
+          <tr>
+            <td><strong>YARDI Access</strong></td>
+            <td class="td-notes">No direct API access. YARDI pushes scheduled reports (format and delivery mechanism TBD). Virtuoso MCP connector is Claude-only beta — not suitable for production architecture. Reconciliation (F-20) is a diff-based timer function, not a real-time event consumer.</td>
+          </tr>
+          <tr>
+            <td><strong>PWA Low Stock Toast</strong></td>
+            <td class="td-notes">Complete (B-07). <code>supply.low_stock</code> SignalR event includes <code>partName</code> and <code>warehouseName</code> in the payload — no cache lookup required. <code>useLowStockToasts</code> hook and <code>LowStockToastStack</code> component are live. Scoping handled by SignalR group membership.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- SECTION 4: Grouping Summary -->
+    <div class="section">
+      <div class="section-title">
+        <span class="section-num">§04</span>
+        <h2>Backlog Grouping &amp; Priority</h2>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:220px">Group</th>
+            <th style="width:180px">Functions</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Live — Production Verified</strong></td>
+            <td class="td-notes"><span class="badge badge-live">F-01</span> <span class="badge badge-live">F-03</span> <span class="badge badge-live">F-04</span> <span class="badge badge-live">F-09</span> <span class="badge badge-live">F-10</span> <span class="badge badge-live">F-18</span> <span class="badge badge-live">F-19</span></td>
+            <td class="td-notes">Invoice scan, label generation, all PDF/Excel report generation, vendor quote request Graph OBO send, and full Teams notification infrastructure confirmed in production. F-03 DM events 1–4 live. F-10 Graph OBO send live (implemented in API — no Function). F-18 7 PA flows live. F-19 daily channel failure report live. Timer flows (F-05 daily/weekly) pending natural schedule validation.</td>
+          </tr>
+          <tr>
+            <td><strong>Complete — Pending Live Test</strong></td>
+            <td class="td-notes"><span class="badge badge-complete">F-05</span></td>
+            <td class="td-notes">Built and dev-tested. <code>DailyPendingOrdersFunction</code> (daily 6:00 AM) and <code>WeeklyOrderedItemsFunction</code> (Fridays 6:00 AM) pending first natural-schedule production run.</td>
+          </tr>
+          <tr>
+            <td><strong>Timer-Triggered Backlog</strong></td>
+            <td class="td-notes">F-05, F-11, F-15, F-20, F-21, F-22</td>
+            <td class="td-notes">All cron-driven. F-05 and F-20 depend on F-18. F-11 cadence not yet decided. F-15 format not yet decided. F-20 depends on YARDI report format confirmation. F-21 (equipment overdue alert) and F-22 (daily equipment location report) cadence and format not yet decided.</td>
+          </tr>
+          <tr>
+            <td><strong>Future / Vendor Workflow</strong></td>
+            <td class="td-notes">F-10, F-13</td>
+            <td class="td-notes">F-13 deferred until vendor procurement workflow is designed. F-10 is complete (Graph OBO send — implemented in API, no Function). Data model supports F-13.</td>
+          </tr>
+          <tr>
+            <td><strong>Complex / Dependent</strong></td>
+            <td class="td-notes">F-17</td>
+            <td class="td-notes">YARDI comparison requires AI provider decision, new DB table, new API endpoints, and YARDI CSV schema confirmation before implementation can begin.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <div class="doc-footer">
+    <span>ATC Inventory Application — Azure Functions Register</span>
+    <span>Repo: <code>inventory_functions</code> · v2.5 · May 17, 2026</span>
+    <span class="footer-mono">CONFIDENTIAL · INTERNAL USE ONLY</span>
+  </div>
+
+</div>
+</body>
+</html>

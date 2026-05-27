@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventory API — Front-End Integration Guide v4.0</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 14px; color: #1f1f1f; background: #fff; line-height: 1.55; }
+  a { color: #2E75B6; text-decoration: none; }
+
+  .page { max-width: 1080px; margin: 0 auto; padding: 32px 40px 80px; }
+
+  .title-block { padding: 40px 0 32px; border-bottom: 3px solid #2E75B6; margin-bottom: 40px; }
+  .title-block h1 { font-size: 36px; color: #1F4E79; font-weight: 700; }
+  .title-block .subtitle { font-size: 20px; color: #2E75B6; margin-top: 6px; }
+  .title-block .meta { font-size: 13px; color: #595959; margin-top: 12px; }
+  .title-block .meta strong { color: #1f1f1f; }
+
+  h2 { font-size: 22px; color: #2E75B6; font-weight: 700; margin: 40px 0 10px;
+       padding-bottom: 6px; border-bottom: 2px solid #2E75B6; }
+  h3 { font-size: 17px; color: #1F4E79; font-weight: 700; margin: 28px 0 8px; }
+  h4 { font-size: 15px; color: #1F4E79; font-weight: 700; margin: 20px 0 6px; }
+  p  { margin: 8px 0; font-size: 14px; }
+
+  .note   { border-left: 4px solid #2E75B6; background: #D6E4F0; padding: 10px 14px; margin: 14px 0; font-size: 13px; border-radius: 0 4px 4px 0; }
+  .warn   { border-left: 4px solid #E6A817; background: #FFF8E1; padding: 10px 14px; margin: 14px 0; font-size: 13px; border-radius: 0 4px 4px 0; }
+  .danger { border-left: 4px solid #C00000; background: #FDECEA; padding: 10px 14px; margin: 14px 0; font-size: 13px; border-radius: 0 4px 4px 0; }
+  .note::before   { content: "ℹ  "; font-weight: 700; color: #2E75B6; }
+  .warn::before   { content: "⚠  "; font-weight: 700; color: #E6A817; }
+  .danger::before { content: "🚫  "; font-weight: 700; color: #C00000; }
+
+  pre { background: #F6F8FA; border: 1px solid #2E75B6; border-left: 4px solid #2E75B6;
+        padding: 12px 16px; font-family: 'Courier New', monospace; font-size: 12.5px;
+        line-height: 1.6; border-radius: 0 4px 4px 0; margin: 10px 0; overflow-x: auto; white-space: pre; }
+  code { font-family: 'Courier New', monospace; font-size: 12.5px; background: #F6F8FA;
+         padding: 1px 4px; border-radius: 3px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th { background: #1F4E79; color: #fff; font-weight: 700; text-align: left; padding: 8px 10px; font-size: 13px; }
+  td { padding: 7px 10px; border: 1px solid #D0D7DE; vertical-align: top; }
+  tr:nth-child(even) td { background: #EBF3F9; }
+  tr:nth-child(odd)  td { background: #fff; }
+
+  .field-table td.f-name { font-family: 'Courier New', monospace; font-size: 12px; }
+  .field-table td.f-type { font-family: 'Courier New', monospace; font-size: 12px; }
+  .field-table td.f-req-y { background: #D4EDDA !important; color: #1E7D34; font-weight: 700; }
+  .field-table td.f-req-n { color: #595959; }
+  .field-table tr:nth-child(even) td.f-name { background: #EAEEF2; }
+  .field-table tr:nth-child(odd)  td.f-name { background: #F6F8FA; }
+  .field-table tr:nth-child(even) td.f-type { background: #EBF3F9; }
+  .field-table tr:nth-child(odd)  td.f-type { background: #fff; }
+
+  .ep-table td.ep-method { text-align: center; font-weight: 700; font-size: 12px; white-space: nowrap; }
+  .ep-table td.ep-path   { font-family: 'Courier New', monospace; font-size: 12px; }
+  .ep-table td.ep-auth   { font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .m-get    { background: #D4EDDA !important; color: #1E7D34; }
+  .m-post   { background: #FFF3CD !important; color: #8A4800; }
+  .m-put    { background: #EDE7F6 !important; color: #4B0082; }
+  .m-patch  { background: #E8F4FD !important; color: #1F4E79; }
+  .m-delete { background: #FDECEA !important; color: #9B1C1C; }
+  .a-auth   { background: #D4EDDA !important; color: #1E7D34; }
+  .a-dm     { background: #FFF3CD !important; color: #8A4800; }
+  .a-prop   { background: #E8F4FD !important; color: #1F4E79; }
+  .a-func   { background: #EDE7F6 !important; color: #4B0082; }
+  .a-none   { background: #F0F0F0 !important; color: #595959; }
+
+  .err-table td.err-code { font-family: 'Courier New', monospace; font-size: 12px; }
+
+  .badge-new { display: inline-block; background: #1E7D34; color: #fff; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px; vertical-align: middle; margin-left: 6px; letter-spacing: 0.5px; }
+  .badge-upd { display: inline-block; background: #2E75B6; color: #fff; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px; vertical-align: middle; margin-left: 6px; letter-spacing: 0.5px; }
+
+  .auth-label { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 3px; margin-left: 8px; vertical-align: middle; }
+  .auth-dm   { background: #FFF3CD; color: #8A4800; }
+  .auth-auth { background: #D4EDDA; color: #1E7D34; }
+  .auth-prop { background: #E8F4FD; color: #1F4E79; }
+  .auth-func { background: #EDE7F6; color: #4B0082; }
+  .auth-none { background: #F0F0F0; color: #595959; }
+
+  .toc { background: #F0F5FA; border: 1px solid #2E75B6; border-radius: 4px; padding: 20px 24px; margin: 24px 0 40px; }
+  .toc h3 { margin: 0 0 12px; color: #1F4E79; font-size: 15px; }
+  .toc ol { padding-left: 20px; }
+  .toc li { margin: 4px 0; font-size: 13px; }
+  .toc a  { color: #2E75B6; }
+
+  .event-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 12px 0; }
+  .event-card { background: #F6F8FA; border: 1px solid #D0D7DE; border-radius: 4px; padding: 10px 14px; }
+  .event-card .ev-name  { font-family: 'Courier New', monospace; font-size: 12px; font-weight: 700; color: #1F4E79; margin-bottom: 3px; }
+  .event-card .ev-scope { font-family: 'Courier New', monospace; font-size: 11px; color: #595959; margin-bottom: 4px; }
+  .event-card p { font-size: 12px; margin: 0; }
+
+  .mt8  { margin-top: 8px; }
+  .mt16 { margin-top: 16px; }
+  .mt24 { margin-top: 24px; }
+</style>
+</head>
+<body>
+  <!-- ── NAV BAR ── -->
+<div style="display:flex;align-items:center;gap:12px;padding:12px 56px;background:#161b22;border-bottom:1px solid #2a3444;position:sticky;top:0;z-index:100;">
+  <a href="../index.html" style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:#768a9e;text-decoration:none;letter-spacing:1px;">← Home</a>
+  <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#2a3444;">/</span>
+  <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#cdd9e5;">Front-End Guide v4.0</span>
+</div>
+<div class="page">
+
+<div class="title-block">
+  <h1>Inventory API</h1>
+  <div class="subtitle">Front-End Integration Guide</div>
+  <div class="meta">Version: <strong>4.0</strong> &nbsp;&nbsp; Date: <strong>May 17, 2026</strong> &nbsp;&nbsp; Hub: <strong>/hubs/inventory</strong></div>
+</div>
+
+<div class="toc">
+  <h3>Table of Contents</h3>
+  <ol>
+    <li><a href="#auth">Authentication &amp; Authorization</a></li>
+    <li><a href="#enums">Shared Enums &amp; Constants</a></li>
+    <li><a href="#summary">Endpoint Summary</a></li>
+    <li><a href="#signalr">SignalR — Real-Time Events</a></li>
+    <li><a href="#warehouses">Warehouses</a></li>
+    <li><a href="#categories">Categories</a></li>
+    <li><a href="#vendors">Vendors</a></li>
+    <li><a href="#parts">Parts</a></li>
+    <li><a href="#identifiers">Identifiers</a></li>
+    <li><a href="#supplies">Supplies</a></li>
+    <li><a href="#transactions">Transactions</a></li>
+    <li><a href="#vendorparts">VendorParts</a></li>
+    <li><a href="#orders">Orders</a></li>
+    <li><a href="#quote-requests">Quote Requests</a></li>
+    <li><a href="#equipment">Equipment</a></li>
+    <li><a href="#vendor-aliases">Vendor Aliases</a></li>
+    <li><a href="#scanning">Barcode Scanning Workflows</a></li>
+    <li><a href="#errors">General Error Handling</a></li>
+    <li><a href="#diagnostics">Diagnostic Endpoints</a></li>
+  </ol>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- 1. AUTHENTICATION -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2 id="auth">1. Authentication &amp; Authorization</h2>
+<p>All endpoints require a valid Bearer token obtained from Microsoft Entra ID via MSAL. Include the token on every request:</p>
+<pre>Authorization: Bearer &lt;access_token&gt;
+Content-Type: application/json</pre>
+
+<h3>Authorization Roles</h3>
+<p>Three access tiers are enforced via the <code>roles</code> claim in the JWT. The API enforces these server-side on every request — the front end may use role claims for UI show/hide only and must never treat them as the source of truth.</p>
+
+<table>
+  <thead><tr><th style="width:200px">Role</th><th>Access</th><th>How Assigned</th></tr></thead>
+  <tbody>
+    <tr>
+      <td style="font-weight:700;color:#1E7D34;">Authenticated User</td>
+      <td>Any valid Entra ID token with no role assignment. Read all data. Single creates (parts, supplies, identifiers). Scan consume and stock-in. Part updates. Order create and status update. Equipment checkout/checkin/location update.</td>
+      <td>Any valid Entra user.</td>
+    </tr>
+    <tr>
+      <td style="font-weight:700;color:#1F4E79;"><code>propCode_wh</code> (e.g. <code>ms_wh</code>)</td>
+      <td>Read all. Write scoped to their assigned warehouse only. Warehouse identified by matching <code>PropCode</code> + <code>_wh</code> suffix. Can stock-in-receive orders for their warehouse.</td>
+      <td>App Role per property, assigned in Azure Portal → Enterprise Applications → ATC_InventoryAPI. See <code>Entra_Property_Access_Management.md</code>.</td>
+    </tr>
+    <tr>
+      <td style="font-weight:700;color:#8A4800;">DatabaseManager</td>
+      <td>Full access — all warehouses, all admin and bulk operations. Overrides all property role checks. Automatically joined to all warehouse SignalR groups on connect.</td>
+      <td>M365 group <code>Inventory-DatabaseManagers</code> → App Role in Azure Portal. No code change required.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="warn"><strong>403 Forbidden</strong> on a DatabaseManager-gated endpoint means the user is not in the M365 group — nothing is wrong with the application. Direct them to contact an administrator.</div>
+<div class="note">The PWA resolves roles at runtime by decoding the JWT in <code>useUserPermissions()</code>. <code>isDatabaseManager</code> and <code>canWriteToWarehouse(propCode)</code> are available throughout the app. These are UX signals only — the API always enforces independently.</div>
+
+<h3>Single-Create vs Bulk Split</h3>
+<p>This is a deliberate pattern. Single creates (parts, supplies, identifiers) are open to any authenticated user. Bulk and destructive operations require <code>DatabaseManager</code>. <code>PUT /parts/{id}</code> follows the single-create rule.</p>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- 2. ENUMS -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2 id="enums">2. Shared Enums &amp; Constants</h2>
+
+<h3>UnitOfMeasure</h3>
+<p>Used in Identifier fields. Must be sent as a string.</p>
+<table>
+  <thead><tr><th>Value</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>EA</code></td><td>Each (default)</td></tr>
+    <tr><td><code>PKG</code></td><td>Package</td></tr>
+    <tr><td><code>BOX</code></td><td>Box</td></tr>
+    <tr><td><code>CASE</code></td><td>Case</td></tr>
+    <tr><td><code>ROLL</code></td><td>Roll</td></tr>
+  </tbody>
+</table>
+
+<h3>Order Status Values</h3>
+<table>
+  <thead><tr><th>Value</th><th>Meaning</th><th>Terminal?</th></tr></thead>
+  <tbody>
+    <tr><td><code>pending</code></td><td>Reported, not yet ordered</td><td>No</td></tr>
+    <tr><td><code>ordered</code></td><td>Order placed with vendor</td><td>No</td></tr>
+    <tr><td><code>received</code></td><td>Stock received</td><td>Yes</td></tr>
+    <tr><td><code>cancelled</code></td><td>Cancelled</td><td>Yes</td></tr>
+  </tbody>
+</table>
+
+<h3>Quote Request Status Values</h3>
+<table>
+  <thead><tr><th>Value</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>draft_created</code></td><td>Record created, email not yet sent</td></tr>
+    <tr><td><code>email_detected</code></td><td>Graph send accepted; set immediately on successful <code>POST /{token}/send</code></td></tr>
+    <tr><td><code>cancelled</code></td><td>Manually cancelled</td></tr>
+    <tr><td><code>expired</code></td><td>Token past 90-day expiry</td></tr>
+  </tbody>
+</table>
+
+<h3>Equipment Status Values</h3>
+<table>
+  <thead><tr><th>Value</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>Available</code></td><td>In warehouse, ready for checkout</td></tr>
+    <tr><td><code>CheckedOut</code></td><td>Checked out to a unit or technician</td></tr>
+  </tbody>
+</table>
+
+<h3>Equipment Transaction Types</h3>
+<table>
+  <thead><tr><th>Value</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>CheckOut</code></td><td>Checked out from warehouse</td></tr>
+    <tr><td><code>CheckIn</code></td><td>Returned to a warehouse</td></tr>
+    <tr><td><code>LocationUpdate</code></td><td>Unit/location updated while still checked out</td></tr>
+    <tr><td><code>PermanentTransfer</code></td><td>Home warehouse changed permanently (DatabaseManager only)</td></tr>
+  </tbody>
+</table>
+
+<h3>Transaction ReasonType Values</h3>
+<table>
+  <thead><tr><th>Value</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>SCAN_IN</code></td><td>Stock added via barcode scan</td></tr>
+    <tr><td><code>SCAN_CONSUME</code></td><td>Stock consumed via barcode scan</td></tr>
+    <tr><td><code>MANUAL_ADJUST</code></td><td>Manual quantity adjustment (including invoice receipt)</td></tr>
+    <tr><td><code>INITIAL_STOCK</code></td><td>First stock entry for a part+warehouse</td></tr>
+    <tr><td><code>ORDER_RECEIPT</code></td><td>Stock added via order stock-in; <code>ReferenceId</code> = order ID</td></tr>
+  </tbody>
+</table>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- 3. ENDPOINT SUMMARY -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2 id="summary">3. Endpoint Summary</h2>
+
+<h3>Warehouses &nbsp;<code>/warehouses</code></h3>
+<table class="ep-table">
+  <thead><tr><th style="width:80px">Method</th><th>Endpoint</th><th>Description</th><th style="width:170px">Auth Required</th></tr></thead>
+  <tbody>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/warehouses</td><td>Get all warehouses</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/warehouses/{id}/summary</td><td>Warehouse inventory summary</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/warehouses</td><td>Create a warehouse</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/warehouses/multiples</td><td>Bulk create warehouses</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-put">PUT</td><td class="ep-path">/warehouses/{id}</td><td>Update a warehouse</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-delete">DELETE</td><td class="ep-path">/warehouses/{id}</td><td>Delete a warehouse</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+  </tbody>
+</table>
+
+<h3>Categories &nbsp;<code>/categories</code></h3>
+<table class="ep-table">
+  <thead><tr><th style="width:80px">Method</th><th>Endpoint</th><th>Description</th><th style="width:170px">Auth Required</th></tr></thead>
+  <tbody>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/categories</td><td>Get all categories</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/categories/{id}</td><td>Get single category</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/categories</td><td>Create a category</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/categories/multiples</td><td>Bulk create categories</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-put">PUT</td><td class="ep-path">/categories/{id}</td><td>Update a category</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-delete">DELETE</td><td class="ep-path">/categories/{id}</td><td>Delete a category</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+  </tbody>
+</table>
+
+<h3>Vendors &nbsp;<code>/vendors</code></h3>
+<table class="ep-table">
+  <thead><tr><th style="width:80px">Method</th><th>Endpoint</th><th>Description</th><th style="width:170px">Auth Required</th></tr></thead>
+  <tbody>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/vendors</td><td>Get all vendors</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/vendors</td><td>Create a vendor</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-put">PUT</td><td class="ep-path">/vendors/{id}</td><td>Update a vendor</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-delete">DELETE</td><td class="ep-path">/vendors/{vendorId}</td><td>Delete a vendor</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+  </tbody>
+</table>
+
+<h3>Parts &nbsp;<code>/parts</code></h3>
+<table class="ep-table">
+  <thead><tr><th style="width:80px">Method</th><th>Endpoint</th><th>Description</th><th style="width:170px">Auth Required</th></tr></thead>
+  <tbody>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/parts</td><td>Get all parts (paginated, filterable)</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/parts/{id}</td><td>Get single part with full detail</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/parts/search</td><td>Name similarity search</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/parts</td><td>Create a part</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/parts/multiple</td><td>Bulk create parts</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-put">PUT</td><td class="ep-path">/parts/{id}</td><td>Update a part</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-delete">DELETE</td><td class="ep-path">/parts/{partId}</td><td>Delete a part</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+  </tbody>
+</table>
+
+<h3>Identifiers &nbsp;<code>/identifiers</code></h3>
+<table class="ep-table">
+  <thead><tr><th style="width:80px">Method</th><th>Endpoint</th><th>Description</th><th style="width:170px">Auth Required</th></tr></thead>
+  <tbody>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/identifiers</td><td>Get all identifiers</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/identifiers/{id}</td><td>Get single identifier</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/identifiers/resolve/{code}</td><td>Resolve barcode → Part (unknown barcode flow only)</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/identifiers/lookup/{lookupId}</td><td>Poll enrichment lookup status</td><td class="ep-auth a-none">None</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/identifiers/create</td><td>Create a single identifier</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/identifiers/create/multiple</td><td>Bulk create identifiers</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-patch">PATCH</td><td class="ep-path">/identifiers/{id}</td><td>Re-link identifier to a different part</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-delete">DELETE</td><td class="ep-path">/identifiers/{id}</td><td>Delete an identifier</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+  </tbody>
+</table>
+
+<h3>Supplies &nbsp;<code>/supplies</code></h3>
+<table class="ep-table">
+  <thead><tr><th style="width:80px">Method</th><th>Endpoint</th><th>Description</th><th style="width:170px">Auth Required</th></tr></thead>
+  <tbody>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/supplies</td><td>Get all supply records (paginated, filterable)</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/supplies/{warehouseId}</td><td>Get supplies by warehouse</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/supplies/below-minimum</td><td>Parts below minimum stock level</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/supplies/most-used</td><td>Most consumed parts (rolling window)</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/supplies/lookup</td><td>Barcode + warehouse quick lookup (no state change)</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/supplies/part-trend</td><td>Transaction trend for a specific part over time</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/supplies</td><td>Create a supply record</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/supplies/multiple</td><td>Bulk create supply records</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/supplies/adjust</td><td>Adjust quantity by part/warehouse</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/supplies/scan/consume</td><td>Consume stock via barcode scan</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/supplies/scan/stockin</td><td>Stock in via barcode scan</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-put">PUT</td><td class="ep-path">/supplies/{supplyId}</td><td>Update quantity by supply ID</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-delete">DELETE</td><td class="ep-path">/supplies/{supplyId}</td><td>Delete a supply record</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+  </tbody>
+</table>
+
+<h3>Transactions &nbsp;<code>/transactions</code></h3>
+<table class="ep-table">
+  <thead><tr><th style="width:80px">Method</th><th>Endpoint</th><th>Description</th><th style="width:170px">Auth Required</th></tr></thead>
+  <tbody>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/transactions</td><td>Get all transactions (paginated, newest first)</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/transactions/trend</td><td>Aggregated trend data for charting</td><td class="ep-auth a-auth">Authenticated</td></tr>
+  </tbody>
+</table>
+
+<h3>VendorParts &nbsp;<code>/vendorparts</code></h3>
+<table class="ep-table">
+  <thead><tr><th style="width:80px">Method</th><th>Endpoint</th><th>Description</th><th style="width:170px">Auth Required</th></tr></thead>
+  <tbody>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/vendorparts</td><td>Get all vendor-part links (grouped by vendor)</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/vendorparts</td><td>Create a vendor-part link</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/vendorparts/multiple</td><td>Bulk create vendor-part links</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-delete">DELETE</td><td class="ep-path">/vendorparts/{id}</td><td>Delete a vendor-part link</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+  </tbody>
+</table>
+
+<h3>Orders &nbsp;<code>/orders</code> <span class="badge-new">NEW</span></h3>
+<table class="ep-table">
+  <thead><tr><th style="width:80px">Method</th><th>Endpoint</th><th>Description</th><th style="width:170px">Auth Required</th></tr></thead>
+  <tbody>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/orders</td><td>Get orders (paginated, filterable)</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/orders</td><td>Create one or more orders (batch)</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-patch">PATCH</td><td class="ep-path">/orders/{id}/status</td><td>Update order status</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/orders/{id}/stock-in-receive</td><td>Atomic stock-in + order receipt</td><td class="ep-auth a-prop">DM or propCode_wh</td></tr>
+  </tbody>
+</table>
+
+<h3>Quote Requests &nbsp;<code>/quote-requests</code> <span class="badge-new">NEW</span></h3>
+<table class="ep-table">
+  <thead><tr><th style="width:80px">Method</th><th>Endpoint</th><th>Description</th><th style="width:170px">Auth Required</th></tr></thead>
+  <tbody>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/quote-requests</td><td>Get quote requests (filterable by warehouse, status, order IDs)</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/quote-requests/preview</td><td>Preview quote (no DB write)</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/quote-requests</td><td>Create quote request record</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/quote-requests/{token}/send</td><td>Send via Graph OBO (sets email_detected status)</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/quote-requests/{token}/mark-sent-manual</td><td>Manually mark as sent</td><td class="ep-auth a-auth">Authenticated</td></tr>
+  </tbody>
+</table>
+
+<h3>Equipment &nbsp;<code>/equipment</code> <span class="badge-new">NEW</span></h3>
+<table class="ep-table">
+  <thead><tr><th style="width:80px">Method</th><th>Endpoint</th><th>Description</th><th style="width:170px">Auth Required</th></tr></thead>
+  <tbody>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/equipment</td><td>Get equipment list (paginated, filterable)</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/equipment/{id}</td><td>Get single equipment item with current status</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/equipment</td><td>Create equipment item (auto-generates TOOL_MASTER barcode)</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/equipment/multiple</td><td>Bulk create equipment items</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-put">PUT</td><td class="ep-path">/equipment/{id}</td><td>Update equipment (name, category, home warehouse, is_active)</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-delete">DELETE</td><td class="ep-path">/equipment/{id}</td><td>Soft delete (sets is_active = false)</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/equipment/identifiers</td><td>Get equipment identifiers (filter by ?equipment_id=)</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/equipment/identifiers</td><td>Add non-TOOL_MASTER identifier to equipment</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-delete">DELETE</td><td class="ep-path">/equipment/identifiers/{id}</td><td>Delete non-TOOL_MASTER identifier</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/equipment/scan/resolve</td><td>Resolve scanned barcode → equipment + available actions</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/equipment/scan/checkout</td><td>Check out equipment to a warehouse/unit</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/equipment/scan/checkin</td><td>Check in equipment to a warehouse</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/equipment/scan/locationupdate</td><td>Update unit assignment on checked-out equipment</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/equipment/transactions</td><td>Get equipment movement history (filterable)</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/equipment/transactions/{id}</td><td>Get single equipment transaction</td><td class="ep-auth a-auth">Authenticated</td></tr>
+  </tbody>
+</table>
+
+<h3>Vendor Aliases &nbsp;<code>/vendor-aliases</code> <span class="badge-new">NEW</span></h3>
+<table class="ep-table">
+  <thead><tr><th style="width:80px">Method</th><th>Endpoint</th><th>Description</th><th style="width:170px">Auth Required</th></tr></thead>
+  <tbody>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/vendor-aliases</td><td>Get all vendor aliases (filterable by search, vendor, part)</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/vendor-aliases</td><td>Create a vendor alias (called after invoice confirmation)</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/vendor-aliases/lookup</td><td>Batch lookup by normalized descriptions (used by AnalyzeInvoiceFunction)</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-delete">DELETE</td><td class="ep-path">/vendor-aliases/{id}</td><td>Delete an alias</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+  </tbody>
+</table>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- 4. SIGNALR -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2 id="signalr">4. SignalR — Real-Time Events</h2>
+<p>Connect to the hub at <code>/hubs/inventory</code> using the same Bearer token used for API calls. All events are cache-invalidation signals only — the PWA re-fetches authoritative state from the API on receipt. Never drive UI state directly from event payloads.</p>
+
+<div class="note">The hub connection is additive and non-blocking. The application must function fully if the SignalR connection is unavailable. No feature may fail or hang due to a missing connection.</div>
+
+<h3>Event Catalogue</h3>
+<div class="event-grid">
+  <div class="event-card">
+    <div class="ev-name">supply.updated</div>
+    <div class="ev-scope">→ Group: warehouse_{id}</div>
+    <p>Any supply quantity change. Payload: <code>{ warehouseId, partId }</code></p>
+  </div>
+  <div class="event-card">
+    <div class="ev-name">supply.low_stock</div>
+    <div class="ev-scope">→ Group: warehouse_{id}</div>
+    <p>Supply write where quantity &lt;= min_level. Payload: <code>{ warehouseId, partId, currentQty, minQty, partName, warehouseName }</code></p>
+  </div>
+  <div class="event-card">
+    <div class="ev-name">part.created</div>
+    <div class="ev-scope">→ All clients</div>
+    <p>Single part created or bulk batch complete. Payload: <code>{ partId }</code> or <code>{ count }</code></p>
+  </div>
+  <div class="event-card">
+    <div class="ev-name">part.updated</div>
+    <div class="ev-scope">→ All clients</div>
+    <p>Part updated or deleted. Payload: <code>{ partId }</code></p>
+  </div>
+  <div class="event-card">
+    <div class="ev-name">warehouses.changed</div>
+    <div class="ev-scope">→ All clients</div>
+    <p>Warehouse create, update, or delete. No payload.</p>
+  </div>
+  <div class="event-card">
+    <div class="ev-name">categories.changed</div>
+    <div class="ev-scope">→ All clients</div>
+    <p>Category create, update, or delete. No payload.</p>
+  </div>
+  <div class="event-card">
+    <div class="ev-name">vendors.changed</div>
+    <div class="ev-scope">→ All clients</div>
+    <p>Vendor create, update, or delete. No payload.</p>
+  </div>
+  <div class="event-card">
+    <div class="ev-name">orders.updated</div>
+    <div class="ev-scope">→ All clients</div>
+    <p>Order status change, order created, stock-in-receive, or Graph OBO send accepted. No payload.</p>
+  </div>
+  <div class="event-card">
+    <div class="ev-name">equipment.changed</div>
+    <div class="ev-scope">→ All clients</div>
+    <p>Any equipment write — create, update, soft-delete, checkout, checkin, location update, permanent transfer. No payload.</p>
+  </div>
+</div>
+
+<h3>Group Membership</h3>
+<p>Warehouse group membership controls who receives <code>supply.updated</code> and <code>supply.low_stock</code> events. Group name format: <code>warehouse_{id}</code>.</p>
+<table>
+  <thead><tr><th>Client Type</th><th>Group Membership</th><th>Mechanism</th></tr></thead>
+  <tbody>
+    <tr><td>Standard user</td><td>Single warehouse group — currently selected warehouse</td><td>Client calls <code>JoinWarehouse(id)</code> on connect and on warehouse change; calls <code>LeaveWarehouse(id)</code> before switching</td></tr>
+    <tr><td>DatabaseManager</td><td>All warehouse groups</td><td>Auto-added to every warehouse group in <code>OnConnectedAsync</code> — role checked server-side from token claim</td></tr>
+  </tbody>
+</table>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- 5. WAREHOUSES -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2 id="warehouses">5. Warehouses</h2>
+
+<h3>GET /warehouses</h3>
+<p>Returns all warehouses. Includes a <code>Last-Modified</code> response header for cache validation.</p>
+<pre>// Response: 200 OK — array of WarehouseReadDto
+[{ "id": 1, "propCode": "ms", "name": "McHenry Square", "address": "...", "latitude": 0.0, "longitude": 0.0 }]</pre>
+
+<h3>GET /warehouses/{id}/summary</h3>
+<p>Returns aggregate inventory stats for the warehouse — total parts, total supply quantity, below-minimum count.</p>
+
+<h3>POST /warehouses <span class="auth-label auth-dm">DatabaseManager</span></h3>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">PropCode</td><td class="f-type">string</td><td class="f-req-n">No</td><td>Unique per Name. Drives propCode_wh role naming.</td></tr>
+    <tr><td class="f-name">Name</td><td class="f-type">string</td><td class="f-req-y">Yes</td><td>Unique per PropCode.</td></tr>
+    <tr><td class="f-name">Address</td><td class="f-type">string</td><td class="f-req-n">No</td><td></td></tr>
+    <tr><td class="f-name">Latitude</td><td class="f-type">double</td><td class="f-req-n">No</td><td>Defaults to 0.</td></tr>
+    <tr><td class="f-name">Longitude</td><td class="f-type">double</td><td class="f-req-n">No</td><td>Defaults to 0.</td></tr>
+  </tbody>
+</table>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- 6. CATEGORIES -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2 id="categories">6. Categories</h2>
+
+<h3>GET /categories &nbsp;/&nbsp; GET /categories/{id}</h3>
+<pre>// CategoryReadDto
+{ "id": 7, "name": "HVAC", "description": null, "gl_account": null }</pre>
+
+<h3>POST /categories <span class="auth-label auth-dm">DatabaseManager</span></h3>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">Name</td><td class="f-type">string</td><td class="f-req-y">Yes</td><td>Globally unique.</td></tr>
+    <tr><td class="f-name">Description</td><td class="f-type">string</td><td class="f-req-n">No</td><td></td></tr>
+    <tr><td class="f-name">GL_Account</td><td class="f-type">string</td><td class="f-req-n">No</td><td></td></tr>
+  </tbody>
+</table>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- 7. VENDORS -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2 id="vendors">7. Vendors</h2>
+
+<h3>GET /vendors</h3>
+<pre>// VendorReadDto
+{ "id": 3, "name": "Ferguson Enterprises", "contact_name": null, "contact_email": "orders@ferguson.com", "contact_phone": null, "address": null }</pre>
+
+<h3>POST /vendors <span class="auth-label auth-dm">DatabaseManager</span></h3>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">Name</td><td class="f-type">string</td><td class="f-req-y">Yes</td><td>Globally unique.</td></tr>
+    <tr><td class="f-name">Contact_name</td><td class="f-type">string</td><td class="f-req-n">No</td><td></td></tr>
+    <tr><td class="f-name">Contact_email</td><td class="f-type">string</td><td class="f-req-n">No</td><td>Required for quote requests.</td></tr>
+    <tr><td class="f-name">Contact_phone</td><td class="f-type">string</td><td class="f-req-n">No</td><td></td></tr>
+    <tr><td class="f-name">Address</td><td class="f-type">string</td><td class="f-req-n">No</td><td></td></tr>
+  </tbody>
+</table>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- 8. PARTS -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2 id="parts">8. Parts</h2>
+
+<h3>GET /parts</h3>
+<p>Query params: <code>?category_id=</code> <code>?search=</code> <code>?page=</code> <code>?limit=</code></p>
+<pre>// PartReadDto — includes identifiers, supply totals, vendor parts
+{
+  "id": 7, "name": "1/2 inch Ball Valve", "description": null,
+  "primary_category_id": 11, "secondary_category_id": null,
+  "min_level": 5, "max_level": 20,
+  "created_by_oid": "...", "created_by_email": "jamie@atcdevelopment.com", "created_dt": "...",
+  "identifiers": [...],
+  "vendor_parts": [...],
+  "supplies": [...]
+}</pre>
+
+<h3>GET /parts/search</h3>
+<p>Query params: <code>?q=</code> (required). Returns parts with name similarity above threshold (0.85). Used for duplicate checking before creates and for part picker modals.</p>
+
+<h3>POST /parts <span class="auth-label auth-auth">Authenticated</span></h3>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">Name</td><td class="f-type">string</td><td class="f-req-y">Yes</td><td>Globally unique. Similarity check fires before insert.</td></tr>
+    <tr><td class="f-name">Description</td><td class="f-type">string</td><td class="f-req-n">No</td><td></td></tr>
+    <tr><td class="f-name">Primary_category_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td>FK → Categories.</td></tr>
+    <tr><td class="f-name">Secondary_category_id</td><td class="f-type">int</td><td class="f-req-n">No</td><td></td></tr>
+    <tr><td class="f-name">Min_level</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td>Minimum stock threshold for low-stock alerts.</td></tr>
+    <tr><td class="f-name">Max_level</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td></td></tr>
+    <tr><td class="f-name">Identifiers</td><td class="f-type">array</td><td class="f-req-n">No</td><td>Additional identifiers. ATC_MASTER is auto-generated — do not include it.</td></tr>
+  </tbody>
+</table>
+<div class="note">ATC_MASTER barcode is auto-generated at creation. Including <code>Id_type = "ATC_MASTER"</code> in the identifiers array returns <code>400 ATC_MASTER_NOT_ALLOWED</code>.</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- 9. IDENTIFIERS -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2 id="identifiers">9. Identifiers</h2>
+
+<h3>GET /identifiers &nbsp;/&nbsp; GET /identifiers/{id}</h3>
+<pre>// IdentifierReadDto
+{ "id": 42, "part_id": 7, "id_type": "UPC", "id_value": "012345678901",
+  "part_name": "1/2 inch Ball Valve", "issue_uom": "EA", "unit_multiplier_to_base": 1 }</pre>
+
+<h3>GET /identifiers/resolve/{code} <span class="auth-label auth-auth">Authenticated</span></h3>
+<p>Used <strong>only</strong> in the unknown barcode flow when a scan returns <code>404 IDENTIFIER_NOT_FOUND</code>. Not used for normal scan operations.</p>
+<pre>// Barcode IS known
+{ "status": "FOUND", "part": { ...PartReadDto... } }
+
+// Barcode NOT known — enrichment lookup started
+{ "status": "Lookup_Started", "lookup_id": "guid-here" }</pre>
+
+<h3>GET /identifiers/lookup/{lookupId} <span class="auth-label auth-none">No Auth</span></h3>
+<p>Poll this endpoint after <code>Lookup_Started</code>. Poll every 1–2 seconds. Stop polling when status is anything other than <code>Pending</code>.</p>
+<pre>{ "status": "Pending" }   // still searching
+{ "status": "Complete", "result": { "name": "...", "description": "...", ... } }
+{ "status": "Exhausted" } // no provider matched — fall back to manual entry
+{ "status": "TimedOut" }  // timeout — fall back to manual entry</pre>
+
+<h3>POST /identifiers/create <span class="auth-label auth-auth">Authenticated</span></h3>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">Part_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td></td></tr>
+    <tr><td class="f-name">Id_type</td><td class="f-type">string</td><td class="f-req-y">Yes</td><td>Stored uppercase. <code>ATC_MASTER</code> rejected → <code>400 ATC_MASTER_NOT_ALLOWED</code>.</td></tr>
+    <tr><td class="f-name">Id_value</td><td class="f-type">string</td><td class="f-req-y">Yes</td><td>Stored lowercase. Globally unique.</td></tr>
+    <tr><td class="f-name">Issue_uom</td><td class="f-type">string</td><td class="f-req-n">No</td><td>Defaults to <code>EA</code>.</td></tr>
+    <tr><td class="f-name">Unit_multiplier_to_base</td><td class="f-type">int</td><td class="f-req-n">No</td><td>1–100. Defaults to 1. Applied at stock-in only — never persisted to Supplies.</td></tr>
+  </tbody>
+</table>
+
+<h3>PATCH /identifiers/{id} <span class="auth-label auth-dm">DatabaseManager</span></h3>
+<p>Re-links an existing identifier to a different part. Used by the desktop Manage Identifiers re-link flow. Cannot re-link ATC_MASTER identifiers.</p>
+<pre>// Request body
+{ "part_id": 42 }
+
+// Response: 200 OK — updated IdentifierReadDto</pre>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- 10. SUPPLIES -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2 id="supplies">10. Supplies</h2>
+
+<h3>GET /supplies</h3>
+<p>Query params: <code>?part_id=</code> <code>?warehouse_id=</code> <code>?category_id=</code> <code>?page=</code> <code>?limit=</code></p>
+<pre>// SuppliesEnrichedReadDto
+{ "id": 1, "part_id": 7, "warehouse_id": 3,
+  "part_name": "1/2 inch Ball Valve", "warehouse_name": "McHenry Square",
+  "quantity": 12, "min_level": 5, "max_level": 20,
+  "last_updated_dt": "...", "last_updated_by_email": "..." }</pre>
+
+<h3>GET /supplies/below-minimum</h3>
+<p>Query params: <code>?warehouse_id=</code> <code>?category_id=</code>. Returns only supplies where <code>quantity &lt;= min_level</code>.</p>
+
+<h3>GET /supplies/most-used</h3>
+<p>Query params: <code>?warehouse_id=</code> <code>?days=</code> <code>?limit=</code>. Returns top consumed parts in the rolling window.</p>
+
+<h3>GET /supplies/lookup</h3>
+<p>Query params: <code>?code=</code> (barcode) <code>&amp;warehouse_id=</code>. Resolves barcode to part name and current quantity without modifying state. Used as a scan-screen fallback.</p>
+
+<h3>GET /supplies/part-trend <span class="auth-label auth-dm">DatabaseManager</span></h3>
+<p>Query params: <code>?part_id=</code> (required) <code>&amp;days=</code> <code>&amp;date_from=</code> <code>&amp;date_to=</code>. Returns per-warehouse transaction history for a specific part over a time window (default 30 days, max 365). Used by the Part Trend report.</p>
+
+<h3>POST /supplies <span class="auth-label auth-auth">Authenticated</span></h3>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">Part_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td></td></tr>
+    <tr><td class="f-name">Warehouse_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td></td></tr>
+    <tr><td class="f-name">Quantity</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td>EA-level quantity. Must be ≥ 0.</td></tr>
+  </tbody>
+</table>
+
+<h3>POST /supplies/adjust <span class="auth-label auth-auth">Authenticated</span></h3>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">Part_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td></td></tr>
+    <tr><td class="f-name">Warehouse_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td></td></tr>
+    <tr><td class="f-name">Quantity_change</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td>Positive or negative. Blocked if result would be negative.</td></tr>
+    <tr><td class="f-name">Reason</td><td class="f-type">string</td><td class="f-req-n">No</td><td>Stored in Transactions ledger.</td></tr>
+    <tr><td class="f-name">Force</td><td class="f-type">bool</td><td class="f-req-n">No</td><td>Defaults to false. If true, bypasses negative inventory guard (DatabaseManager only in practice).</td></tr>
+  </tbody>
+</table>
+
+<h3>POST /supplies/scan/consume <span class="auth-label auth-auth">Authenticated</span></h3>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">Code</td><td class="f-type">string</td><td class="f-req-y">Yes</td><td>Barcode value (ATC_MASTER or UPC).</td></tr>
+    <tr><td class="f-name">Warehouse_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td></td></tr>
+    <tr><td class="f-name">Qty_each</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td>EA quantity to remove. Multiplier is ignored for consume.</td></tr>
+    <tr><td class="f-name">Reason</td><td class="f-type">string</td><td class="f-req-n">No</td><td>Unit/apartment or free text.</td></tr>
+  </tbody>
+</table>
+<p>Broadcasts <code>supply.updated</code> and conditionally <code>supply.low_stock</code>. Errors: <code>404 IDENTIFIER_NOT_FOUND</code>, <code>409 SUPPLY_NOT_FOUND</code>, <code>400 NEGATIVE_INVENTORY_NOT_ALLOWED</code>.</p>
+
+<h3>POST /supplies/scan/stockin <span class="auth-label auth-auth">Authenticated</span></h3>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">Code</td><td class="f-type">string</td><td class="f-req-y">Yes</td><td>Barcode value.</td></tr>
+    <tr><td class="f-name">Warehouse_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td></td></tr>
+    <tr><td class="f-name">Qty_packages</td><td class="f-type">int</td><td class="f-req-n">No</td><td>Defaults to 1. Multiplied by <code>Unit_multiplier_to_base</code> to compute EA quantity change.</td></tr>
+    <tr><td class="f-name">Reason</td><td class="f-type">string</td><td class="f-req-n">No</td><td></td></tr>
+    <tr><td class="f-name">Force</td><td class="f-type">bool</td><td class="f-req-n">No</td><td></td></tr>
+  </tbody>
+</table>
+<p>Auto-creates supply row if none exists (writes <code>Reason = "New Part in Warehouse"</code> — reserved). Broadcasts <code>supply.updated</code>. Error: <code>404 IDENTIFIER_NOT_FOUND</code>.</p>
+
+<h3>PUT /supplies/{supplyId} <span class="auth-label auth-auth">Authenticated</span></h3>
+<p>Update quantity directly by supply ID. Body: <code>{ "quantity": 25 }</code>. Broadcasts <code>supply.updated</code>.</p>
+
+<h3>DELETE /supplies/{supplyId} <span class="auth-label auth-dm">DatabaseManager</span></h3>
+<p>Removes the supply row entirely. Returns <code>204 No Content</code>. Broadcasts <code>supply.updated</code>.</p>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- 11. TRANSACTIONS -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2 id="transactions">11. Transactions</h2>
+
+<h3>GET /transactions</h3>
+<p>Query params: <code>?part_id=</code> <code>?warehouse_id=</code> <code>?category_id=</code> <code>?reason_type=</code> <code>?date_from=</code> <code>?date_to=</code> <code>?page=</code> <code>?limit=</code>. Returns newest first.</p>
+<pre>// TransactionEnrichedReadDto
+{ "id": 395, "part_id": 376, "warehouse_id": 9,
+  "part_name": "P-Trap 1.5 inch", "warehouse_name": "Sanctuary Apartments",
+  "quantity_change": 22, "quantity_before": 8, "quantity_after": 30,
+  "reason": "Order receipt — Order #11",
+  "reason_type": "ORDER_RECEIPT", "reference_id": 11,
+  "edited_by_email": "Bobo@atcdevelopment.com", "dt_time": "2026-05-14T19:43:29Z" }</pre>
+
+<h3>GET /transactions/trend</h3>
+<p>Query params: <code>?warehouse_id=</code> <code>?part_id=</code> <code>?days=</code>. Returns aggregated daily totals for charting.</p>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- 12. VENDORPARTS -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2 id="vendorparts">12. VendorParts</h2>
+
+<h3>GET /vendorparts</h3>
+<p>Query params: <code>?vendor_id=</code> <code>?part_id=</code> <code>?vendor_sku=</code> <code>?vendor_stock_number=</code>. Returns array grouped by vendor, sorted alphabetically. Also accessible nested in <code>GET /parts/{id}</code>.</p>
+<pre>// VendorPartReadDto
+{ "id": 5, "vendor_id": 3, "vendor_name": "Ferguson Enterprises",
+  "part_id": 7, "part_name": "1/2 inch Ball Valve",
+  "vendor_sku": null, "vendor_stock_number": "123456", "vendor_upc_override": null }</pre>
+
+<h3>POST /vendorparts <span class="auth-label auth-auth">Authenticated</span></h3>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">Vendor_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td></td></tr>
+    <tr><td class="f-name">Part_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td>Unique constraint on (Vendor_id, Part_id).</td></tr>
+    <tr><td class="f-name">Vendor_sku</td><td class="f-type">string</td><td class="f-req-n">No</td><td></td></tr>
+    <tr><td class="f-name">Vendor_stock_number</td><td class="f-type">string</td><td class="f-req-n">No</td><td>Used in quote request email body and invoice alias matching.</td></tr>
+    <tr><td class="f-name">Vendor_upc_override</td><td class="f-type">string</td><td class="f-req-n">No</td><td>If set, overrides UOM lookup for this vendor's barcode.</td></tr>
+  </tbody>
+</table>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- 13. ORDERS -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2 id="orders">13. Orders <span class="badge-new">NEW</span></h2>
+<p>Tracks purchase orders for parts. Orders are workflow artifacts — they are never the write authority for inventory. All supply changes route through Transactions (via scan/adjust/stock-in-receive).</p>
+
+<h3>GET /orders <span class="auth-label auth-auth">Authenticated</span></h3>
+<p>Query params: <code>?status=</code> <code>?warehouse_id=</code> <code>?part_id=</code> <code>?category_id=</code> <code>?date_from=</code> <code>?date_to=</code> <code>?page=</code> <code>?limit=</code></p>
+<p>Pass <code>status=active</code> as a shorthand for <code>pending</code> or <code>ordered</code> (the On Order page view).</p>
+<pre>// Response: 200 OK — paginated
+{ "total": 50, "page": 1, "limit": 25,
+  "data": [{ ...InventoryOrderReadDto... }] }
+
+// InventoryOrderReadDto
+{ "id": 11, "prop_code": "san", "warehouse_id": 9, "warehouse_name": "Sanctuary Apartments",
+  "part_id": 376, "part_name": "P-Trap 1.5 inch",
+  "primary_category_id": 11, "category_name": "Plumbing",
+  "quantity_ordered": 22, "status": "received",
+  "report_dt": "...", "ordered_dt": null, "received_dt": "...", "cancelled_dt": null,
+  "cancelled_reason": null,
+  "requested_by_oid": "...", "requested_by_email": "Bobo@atcdevelopment.com",
+  "ordered_by_oid": null, "ordered_by_email": null,
+  "received_by_oid": "...", "received_by_email": "..." }</pre>
+
+<h3>POST /orders <span class="auth-label auth-auth">Authenticated</span></h3>
+<p>Creates one order record per item in the array. All items are created atomically. Part name, category, and warehouse name are resolved server-side from part/warehouse IDs.</p>
+<pre>// Request body — array of items
+[
+  { "part_id": 376, "warehouse_id": 9, "warehouse_name": "Sanctuary Apartments",
+    "prop_code": "san", "quantity_ordered": 22 }
+]
+// Response: 201 Created — array of InventoryOrderReadDto
+// Broadcasts: orders.updated to all clients</pre>
+<div class="warn">Send <code>warehouse_name</code> and <code>prop_code</code> in the request — these are stored as denormalized snapshots on the order record.</div>
+
+<h3>PATCH /orders/{id}/status <span class="auth-label auth-auth">Authenticated</span></h3>
+<p>Updates order status. Validates allowed transitions. Cancellation requires a <code>reason</code>.</p>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">Status</td><td class="f-type">string</td><td class="f-req-y">Yes</td><td><code>pending | ordered | received | cancelled</code></td></tr>
+    <tr><td class="f-name">Reason</td><td class="f-type">string</td><td class="f-req-n">No</td><td>Required when transitioning to <code>cancelled</code>.</td></tr>
+  </tbody>
+</table>
+<h4>Valid Transitions</h4>
+<table>
+  <thead><tr><th>From</th><th>Allowed To</th></tr></thead>
+  <tbody>
+    <tr><td><code>pending</code></td><td><code>ordered</code>, <code>received</code>, <code>cancelled</code></td></tr>
+    <tr><td><code>ordered</code></td><td><code>received</code>, <code>cancelled</code>, <code>pending</code></td></tr>
+    <tr><td><code>received</code></td><td>— (terminal)</td></tr>
+    <tr><td><code>cancelled</code></td><td>— (terminal)</td></tr>
+  </tbody>
+</table>
+<pre>// Response: 200 OK — updated InventoryOrderReadDto
+// Broadcasts: orders.updated to all clients
+// Error: 409 INVALID_TRANSITION — includes current_status and allowed_transitions</pre>
+
+<h3>POST /orders/{id}/stock-in-receive <span class="auth-label auth-prop">DM or propCode_wh</span></h3>
+<p>Atomic operation: adds received quantity to the supply row, writes a Transaction ledger row (<code>ReasonType = ORDER_RECEIPT</code>, <code>ReferenceId = order.Id</code>), and marks the order <code>received</code> — all in a single database commit.</p>
+<div class="danger">Supply row must already exist for this part+warehouse. Returns <code>409 SUPPLY_NOT_FOUND</code> if not. Use normal scan/stockin to create the initial supply row before receiving against it.</div>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">Quantity_received</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td>Must be &gt; 0. Not required to match quantity_ordered.</td></tr>
+    <tr><td class="f-name">Notes</td><td class="f-type">string</td><td class="f-req-n">No</td><td>Appended to transaction reason for traceability.</td></tr>
+  </tbody>
+</table>
+<pre>// Response: 200 OK — updated InventoryOrderReadDto
+// Broadcasts: supply.updated (warehouse group) + orders.updated (all clients)
+// Error: 409 INVALID_TRANSITION — order already received or cancelled
+// Error: 409 SUPPLY_NOT_FOUND — supply row does not exist for this part+warehouse
+// Error: 409 RECEIPT_CONFLICT — concurrent write conflict, retry</pre>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- 14. QUOTE REQUESTS -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2 id="quote-requests">14. Quote Requests <span class="badge-new">NEW</span></h2>
+<p>Sends structured vendor quote request emails on behalf of the logged-in user via Microsoft Graph OBO. Orthogonal to the order status lifecycle — quote tracking rides alongside pending orders as metadata.</p>
+<div class="note">Token format: <code>QR-YYYYMMDD-{PropCode}-{8 random chars}</code>. Tokens expire 90 days after creation.</div>
+
+<h3>GET /quote-requests <span class="auth-label auth-auth">Authenticated</span></h3>
+<p>Query params: <code>?warehouse_id=</code> <code>?status=</code> <code>?order_ids=</code> (comma-separated or repeated)</p>
+<p>DatabaseManager sees all. <code>propCode_wh</code> users are scoped to their warehouse(s). Returns newest first.</p>
+<pre>// Response: 200 OK — array
+[{
+  "id": 1, "token": "QR-20260517-ms-AB1CD2EF",
+  "vendor_id": 3, "vendor_name_snapshot": "Ferguson Enterprises",
+  "warehouse_id": 9, "warehouse_name_snapshot": "Sanctuary Apartments",
+  "prop_code": "san", "status": "email_detected",
+  "created_by_email": "bobo@atcdevelopment.com", "created_dt": "...",
+  "email_detected_dt": "...", "expires_dt": "...",
+  "subject_snapshot": "Quote Request — Sanctuary Apartments [ATC-QUOTE: QR-20260517-san-AB1CD2EF]",
+  "body_snapshot": "...", "vendor_email_snapshot": "orders@ferguson.com",
+  "tracking_cc_email": "inventory-quotes@atcdevelopment.com",
+  "items": [{ "id": 1, "inventory_order_id": 11,
+              "part_name_snapshot": "P-Trap 1.5 inch",
+              "vendor_stock_number_snapshot": "123456",
+              "quantity_requested": 22, "uom_snapshot": "EA" }]
+}]</pre>
+
+<h3>POST /quote-requests/preview <span class="auth-label auth-auth">Authenticated</span></h3>
+<p>Validates inputs and generates a preview of the quote without writing to the database. Use this to show the user what will be sent before creating the record.</p>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">Vendor_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td>Vendor must have a <code>contact_email</code>.</td></tr>
+    <tr><td class="f-name">Warehouse_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td></td></tr>
+    <tr><td class="f-name">Order_ids</td><td class="f-type">int[]</td><td class="f-req-y">Yes</td><td>Pending orders to include. Must all belong to the same warehouse.</td></tr>
+  </tbody>
+</table>
+<pre>// Response: 200 OK
+{
+  "valid": true,
+  "vendor_email": "orders@ferguson.com",
+  "items": [{
+    "order_id": 11, "part_name": "P-Trap 1.5 inch",
+    "vendor_stock_number": "123456", "vendor_sku": null,
+    "quantity_ordered": 22, "uom": "EA",
+    "warnings": []
+  }],
+  "errors": []
+}</pre>
+
+<h3>POST /quote-requests <span class="auth-label auth-auth">Authenticated</span></h3>
+<p>Creates the quote request record and generates the token. Same body shape as preview.</p>
+<pre>// Response: 201 Created
+{
+  "quote_request_id": 1,
+  "token": "QR-20260517-san-AB1CD2EF",
+  "vendor_email": "orders@ferguson.com",
+  "tracking_cc_email": "inventory-quotes@atcdevelopment.com",
+  "subject": "Quote Request — Sanctuary Apartments [ATC-QUOTE: QR-20260517-san-AB1CD2EF]",
+  "body": "...",
+  "expires_dt": "...",
+  "items": [{ "part_name": "P-Trap 1.5 inch", "vendor_stock_number": "123456",
+              "quantity_requested": 22, "uom": "EA" }]
+}</pre>
+
+<h3>POST /quote-requests/{token}/send <span class="auth-label auth-auth">Authenticated</span></h3>
+<p>Sends the email via Microsoft Graph OBO on behalf of the caller. The API exchanges the Bearer token for a Graph-scoped token using the <code>ATC-InventoryAPI-GraphOBO</code> certificate. Email is sent from the caller's own mailbox so vendor replies route correctly.</p>
+<div class="note">The tracking mailbox (<code>inventory-quotes@atcdevelopment.com</code>) is always injected as a BCC by the API regardless of what <code>cc_emails</code> contains.</div>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">To_email</td><td class="f-type">string</td><td class="f-req-y">Yes</td><td>Vendor email address. Pre-populated from vendor record but editable by user.</td></tr>
+    <tr><td class="f-name">Cc_emails</td><td class="f-type">string[]</td><td class="f-req-n">No</td><td>Additional CC addresses. Caller's own email is typically included here.</td></tr>
+  </tbody>
+</table>
+<pre>// Response: 200 OK — sets status → email_detected, fires orders.updated
+{ "token": "QR-20260517-san-AB1CD2EF", "status": "sent", "graph_sent_dt": "..." }
+
+// Error: 400 — token not found, expired, or cancelled
+// Error: 502 — Graph send failed (graph_send_error stored on record)</pre>
+
+<h3>POST /quote-requests/{token}/mark-sent-manual <span class="auth-label auth-auth">Authenticated</span></h3>
+<p>Manually marks a quote as sent without triggering a Graph send. Used as a fallback if the user sends the email outside the app.</p>
+<pre>// Request body (optional)
+{ "reason": "Sent via phone call", "notes": "..." }
+// Response: 200 OK — sets status → email_detected, fires orders.updated</pre>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- 15. EQUIPMENT -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2 id="equipment">15. Equipment <span class="badge-new">NEW</span></h2>
+<p>Tracks discrete, physically identifiable tools and equipment. Separate domain from consumable inventory — equipment has a <em>location</em> at all times rather than a quantity.</p>
+
+<div class="note"><strong>Barcode namespace:</strong> Equipment barcodes are purely numeric starting at 8000001. Any scanned value ≥ 8000000 (7-digit numeric) resolves against <code>/equipment/scan/resolve</code>. Values &lt; 8000000 resolve against <code>/identifiers/resolve</code>. TOOL_MASTER identifiers are auto-generated — never supply them in create requests.</div>
+
+<h3>GET /equipment <span class="auth-label auth-auth">Authenticated</span></h3>
+<p>Query params: <code>?warehouse_id=</code> <code>?status=</code> <code>?category_id=</code> <code>?search=</code> <code>?is_active=</code> <code>?page=</code> <code>?limit=</code> <code>?sort_by=</code> <code>?sort_dir=</code></p>
+<p>Omit <code>warehouse_id</code> entirely for cross-property scope (do not pass <code>warehouse_id=all</code> — returns 400). <code>sort_by</code> values: <code>name</code> (default), <code>home_warehouse_name</code>, <code>current_warehouse_name</code>, <code>last_moved_dt</code>. <code>is_active</code> defaults to <code>true</code>.</p>
+<pre>// Response: 200 OK — paginated
+{ "total": 12, "page": 1, "limit": 25,
+  "data": [{ ...EquipmentReadDto... }] }
+
+// EquipmentReadDto
+{ "id": 1, "name": "Large Toilet Auger", "description": null,
+  "category_id": 11, "category_name": "Plumbing",
+  "home_warehouse_id": 1, "home_warehouse_name": "ATC Office",
+  "serial_number": "SN-001",
+  "tool_master_value": "8000001", "tool_master_display": "8-000001",
+  "created_by_email": "jamie@atcdevelopment.com", "created_dt": "...",
+  "is_active": true,
+  "current_status": {
+    "status": "Available",
+    "current_warehouse_id": 1, "current_warehouse_name": "ATC Office",
+    "current_unit": null, "last_moved_dt": null, "last_moved_by_email": null
+  }
+}</pre>
+
+<h3>POST /equipment <span class="auth-label auth-dm">DatabaseManager</span></h3>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">Name</td><td class="f-type">string</td><td class="f-req-y">Yes</td><td>Similarity check (0.85 threshold) fires before insert.</td></tr>
+    <tr><td class="f-name">Description</td><td class="f-type">string</td><td class="f-req-n">No</td><td></td></tr>
+    <tr><td class="f-name">Category_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td>FK → Categories.</td></tr>
+    <tr><td class="f-name">Home_warehouse_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td>Required. Every tool belongs to a property.</td></tr>
+    <tr><td class="f-name">Serial_number</td><td class="f-type">string</td><td class="f-req-n">No</td><td>Unique if provided.</td></tr>
+  </tbody>
+</table>
+<p>Auto-generates TOOL_MASTER barcode and creates an EquipmentStatus row initialized to <code>Available</code> at <code>Home_warehouse_id</code>. Broadcasts <code>equipment.changed</code>.</p>
+
+<h3>PUT /equipment/{id} <span class="auth-label auth-dm">DatabaseManager</span></h3>
+<p>Updates name, description, category, home warehouse, serial number, and <code>is_active</code>. Changing <code>Home_warehouse_id</code> is a permanent transfer — appends a <code>PermanentTransfer</code> transaction row.</p>
+
+<h3>DELETE /equipment/{id} <span class="auth-label auth-dm">DatabaseManager</span></h3>
+<p>Soft delete only — sets <code>is_active = false</code>. Full transaction history is preserved.</p>
+
+<h3>Equipment Identifiers</h3>
+<h4>GET /equipment/identifiers</h4>
+<p>Query params: <code>?equipment_id=</code></p>
+<pre>// EquipmentIdentifierReadDto
+{ "id": 5, "equipment_id": 1, "equipment_name": "Large Toilet Auger",
+  "id_type": "MFR_SERIAL", "id_value": "sn-001",
+  "display_value": "SN-001" }</pre>
+
+<h4>POST /equipment/identifiers <span class="auth-label auth-dm">DatabaseManager</span></h4>
+<p>Adds a non-TOOL_MASTER identifier. <code>Id_type = "TOOL_MASTER"</code> returns <code>400 TOOL_MASTER_NOT_ALLOWED</code>.</p>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">Equipment_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td></td></tr>
+    <tr><td class="f-name">Id_type</td><td class="f-type">string</td><td class="f-req-y">Yes</td><td>Stored uppercase. Not <code>TOOL_MASTER</code>.</td></tr>
+    <tr><td class="f-name">Id_value</td><td class="f-type">string</td><td class="f-req-y">Yes</td><td>Globally unique within EquipmentIdentifiers.</td></tr>
+  </tbody>
+</table>
+
+<h3>Equipment Scan Operations</h3>
+<div class="note">Scan operations are two-phase: resolve the equipment first, then present valid actions based on current status. Valid actions returned from <code>/scan/resolve</code>: <code>checkout</code> (Available only), <code>checkin</code> and <code>locationupdate</code> (CheckedOut only).</div>
+
+<h4>POST /equipment/scan/resolve <span class="auth-label auth-auth">Authenticated</span></h4>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">Code</td><td class="f-type">string</td><td class="f-req-y">Yes</td><td>Scanned barcode value. Numeric values are matched against TOOL_MASTER sequence.</td></tr>
+  </tbody>
+</table>
+<pre>// Response: 200 OK — wrapped response, not flat DTO
+{ "equipment": { ...EquipmentReadDto... },
+  "available_actions": ["checkout"] }</pre>
+
+<h4>POST /equipment/scan/checkout <span class="auth-label auth-auth">Authenticated</span></h4>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">Equipment_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td></td></tr>
+    <tr><td class="f-name">To_warehouse_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td>The warehouse taking responsibility. May differ from home warehouse.</td></tr>
+    <tr><td class="f-name">To_unit</td><td class="f-type">string</td><td class="f-req-n">No</td><td>Free text unit/apartment. Optional.</td></tr>
+    <tr><td class="f-name">Notes</td><td class="f-type">string</td><td class="f-req-n">No</td><td></td></tr>
+  </tbody>
+</table>
+<pre>// Response: 200 OK — updated EquipmentReadDto
+// Error: 409 EQUIPMENT_ALREADY_CHECKED_OUT</pre>
+
+<h4>POST /equipment/scan/checkin <span class="auth-label auth-auth">Authenticated</span></h4>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">Equipment_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td></td></tr>
+    <tr><td class="f-name">To_warehouse_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td>Receiving warehouse. Defaults to home warehouse but can be any warehouse. Clears <code>Current_unit</code>.</td></tr>
+    <tr><td class="f-name">Notes</td><td class="f-type">string</td><td class="f-req-n">No</td><td></td></tr>
+  </tbody>
+</table>
+<pre>// Response: 200 OK — updated EquipmentReadDto
+// Error: 409 EQUIPMENT_ALREADY_AVAILABLE</pre>
+
+<h4>POST /equipment/scan/locationupdate <span class="auth-label auth-auth">Authenticated</span></h4>
+<p>Updates unit assignment on an already checked-out tool. Does not change the responsible warehouse.</p>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">Equipment_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td></td></tr>
+    <tr><td class="f-name">To_unit</td><td class="f-type">string</td><td class="f-req-y">Yes</td><td>Free text unit/apartment.</td></tr>
+    <tr><td class="f-name">Notes</td><td class="f-type">string</td><td class="f-req-n">No</td><td></td></tr>
+  </tbody>
+</table>
+<pre>// Response: 200 OK — updated EquipmentReadDto
+// Error: 409 EQUIPMENT_NOT_CHECKED_OUT</pre>
+
+<h3>Equipment Transactions</h3>
+<h4>GET /equipment/transactions</h4>
+<p>Query params: <code>?equipment_id=</code> <code>?warehouse_id=</code> <code>?type=</code> <code>?from=</code> <code>?to=</code></p>
+<pre>// EquipmentTransactionReadDto
+{ "id": 1, "equipment_id": 1, "equipment_name": "Large Toilet Auger",
+  "transaction_type": "CheckOut",
+  "from_warehouse_id": 1, "from_warehouse_name": "ATC Office", "from_unit": null,
+  "to_warehouse_id": 9, "to_warehouse_name": "Sanctuary Apartments", "to_unit": "204",
+  "performed_by_email": "bobo@atcdevelopment.com", "performed_dt": "...", "notes": null }</pre>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- 16. VENDOR ALIASES -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2 id="vendor-aliases">16. Vendor Aliases <span class="badge-new">NEW</span></h2>
+<p>Maps raw vendor invoice description strings to known Parts. Used by the Invoice Scan feature to auto-match line items without an AI call. The alias learning loop persists confirmed matches after each invoice verification.</p>
+
+<h3>GET /vendor-aliases <span class="auth-label auth-dm">DatabaseManager</span></h3>
+<p>Query params: <code>?search=</code> <code>?vendor_id=</code> <code>?part_id=</code></p>
+<pre>// VendorAliasReadDto
+{ "id": 1, "raw_description": ".5in brass valve",
+  "part_id": 7, "part_name": "1/2 inch Ball Valve",
+  "vendor_id": 3, "vendor_name": "Ferguson Enterprises",
+  "created_by": "90b28024-...", "created_dt": "..." }</pre>
+
+<h3>POST /vendor-aliases <span class="auth-label auth-auth">Authenticated</span></h3>
+<p>Called after user confirms a match in the invoice verification modal. Handle <code>409 ALIAS_ALREADY_EXISTS</code> silently — a duplicate alias is not an error.</p>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">Raw_description</td><td class="f-type">string</td><td class="f-req-y">Yes</td><td>Will be normalized (lowercased, whitespace-collapsed) before storage.</td></tr>
+    <tr><td class="f-name">Part_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td></td></tr>
+    <tr><td class="f-name">Vendor_id</td><td class="f-type">int</td><td class="f-req-n">No</td><td>If omitted, alias matches any vendor (vendor-agnostic). Uniqueness for null vendor_id is enforced by the API via existence check — not a DB constraint.</td></tr>
+  </tbody>
+</table>
+
+<h3>POST /vendor-aliases/lookup <span class="auth-label auth-auth">Authenticated</span></h3>
+<p>Batch lookup used by <code>AnalyzeInvoiceFunction</code> during invoice processing. Normalizes descriptions before matching.</p>
+<pre>// Request body
+{ "descriptions": [".5in brass valve", "toilet wax ring"], "vendor_id": 3 }
+
+// Response: 200 OK
+[{ "raw_description": ".5in brass valve", "part_id": 7,
+   "part_name": "1/2 inch Ball Valve", "matched": true },
+ { "raw_description": "toilet wax ring", "part_id": null,
+   "part_name": null, "matched": false }]</pre>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- 17. BARCODE SCANNING WORKFLOWS -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2 id="scanning">17. Barcode Scanning Workflows</h2>
+<div class="danger"><code>/identifiers/resolve</code> is NOT part of normal scan operations. Call it only when a scan returns <code>404 IDENTIFIER_NOT_FOUND</code>.</div>
+<div class="note">The Supplies table ALWAYS stores EA (base unit) quantities. The multiplier conversion happens at stock-in scan time and is never persisted.</div>
+
+<h3>Lane 1 — Scan Out (Consume)</h3>
+<p><code>POST /supplies/scan/consume</code> — single call, no resolve step.</p>
+<p>Multiplier is ignored. Decrements by <code>qty_each</code> EA. Supply row must exist.</p>
+<table>
+  <thead><tr><th>Error</th><th>Meaning</th><th>Action</th></tr></thead>
+  <tbody>
+    <tr><td><code>404 IDENTIFIER_NOT_FOUND</code></td><td>Barcode unknown</td><td>Pivot to Lane 3 (unknown barcode)</td></tr>
+    <tr><td><code>409 SUPPLY_NOT_FOUND</code></td><td>Part not stocked at this warehouse</td><td>Show error — cannot consume what isn't here</td></tr>
+    <tr><td><code>400 NEGATIVE_INVENTORY_NOT_ALLOWED</code></td><td>Would go below 0</td><td>Show current quantity and block action</td></tr>
+  </tbody>
+</table>
+
+<h3>Lane 2 — Scan In (Stock-In)</h3>
+<p><code>POST /supplies/scan/stockin</code> — single call, no resolve step.</p>
+<p>Multiplier applied: <code>qty_packages × Unit_multiplier_to_base = qty_change</code>. Supply row auto-created if missing.</p>
+<p><strong>Example:</strong> Toilet Wax Ring 3-Pack, multiplier = 3. Scan 2 packages → <code>qty_packages = 2</code>, <code>qty_change = 6 EA</code>.</p>
+<table>
+  <thead><tr><th>Error</th><th>Meaning</th><th>Action</th></tr></thead>
+  <tbody>
+    <tr><td><code>404 IDENTIFIER_NOT_FOUND</code></td><td>Barcode unknown</td><td>Pivot to Lane 3 (unknown barcode)</td></tr>
+    <tr><td><code>400 INVALID_UNIT_MULTIPLIER</code></td><td>Multiplier ≤ 0 — data error</td><td>Report to admin</td></tr>
+  </tbody>
+</table>
+
+<h3>Lane 3 — Unknown Barcode</h3>
+<p>Triggered when Lane 1 or 2 returns <code>404 IDENTIFIER_NOT_FOUND</code>.</p>
+<ol style="padding-left:20px;margin:8px 0;font-size:13px;line-height:1.8">
+  <li>Call <code>GET /identifiers/resolve/{code}</code> → returns <code>Lookup_Started</code> + <code>lookup_id</code></li>
+  <li>Poll <code>GET /identifiers/lookup/{lookupId}</code> every 1–2 seconds. No auth required.</li>
+  <li>Stop polling when status ≠ <code>Pending</code>.</li>
+  <li><strong>Complete</strong> → pre-fill part creation form with enriched data → <code>POST /parts</code></li>
+  <li><strong>Exhausted / TimedOut</strong> → manual entry fallback → <code>POST /parts</code></li>
+  <li>After part created → <code>POST /supplies/scan/stockin</code> or <code>POST /supplies/adjust</code> for initial stock.</li>
+</ol>
+
+<h3>Equipment Scan (Two-Phase)</h3>
+<p>Equipment barcodes (≥ 8000000, 7-digit numeric) use a separate two-phase flow.</p>
+<ol style="padding-left:20px;margin:8px 0;font-size:13px;line-height:1.8">
+  <li>Call <code>POST /equipment/scan/resolve</code> with <code>{ "code": "8000011" }</code></li>
+  <li>Response includes <code>equipment</code> (EquipmentReadDto) and <code>available_actions</code> array.</li>
+  <li>Present only the actions listed in <code>available_actions</code> to the user.</li>
+  <li>Call the appropriate action endpoint: <code>checkout</code>, <code>checkin</code>, or <code>locationupdate</code>.</li>
+</ol>
+<div class="note"><strong>Mobile shorthand:</strong> On the equipment scan screen only, numeric-only input is treated as a TOOL_MASTER suffix — the PWA prepends <code>8</code> and zero-pads to 7 digits. User types <code>11</code> → resolves as <code>8000011</code>. This shorthand is only active when the equipment scan screen is open.</div>
+
+<h3>Quick Reference</h3>
+<table>
+  <thead><tr><th>Action</th><th>Endpoint</th><th>Uses /resolve?</th><th>Multiplier?</th><th>Creates Supply?</th></tr></thead>
+  <tbody>
+    <tr><td>Scan Out (Consume)</td><td><code>POST /supplies/scan/consume</code></td><td>No</td><td>No (<code>qty_each</code>)</td><td>No</td></tr>
+    <tr><td>Scan In (Stock-In)</td><td><code>POST /supplies/scan/stockin</code></td><td>No</td><td>Yes (<code>qty_pkg × mult</code>)</td><td>Yes (auto)</td></tr>
+    <tr><td>Manual Adjust</td><td><code>POST /supplies/adjust</code></td><td>No</td><td>No</td><td>Yes (auto)</td></tr>
+    <tr><td>Unknown Barcode</td><td><code>GET /identifiers/resolve/{code}</code></td><td>Yes</td><td>—</td><td>— (leads to POST /parts)</td></tr>
+    <tr><td>Equipment Scan</td><td><code>POST /equipment/scan/resolve</code></td><td>N/A</td><td>N/A</td><td>N/A</td></tr>
+  </tbody>
+</table>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- 18. ERROR HANDLING -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2 id="errors">18. General Error Handling</h2>
+<p>All errors return a JSON body. Standard shape:</p>
+<pre>// Standard error
+{ "error": "ERROR_CODE", "message": "Human-readable description." }
+
+// With suggestions (name similarity on POST /parts)
+{ "error": "NAME_TOO_SIMILAR", "message": "...", "suggestions": [{ "id": 7, "name": "..." }] }
+
+// Identifier conflict (includes existing part for UI resolution)
+{ "error": "IDENTIFIER_CONFLICT", "message": "...",
+  "existing_part": { "id": 7, "name": "1/2 inch Ball Valve" },
+  "existing_identifier": { "id_type": "UPC", "id_value": "012345678901" } }
+
+// Status transition conflict
+{ "error": "INVALID_TRANSITION", "current_status": "received", "allowed_transitions": [] }</pre>
+
+<h3>Common Error Codes</h3>
+<table class="err-table">
+  <thead><tr><th style="width:280px">Code</th><th style="width:60px">HTTP</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td class="err-code">IDENTIFIER_NOT_FOUND</td><td>404</td><td>Scanned barcode not in Identifiers table — pivot to unknown barcode flow</td></tr>
+    <tr><td class="err-code">SUPPLY_NOT_FOUND</td><td>409</td><td>Part not stocked at this warehouse</td></tr>
+    <tr><td class="err-code">NEGATIVE_INVENTORY_NOT_ALLOWED</td><td>400</td><td>Would result in negative stock</td></tr>
+    <tr><td class="err-code">INVALID_UNIT_MULTIPLIER</td><td>400</td><td>Identifier multiplier ≤ 0 — data error</td></tr>
+    <tr><td class="err-code">ATC_MASTER_NOT_ALLOWED</td><td>400</td><td>ATC_MASTER identifiers are auto-generated — do not supply them</td></tr>
+    <tr><td class="err-code">TOOL_MASTER_NOT_ALLOWED</td><td>400</td><td>TOOL_MASTER identifiers are auto-generated — do not supply them</td></tr>
+    <tr><td class="err-code">NAME_TOO_SIMILAR</td><td>409</td><td>Part/equipment name too similar to existing — check suggestions</td></tr>
+    <tr><td class="err-code">IDENTIFIER_CONFLICT</td><td>409</td><td>Barcode already linked to a different part</td></tr>
+    <tr><td class="err-code">INVALID_STATUS</td><td>400</td><td>Unknown status value submitted to order status endpoint</td></tr>
+    <tr><td class="err-code">INVALID_TRANSITION</td><td>409</td><td>Order/equipment status transition not permitted from current state</td></tr>
+    <tr><td class="err-code">REASON_REQUIRED</td><td>400</td><td>Cancellation requires a reason string</td></tr>
+    <tr><td class="err-code">TOKEN_NOT_FOUND</td><td>404</td><td>Quote request token not found</td></tr>
+    <tr><td class="err-code">TOKEN_EXPIRED</td><td>410</td><td>Quote request token past 90-day expiry</td></tr>
+    <tr><td class="err-code">PART_NOT_FOUND</td><td>422</td><td>Referenced part_id does not exist</td></tr>
+    <tr><td class="err-code">WAREHOUSE_NOT_FOUND</td><td>422</td><td>Referenced warehouse_id does not exist</td></tr>
+    <tr><td class="err-code">EQUIPMENT_ALREADY_CHECKED_OUT</td><td>409</td><td>Cannot check out — already checked out</td></tr>
+    <tr><td class="err-code">EQUIPMENT_ALREADY_AVAILABLE</td><td>409</td><td>Cannot check in — already available</td></tr>
+    <tr><td class="err-code">EQUIPMENT_NOT_CHECKED_OUT</td><td>409</td><td>Cannot update location — not currently checked out</td></tr>
+    <tr><td class="err-code">RECEIPT_CONFLICT</td><td>409</td><td>Concurrent write conflict on stock-in-receive — retry</td></tr>
+    <tr><td class="err-code">DELETE_CONFLICT</td><td>409</td><td>Supply delete failed — retry</td></tr>
+  </tbody>
+</table>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- 19. DIAGNOSTICS -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2 id="diagnostics">19. Diagnostic Endpoints</h2>
+
+<h3>GET /me <span class="auth-label auth-auth">Authenticated</span></h3>
+<p>Returns decoded claims from the current Bearer token — OID, email, roles. Useful for debugging auth issues and verifying role assignments.</p>
+<pre>// Response: 200 OK
+{ "oid": "90b28024-...", "email": "jamie@atcdevelopment.com",
+  "roles": ["DatabaseManager"] }</pre>
+
+<h3>GET /dm-test <span class="auth-label auth-dm">DatabaseManager</span></h3>
+<p>Returns 200 OK if the caller has <code>DatabaseManager</code> role. Returns 403 otherwise. Use to verify role assignment is working without triggering any data operation.</p>
+
+</div><!-- .page -->
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+

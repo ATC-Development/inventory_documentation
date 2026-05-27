@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATC Inventory — Entra Property Access Management</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2230;
+    --border: #2a3444;
+    --accent: #4fa3e0;
+    --accent2: #3ddc97;
+    --warn: #e6a817;
+    --danger: #e05c5c;
+    --text: #cdd9e5;
+    --muted: #768a9e;
+    --code: #a8d1f0;
+    --white: #f0f6fc;
+  }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.65;
+  }
+
+  /* ── Nav Bar ── */
+  .nav-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 56px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-bar a {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-decoration: none;
+    letter-spacing: 1px;
+    transition: color 0.15s;
+  }
+  .nav-bar a:hover { color: var(--accent); }
+  .nav-sep { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--border); }
+  .nav-current { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text); }
+
+  .page { max-width: 1060px; margin: 0 auto; padding: 0 0 80px; }
+
+  /* ── Header ── */
+  .doc-header {
+    padding: 52px 56px 44px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .doc-header::before {
+    content: "";
+    position: absolute;
+    top: 0; right: 0;
+    width: 420px; height: 100%;
+    background: radial-gradient(ellipse at 80% 40%, rgba(79,163,224,0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .doc-header .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .doc-header h1 { font-size: 36px; font-weight: 800; color: var(--white); line-height: 1.1; margin-bottom: 8px; }
+  .doc-header .subtitle { font-size: 14px; color: var(--muted); margin-bottom: 32px; }
+  .meta-strip { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; width: fit-content; }
+  .meta-cell { padding: 10px 20px; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 3px; }
+  .meta-cell:last-child { border-right: none; }
+  .meta-cell .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+  .meta-cell .val { font-size: 13px; font-weight: 600; color: var(--white); }
+  .meta-cell .val.green { color: var(--accent2); }
+
+  /* ── TOC ── */
+  .toc { display: flex; gap: 6px; flex-wrap: wrap; padding: 20px 56px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .toc a { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); text-decoration: none; padding: 5px 12px; border: 1px solid var(--border); border-radius: 20px; transition: all 0.15s; }
+  .toc a:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ── Content ── */
+  .content { padding: 0 56px; }
+  .section { padding: 44px 0; border-bottom: 1px solid var(--border); }
+  .section:last-child { border-bottom: none; }
+  .section-header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px; }
+  .sn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 2px;
+    background: rgba(79,163,224,0.08);
+    border: 1px solid rgba(79,163,224,0.2);
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .section-header h2 { font-size: 20px; font-weight: 700; color: var(--white); }
+
+  h3 { font-size: 15px; font-weight: 700; color: var(--white); margin: 28px 0 12px; }
+
+  p { color: var(--text); margin-bottom: 14px; max-width: 800px; }
+
+  ul { margin: 12px 0 16px 20px; max-width: 800px; }
+  ul li { color: var(--text); font-size: 13px; margin-bottom: 6px; line-height: 1.6; }
+  ul li strong { color: var(--white); }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; margin: 24px 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .step { display: grid; grid-template-columns: 56px 1fr; border-bottom: 1px solid var(--border); }
+  .step:last-child { border-bottom: none; }
+  .step-num { display: flex; align-items: flex-start; justify-content: center; padding-top: 20px; font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; color: var(--accent); background: var(--surface); border-right: 1px solid var(--border); }
+  .step-body { padding: 18px 22px; background: var(--surface2); }
+  .step-title { font-size: 14px; font-weight: 700; color: var(--white); margin-bottom: 6px; }
+  .step-desc { font-size: 13px; color: var(--muted); margin-bottom: 8px; max-width: 680px; line-height: 1.6; }
+  .step-desc:last-child { margin-bottom: 0; }
+  .step-desc strong { color: var(--white); }
+
+  /* ── Token flow ── */
+  .flow {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin: 16px 0;
+    max-width: 700px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 2;
+  }
+  .flow .flow-line { display: flex; align-items: flex-start; gap: 10px; }
+  .flow .flow-arrow { color: var(--accent); flex-shrink: 0; }
+  .flow .flow-highlight { color: var(--accent2); }
+  .flow .flow-dim { color: var(--muted); }
+
+  /* ── Code ── */
+  pre {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--code);
+    overflow-x: auto;
+    margin: 10px 0 16px;
+    line-height: 1.7;
+  }
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--code);
+    background: rgba(79,163,224,0.08);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+
+  /* ── Callouts ── */
+  .callout { display: flex; gap: 14px; padding: 14px 18px; border-radius: 8px; margin: 16px 0; max-width: 800px; }
+  .callout.c-info  { background: rgba(79,163,224,0.07);  border: 1px solid rgba(79,163,224,0.2);  }
+  .callout.c-warn  { background: rgba(230,168,23,0.07);  border: 1px solid rgba(230,168,23,0.2);  }
+  .callout.c-ok    { background: rgba(61,220,151,0.07);  border: 1px solid rgba(61,220,151,0.2);  }
+  .callout .icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .callout .body { font-size: 13px; color: var(--text); line-height: 1.6; }
+  .callout .body strong { color: var(--white); }
+
+  /* ── Tables ── */
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  thead tr { background: var(--surface); border-bottom: 1px solid var(--border); }
+  th { padding: 10px 16px; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  td { padding: 10px 16px; border-bottom: 1px solid var(--border); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface); }
+  .t-accent  { color: var(--accent); }
+  .t-accent2 { color: var(--accent2); }
+  .t-warn    { color: var(--warn); }
+  .t-muted   { color: var(--muted); }
+  .t-danger  { color: var(--danger); }
+
+  /* ── Footer ── */
+  .doc-footer { margin-top: 60px; padding: 20px 56px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 0.5px; }
+</style>
+</head>
+<body>
+
+<!-- ── NAV BAR ── -->
+<div class="nav-bar">
+  <a href="../index.html">← Home</a>
+  <span class="nav-sep">/</span>
+  <span class="nav-current">Entra Property Access Management</span>
+</div>
+
+<div class="page">
+
+<!-- ── HEADER ── -->
+<div class="doc-header">
+  <div class="eyebrow">ATC Inventory Application — Access Management</div>
+  <h1>Entra Property Access Management</h1>
+  <p class="subtitle">App role definitions, M365 group assignments, property warehouse roles, and token behavior for all user tiers.</p>
+  <div class="meta-strip">
+    <div class="meta-cell">
+      <span class="lbl">Maintained By</span>
+      <span class="val">DatabaseManager / IT Administrator</span>
+    </div>
+    <div class="meta-cell">
+      <span class="lbl">Scope</span>
+      <span class="val">Entra Configuration Only</span>
+    </div>
+    <div class="meta-cell">
+      <span class="lbl">Updated</span>
+      <span class="val">March 2026</span>
+    </div>
+    <div class="meta-cell">
+      <span class="lbl">Code Changes Required</span>
+      <span class="val green">Never</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOC ── -->
+<div class="toc">
+  <a href="#s1">01 Overview</a>
+  <a href="#s2">02 App Registrations</a>
+  <a href="#s3">03 Access Tiers</a>
+  <a href="#s4">04 How It Works</a>
+  <a href="#s5">05 Property Role Mapping</a>
+  <a href="#s6">06 Adding a New Property</a>
+  <a href="#s7">07 DatabaseManager Role</a>
+  <a href="#s8">08 Managing Property Access</a>
+  <a href="#s9">09 Token Behavior</a>
+  <a href="#s10">10 Troubleshooting</a>
+  <a href="#s11">11 Quick Reference</a>
+</div>
+
+<div class="content">
+
+<!-- §01 OVERVIEW -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <span class="sn">01</span>
+    <h2>Overview</h2>
+  </div>
+  <p>The Inventory Application uses two Entra ID app registrations to control access. Property-level permissions are driven entirely by App Roles defined on the API registration and assigned via M365 groups in Enterprise Applications.</p>
+  <div class="callout c-ok">
+    <span class="icon">✅</span>
+    <div class="body">
+      <strong>No code changes required.</strong> All access changes are made in the Azure Portal. Granting or revoking access to any property or administrative function is purely a configuration task.
+    </div>
+  </div>
+</div>
+
+<!-- §02 APP REGISTRATIONS -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <span class="sn">02</span>
+    <h2>The Two App Registrations</h2>
+  </div>
+  <table>
+    <thead>
+      <tr><th>App</th><th>Purpose</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="t-accent">ATC_Inventory_PWA</td>
+        <td>Client app — handles user login and token acquisition only. No roles defined here.</td>
+      </tr>
+      <tr>
+        <td class="t-accent">ATC_InventoryAPI</td>
+        <td>Resource/API app — defines all App Roles. This is where access is controlled.</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>All role management happens on <code>ATC_InventoryAPI</code>, not <code>ATC_Inventory_PWA</code>.</strong>
+    </div>
+  </div>
+</div>
+
+<!-- §03 ACCESS TIERS -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <span class="sn">03</span>
+    <h2>Access Tiers</h2>
+  </div>
+  <table>
+    <thead>
+      <tr><th>Tier</th><th>Who</th><th>Inventory Search</th><th>Scan Out (Consume)</th><th>Stock-In / Add Part</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="t-warn">DatabaseManager</td>
+        <td>IT / Designated Admins</td>
+        <td class="t-accent2">All properties</td>
+        <td class="t-accent2">All properties</td>
+        <td class="t-accent2">All properties</td>
+      </tr>
+      <tr>
+        <td class="t-accent">Property Role (e.g. ms_wh)</td>
+        <td>Property staff</td>
+        <td class="t-accent2">All properties</td>
+        <td class="t-accent2">All properties</td>
+        <td>Own property only</td>
+      </tr>
+      <tr>
+        <td class="t-muted">No role assigned</td>
+        <td>Everyone else</td>
+        <td>Read only</td>
+        <td class="t-danger">✗</td>
+        <td class="t-danger">✗</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §04 HOW IT WORKS -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <span class="sn">04</span>
+    <h2>How It Works</h2>
+  </div>
+  <p>When a user logs in, Microsoft Entra issues a JWT access token containing a <code>roles</code> array. The token is evaluated client-side (for UI rendering) and server-side (for enforcement) on every request. No extra API calls are made to determine permissions — everything is derived from the token at login.</p>
+  <div class="flow">
+    <div class="flow-line"><span class="flow-arrow">→</span><span>User logs in</span></div>
+    <div class="flow-line"><span class="flow-arrow">→</span><span>Entra checks group memberships → resolves App Role assignments</span></div>
+    <div class="flow-line"><span class="flow-arrow">→</span><span>Access token issued with <code>roles</code> claim:</span></div>
+    <div class="flow-line"><span class="flow-arrow">&nbsp;&nbsp;</span><span class="flow-highlight">{ "roles": ["DatabaseManager"] }</span></div>
+    <div class="flow-line"><span class="flow-arrow">&nbsp;&nbsp;</span><span class="flow-highlight">{ "roles": ["ms_wh", "aug_wh"] }</span></div>
+    <div class="flow-line"><span class="flow-arrow">&nbsp;&nbsp;</span><span class="flow-dim">{ "roles": [] }  ← read only</span></div>
+    <div class="flow-line"><span class="flow-arrow">→</span><span>PWA reads roles → drives UI visibility</span></div>
+    <div class="flow-line"><span class="flow-arrow">→</span><span>API reads roles → enforces write permissions</span></div>
+  </div>
+</div>
+
+<!-- §05 PROPERTY ROLE MAPPING -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <span class="sn">05</span>
+    <h2>Property Role Mapping</h2>
+  </div>
+  <p>Each property warehouse has a corresponding App Role. The role value uses the property's <code>propCode</code> with <code>_wh</code> appended.</p>
+  <table>
+    <thead>
+      <tr><th>App Role Value</th><th>Property</th><th>PropCode</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="t-accent">ms_wh</td><td>McHenry Square</td><td class="t-muted">ms</td></tr>
+      <tr><td class="t-accent">hs_wh</td><td>Helena Springs</td><td class="t-muted">hs</td></tr>
+      <tr><td class="t-accent">st_wh</td><td>Sterlington Apartments</td><td class="t-muted">st</td></tr>
+      <tr><td class="t-accent">aug_wh</td><td>The Augustan</td><td class="t-muted">aug</td></tr>
+      <tr><td class="t-accent">fh_wh</td><td>Forest Hills</td><td class="t-muted">fh</td></tr>
+      <tr><td class="t-accent">va_wh</td><td>Vista Apartments</td><td class="t-muted">va</td></tr>
+      <tr><td class="t-accent">ham_wh</td><td>Hamilton Park</td><td class="t-muted">ham</td></tr>
+      <tr><td class="t-accent">sa_wh</td><td>Sanctuary Apartments</td><td class="t-muted">sa</td></tr>
+      <tr><td class="t-accent">ba_wh</td><td>Barrington</td><td class="t-muted">ba</td></tr>
+      <tr><td class="t-muted">(none)</td><td>901 / ATC Office</td><td class="t-muted">901 — DatabaseManager only</td></tr>
+    </tbody>
+  </table>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      A user assigned to multiple property roles (e.g. <code>ms_wh</code> and <code>aug_wh</code>) has write access to both properties.
+    </div>
+  </div>
+</div>
+
+<!-- §06 ADDING A NEW PROPERTY -->
+<div class="section" id="s6">
+  <div class="section-header">
+    <span class="sn">06</span>
+    <h2>Adding a New Property</h2>
+  </div>
+  <p>When a new property comes online, complete these steps in order.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Create the App Role</div>
+        <div class="step-desc"><strong>Azure Portal → App Registrations → ATC_InventoryAPI → App Roles → Create App Role</strong></div>
+        <div class="step-desc">
+          <strong>Display name:</strong> Full property name (e.g. <code>Riverside Commons</code>)<br>
+          <strong>Allowed member types:</strong> <code>Users/Groups</code><br>
+          <strong>Value:</strong> <code>propCode_wh</code> — no spaces, lowercase (e.g. <code>rc_wh</code>)<br>
+          <strong>Description:</strong> <code>Property staff access for Riverside Commons</code><br>
+          <strong>Enabled:</strong> Yes
+        </div>
+        <div class="step-desc">The <strong>Value</strong> field is critical — it must follow the <code>propCode_wh</code> convention exactly. This value appears in the JWT token and is matched against the warehouse record in the database.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Assign the M365 Group to the Role</div>
+        <div class="step-desc"><strong>Azure Portal → Enterprise Applications → ATC_InventoryAPI → Users and Groups → Add Assignment</strong></div>
+        <div class="step-desc">
+          1. Click <strong>Add user/group</strong><br>
+          2. Search for and select the property's M365 group (e.g. <code>Riverside Commons</code>)<br>
+          3. Under <strong>Select a role</strong>, choose the newly created App Role (e.g. <code>rc_wh</code>)<br>
+          4. Click <strong>Assign</strong>
+        </div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Update the Warehouse Record</div>
+        <div class="step-desc">In the Inventory Application, a DatabaseManager must set the <code>propCode</code> on the new warehouse record to match the role convention (e.g. <code>rc</code>). The application derives the role as <code>propCode + '_wh'</code> automatically.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Verify</div>
+        <div class="step-desc">Have a property staff member log out and back into the PWA. Their token will contain the new role on next login.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- §07 DATABASEMANAGER ROLE -->
+<div class="section" id="s7">
+  <div class="section-header">
+    <span class="sn">07</span>
+    <h2>Managing the DatabaseManager Role</h2>
+  </div>
+  <p><code>DatabaseManager</code> is a special App Role that grants complete access to all properties and all administrative functions.</p>
+
+  <h3>Grant DatabaseManager Access</h3>
+  <ol style="margin: 12px 0 16px 20px; max-width: 800px;">
+    <li style="color:var(--text); font-size:13px; margin-bottom:6px; line-height:1.6;">Add the user to the <code>Inventory-DatabaseManagers</code> M365 group in Teams or Entra Admin</li>
+    <li style="color:var(--text); font-size:13px; margin-bottom:6px; line-height:1.6;">The user must log out and back in for the token to reflect the change</li>
+  </ol>
+
+  <h3>Revoke DatabaseManager Access</h3>
+  <ol style="margin: 12px 0 16px 20px; max-width: 800px;">
+    <li style="color:var(--text); font-size:13px; margin-bottom:6px; line-height:1.6;">Remove the user from the <code>Inventory-DatabaseManagers</code> M365 group</li>
+    <li style="color:var(--text); font-size:13px; margin-bottom:6px; line-height:1.6;">The user must log out and back in for the change to take effect</li>
+  </ol>
+
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      <code>Inventory-DatabaseManagers</code> group is assigned to the <code>DatabaseManager</code> App Role in <strong>Enterprise Applications → ATC_InventoryAPI → Users and Groups</strong>.
+    </div>
+  </div>
+</div>
+
+<!-- §08 MANAGING PROPERTY ACCESS -->
+<div class="section" id="s8">
+  <div class="section-header">
+    <span class="sn">08</span>
+    <h2>Managing Property Access for Individual Users</h2>
+  </div>
+  <p>Property access is controlled entirely by M365 group membership.</p>
+  <table>
+    <thead>
+      <tr><th>Action</th><th>Steps</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="t-accent2">Grant access</td><td>Add user to the property's M365 group in Teams or Entra Admin</td></tr>
+      <tr><td class="t-danger">Revoke access</td><td>Remove user from the property's M365 group</td></tr>
+      <tr><td class="t-warn">Move to new property</td><td>Remove from old group, add to new group</td></tr>
+      <tr><td class="t-accent">Multi-property access</td><td>Add to multiple property groups</td></tr>
+    </tbody>
+  </table>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      Changes take effect on the user's next login. Active sessions are not immediately affected — the user must log out and back in.
+    </div>
+  </div>
+</div>
+
+<!-- §09 TOKEN BEHAVIOR -->
+<div class="section" id="s9">
+  <div class="section-header">
+    <span class="sn">09</span>
+    <h2>Token Behavior Notes</h2>
+  </div>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      A user with no group assignments receives a token with no <code>roles</code> claim — the application treats this as read-only automatically.
+    </div>
+  </div>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      A user assigned to multiple property groups will have all corresponding roles in their token (e.g. <code>["ms_wh", "aug_wh"]</code>).
+    </div>
+  </div>
+  <div class="callout c-ok">
+    <span class="icon">✅</span>
+    <div class="body">
+      <code>DatabaseManager</code> overrides all property role checks — a DatabaseManager can write to any warehouse regardless of property group membership.
+    </div>
+  </div>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      The <strong>901 / ATC Office</strong> warehouse has no corresponding App Role by design. Only DatabaseManager users can perform write operations there.
+    </div>
+  </div>
+</div>
+
+<!-- §10 TROUBLESHOOTING -->
+<div class="section" id="s10">
+  <div class="section-header">
+    <span class="sn">10</span>
+    <h2>Troubleshooting</h2>
+  </div>
+  <table>
+    <thead>
+      <tr><th>Symptom</th><th>Likely Cause</th><th>Resolution</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>User has correct group but wrong access</td>
+        <td class="t-warn">Token not refreshed</td>
+        <td class="t-muted">User logs out and back in</td>
+      </tr>
+      <tr>
+        <td>New property role not appearing in token</td>
+        <td class="t-warn">App Role not yet assigned in Enterprise Applications</td>
+        <td class="t-muted">Complete Step 2 above</td>
+      </tr>
+      <tr>
+        <td>User can read but not scan out</td>
+        <td class="t-warn">Not assigned to any property group or DatabaseManager</td>
+        <td class="t-muted">Add to appropriate M365 group</td>
+      </tr>
+      <tr>
+        <td>User can scan out but not stock-in at a property</td>
+        <td class="t-warn">Not assigned to that property's group</td>
+        <td class="t-muted">Add to property M365 group</td>
+      </tr>
+      <tr>
+        <td>DatabaseManager role not working</td>
+        <td class="t-warn">Assignment missing in Enterprise Applications</td>
+        <td class="t-muted">Verify <code>Inventory-DatabaseManagers</code> group is assigned to <code>DatabaseManager</code> role in <code>ATC_InventoryAPI</code> enterprise app</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §11 QUICK REFERENCE -->
+<div class="section" id="s11">
+  <div class="section-header">
+    <span class="sn">11</span>
+    <h2>Quick Reference — Azure Portal Navigation</h2>
+  </div>
+  <h3>App Role Definitions</h3>
+  <pre>Azure Portal
+  → App Registrations
+    → ATC_InventoryAPI
+      → App Roles</pre>
+
+  <h3>Role Assignments (Groups → Roles)</h3>
+  <pre>Azure Portal
+  → Enterprise Applications
+    → ATC_InventoryAPI
+      → Users and Groups</pre>
+
+  <h3>M365 Group Membership (Users → Groups)</h3>
+  <pre>Azure Portal → Groups
+  OR
+Microsoft Teams → Team membership</pre>
+</div>
+
+</div><!-- /content -->
+
+<!-- ── FOOTER ── -->
+<div class="doc-footer">
+  <span>ATC Inventory Application</span>
+  <span>Entra Property Access Management · March 2026</span>
+  <span>Access Management · Internal Use Only</span>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

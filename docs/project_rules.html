@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATC Inventory — Project Rules</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2230;
+    --border: #2a3444;
+    --accent: #4fa3e0;
+    --accent2: #3ddc97;
+    --warn: #e6a817;
+    --danger: #e05c5c;
+    --text: #cdd9e5;
+    --muted: #768a9e;
+    --code: #a8d1f0;
+    --white: #f0f6fc;
+  }
+
+  body { font-family: 'Syne', sans-serif; font-size: 14px; color: var(--text); background: var(--bg); line-height: 1.65; }
+
+  /* ── Nav Bar ── */
+  .nav-bar { display: flex; align-items: center; gap: 12px; padding: 12px 56px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+  .nav-bar a { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: var(--muted); text-decoration: none; letter-spacing: 1px; transition: color 0.15s; }
+  .nav-bar a:hover { color: var(--accent); }
+  .nav-sep { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--border); }
+  .nav-current { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text); }
+
+  .page { max-width: 1060px; margin: 0 auto; padding: 0 0 80px; }
+
+  /* ── Header ── */
+  .doc-header { padding: 52px 56px 44px; border-bottom: 1px solid var(--border); position: relative; overflow: hidden; }
+  .doc-header::before { content: ""; position: absolute; top: 0; right: 0; width: 420px; height: 100%; background: radial-gradient(ellipse at 80% 40%, rgba(79,163,224,0.07) 0%, transparent 70%); pointer-events: none; }
+  .doc-header .eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 14px; }
+  .doc-header h1 { font-size: 36px; font-weight: 800; color: var(--white); line-height: 1.1; margin-bottom: 8px; }
+  .doc-header .subtitle { font-size: 14px; color: var(--muted); margin-bottom: 32px; }
+  .meta-strip { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; width: fit-content; }
+  .meta-cell { padding: 10px 20px; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 3px; }
+  .meta-cell:last-child { border-right: none; }
+  .meta-cell .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+  .meta-cell .val { font-size: 13px; font-weight: 600; color: var(--white); }
+  .meta-cell .val.green { color: var(--accent2); }
+
+  /* ── TOC ── */
+  .toc { display: flex; gap: 6px; flex-wrap: wrap; padding: 20px 56px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .toc a { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); text-decoration: none; padding: 5px 12px; border: 1px solid var(--border); border-radius: 20px; transition: all 0.15s; }
+  .toc a:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ── Content ── */
+  .content { padding: 0 56px; }
+  .section { padding: 44px 0; border-bottom: 1px solid var(--border); }
+  .section:last-child { border-bottom: none; }
+  .section-header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px; }
+  .sn { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 2px; background: rgba(79,163,224,0.08); border: 1px solid rgba(79,163,224,0.2); padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
+  .section-header h2 { font-size: 20px; font-weight: 700; color: var(--white); }
+
+  h3 { font-size: 15px; font-weight: 700; color: var(--white); margin: 28px 0 12px; }
+  h4 { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 1.5px; text-transform: uppercase; margin: 20px 0 10px; }
+
+  p { color: var(--text); margin-bottom: 14px; max-width: 800px; }
+
+  ul { margin: 10px 0 16px 20px; max-width: 800px; }
+  ul li { color: var(--text); font-size: 13px; margin-bottom: 6px; line-height: 1.6; }
+  ul li strong { color: var(--white); }
+  ul li code { font-size: 11px; }
+
+  /* ── Repo cards ── */
+  .repo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 20px 0; }
+  .repo-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 22px; border-top: 2px solid var(--accent); }
+  .repo-card .repo-num { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+  .repo-card .repo-name { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; color: var(--white); margin-bottom: 6px; }
+  .repo-card .repo-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  /* ── Rule items ── */
+  .rules-list { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 20px; max-width: 800px; }
+  .rule-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--text); line-height: 1.5; }
+  .rule-item code { font-size: 11px; }
+  .rule-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 5px; }
+  .rule-dot.warn { background: var(--warn); }
+  .rule-dot.danger { background: var(--danger); }
+  .rule-dot.green { background: var(--accent2); }
+
+  /* ── Barcode namespace table ── */
+  .namespace-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; max-width: 800px; }
+  .namespace-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; }
+  .namespace-card .ns-range { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .namespace-card .ns-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px; }
+  .namespace-card .ns-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .namespace-card.parts { border-top: 2px solid var(--accent); }
+  .namespace-card.parts .ns-range { color: var(--accent); }
+  .namespace-card.parts .ns-label { color: var(--accent); }
+  .namespace-card.equipment { border-top: 2px solid var(--accent2); }
+  .namespace-card.equipment .ns-range { color: var(--accent2); }
+  .namespace-card.equipment .ns-label { color: var(--accent2); }
+
+  /* ── Code ── */
+  pre { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--code); overflow-x: auto; margin: 10px 0 16px; line-height: 1.7; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--code); background: rgba(79,163,224,0.08); padding: 1px 6px; border-radius: 3px; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+
+  /* ── Callouts ── */
+  .callout { display: flex; gap: 14px; padding: 14px 18px; border-radius: 8px; margin: 16px 0; max-width: 800px; }
+  .callout.c-info  { background: rgba(79,163,224,0.07);  border: 1px solid rgba(79,163,224,0.2);  }
+  .callout.c-warn  { background: rgba(230,168,23,0.07);  border: 1px solid rgba(230,168,23,0.2);  }
+  .callout.c-ok    { background: rgba(61,220,151,0.07);  border: 1px solid rgba(61,220,151,0.2);  }
+  .callout .icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .callout .body { font-size: 13px; color: var(--text); line-height: 1.6; }
+  .callout .body strong { color: var(--white); }
+
+  /* ── Tables ── */
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  thead tr { background: var(--surface); border-bottom: 1px solid var(--border); }
+  th { padding: 10px 16px; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  td { padding: 10px 16px; border-bottom: 1px solid var(--border); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface); }
+  .t-accent { color: var(--accent); }
+  .t-accent2 { color: var(--accent2); }
+  .t-warn { color: var(--warn); }
+  .t-muted { color: var(--muted); }
+  .t-danger { color: var(--danger); }
+
+  /* ── Footer ── */
+  .doc-footer { margin-top: 60px; padding: 20px 56px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 0.5px; }
+</style>
+</head>
+<body>
+
+<!-- ── NAV BAR ── -->
+<div class="nav-bar">
+  <a href="../index.html">← Home</a>
+  <span class="nav-sep">/</span>
+  <span class="nav-current">Project Rules</span>
+</div>
+
+<div class="page">
+
+<!-- ── HEADER ── -->
+<div class="doc-header">
+  <div class="eyebrow">ATC Inventory Application — Standards</div>
+  <h1>Project Rules</h1>
+  <p class="subtitle">Architectural, security, and responsibility boundaries for the Inventory Application. All development decisions across repositories must adhere to these rules.</p>
+  <div class="meta-strip">
+    <div class="meta-cell"><span class="lbl">Scope</span><span class="val">All Repos</span></div>
+    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">May 2026</span></div>
+    <div class="meta-cell"><span class="lbl">Status</span><span class="val green">Enforced</span></div>
+  </div>
+</div>
+
+<!-- ── TOC ── -->
+<div class="toc">
+  <a href="#s1">01 Architecture Overview</a>
+  <a href="#s2">02 Repo 1 — PWA</a>
+  <a href="#s3">03 Repo 2 — API</a>
+  <a href="#s4">04 Repo 3 — Functions</a>
+  <a href="#s5">05 Cross-Cutting Rules</a>
+  <a href="#s6">06 Required Documentation</a>
+</div>
+
+<div class="content">
+
+<!-- §01 ARCHITECTURE OVERVIEW -->
+<div class="section" id="s1">
+  <div class="section-header"><span class="sn">01</span><h2>Architecture Overview</h2></div>
+  <p>The Inventory Application consists of three separate application repositories, each with its own GitHub repository, deployment pipeline, and responsibility boundary.</p>
+
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body"><strong>These applications must not be combined into a single repository.</strong> Azure SignalR Service is a managed infrastructure component — not a fourth repo. It is configured through the Azure portal and consumed by the API.</div>
+  </div>
+
+  <div class="repo-grid">
+    <div class="repo-card">
+      <div class="repo-num">Repo 1</div>
+      <div class="repo-name">inventory_pwa</div>
+      <div class="repo-desc">React PWA Front End — Desktop + Mobile UX, MSAL authentication, token acquisition</div>
+    </div>
+    <div class="repo-card">
+      <div class="repo-num">Repo 2</div>
+      <div class="repo-name">inventory_api</div>
+      <div class="repo-desc">ASP.NET Backend — System of record, business rules, CRUD + integrations, SignalR hub</div>
+    </div>
+    <div class="repo-card">
+      <div class="repo-num">Repo 3</div>
+      <div class="repo-name">inventory_functions</div>
+      <div class="repo-desc">Azure Functions — Automations, side effects, reports, notifications, invoice analysis</div>
+    </div>
+  </div>
+</div>
+
+<!-- §02 REPO 1 — PWA -->
+<div class="section" id="s2">
+  <div class="section-header"><span class="sn">02</span><h2>Repo 1 — React PWA Front End</h2></div>
+
+  <h3>Purpose</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot green"></div><span>Provide a single React application supporting desktop-first and mobile-first PWA UX</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Handle MSAL authentication and acquire access tokens</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Call the ASP.NET backend with <code>Authorization: Bearer &lt;token&gt;</code></span></div>
+  </div>
+
+  <h3>Rules</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot"></div><span>All authentication happens in the client using MSAL</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>The frontend must <strong>never</strong> enforce authorization as the source of truth. The API enforces permissions — a <code>403</code> response is always possible and must be handled gracefully</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>One React app must support both desktop and mobile layouts using responsive design and conditional rendering — not separate apps</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>SignalR connection is <strong>additive and non-blocking</strong> — the app must function fully if the hub is unavailable. No feature may fail or hang due to a missing hub connection</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>SignalR events are used exclusively to trigger React Query cache invalidation. Event payloads must <strong>never</strong> be used to drive UI state directly</span></div>
+  </div>
+
+  <h4>UX Expectations</h4>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot"></div><span><strong>Mobile:</strong> scan-first, card-based, minimal typing</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span><strong>Desktop:</strong> table-first, keyboard/scanner friendly</span></div>
+  </div>
+
+  <h4>Versioning</h4>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot"></div><span>Semantic versioning (major.minor.patch)</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Current version must be visible in the UI (splash screen or About page)</span></div>
+  </div>
+</div>
+
+<!-- §03 REPO 2 — API -->
+<div class="section" id="s3">
+  <div class="section-header"><span class="sn">03</span><h2>Repo 2 — ASP.NET Backend (System of Record)</h2></div>
+
+  <h3>Purpose</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot green"></div><span>Act as the system of record for all inventory data</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Validate MSAL access tokens and enforce authorization and business rules</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Host the SignalR hub and broadcast real-time events to connected clients</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Enqueue notification side-effect messages to <code>inventory-notifications</code> Azure Storage Queue</span></div>
+  </div>
+
+  <h3>Authentication &amp; Identity</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot"></div><span>JWT access tokens validated on every request via <code>Microsoft.Identity.Web</code></span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Identity derived from token claims only — no local Users table</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Audit fields recorded on all writes: <code>*_by_oid</code> (required), <code>*_by_email</code> (optional), timestamps</span></div>
+  </div>
+
+  <h3>Authorization</h3>
+  <table>
+    <thead><tr><th>Role</th><th>Access</th></tr></thead>
+    <tbody>
+      <tr><td class="t-warn">DatabaseManager</td><td>Full access — all properties, all admin and bulk operations</td></tr>
+      <tr><td class="t-accent">propCode_wh (e.g. ms_wh)</td><td>Property staff — read all, write only to their assigned warehouse</td></tr>
+      <tr><td class="t-muted">No role</td><td>Read-only access to inventory data</td></tr>
+    </tbody>
+  </table>
+
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot warn"></div><span><strong>DatabaseManager</strong> overrides all property role checks — can write to any warehouse regardless of group membership</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>The single-create / bulk-create split is deliberate: single creates are open to any authenticated user; bulk/destructive operations require <code>DatabaseManager</code></span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span><code>PUT /parts/{id}</code> is open to any authenticated user — part updates are a natural extension of the single-create permission</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span><code>DatabaseManager</code> is an M365/Entra ID group managed in the Azure portal — no code changes required to grant or revoke access</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>A <code>403</code> on a DatabaseManager-gated endpoint means the user is not in the M365 group — nothing is wrong with the application</span></div>
+  </div>
+
+  <h3>SignalR</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot"></div><span>Hub endpoint: <code>/hubs/inventory</code> — registered in the API repo at startup</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>All write endpoints broadcast a real-time event after a successful response — fire-and-forget, never blocking</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Azure SignalR Service connection string must be stored in Key Vault or App Service config — never in source control</span></div>
+  </div>
+
+  <table>
+    <thead><tr><th>Event</th><th>Scope</th><th>Trigger</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">supply.updated</td><td>Warehouse group</td><td>Any supply write — consume, stock-in, adjust, create, batch</td></tr>
+      <tr><td class="t-accent">supply.low_stock</td><td>Warehouse group</td><td>Supply write where quantity_after ≤ min_level</td></tr>
+      <tr><td class="t-accent">part.created</td><td>All clients</td><td>Single part created or bulk batch complete</td></tr>
+      <tr><td class="t-accent">part.updated</td><td>All clients</td><td>Part updated or deleted</td></tr>
+      <tr><td class="t-accent">warehouses.changed</td><td>All clients</td><td>Warehouse create, update, or delete</td></tr>
+      <tr><td class="t-accent">categories.changed</td><td>All clients</td><td>Category create, update, or delete</td></tr>
+      <tr><td class="t-accent">vendors.changed</td><td>All clients</td><td>Vendor create, update, or delete</td></tr>
+      <tr><td class="t-accent">equipment.changed</td><td>All clients</td><td>Any equipment write</td></tr>
+      <tr><td class="t-accent">orders.updated</td><td>All clients</td><td>Order status change, create, or Graph OBO send</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Scan Flow</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot"></div><span>Scan Out: <code>POST /supplies/scan/consume</code> — decrements by <code>qty_each</code> EA directly, no multiplier</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Scan In: <code>POST /supplies/scan/stockin</code> — applies multiplier, auto-creates supply row if missing</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span><code>/identifiers/resolve/{code}</code> is <strong>not</strong> part of normal scan operations — only triggered on <code>404 IDENTIFIER_NOT_FOUND</code></span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>Auto-creating a supply row writes <code>Reason = "New Part in Warehouse"</code> — triggers Azure Functions alert to DatabaseManager</span></div>
+  </div>
+
+  <h3>ATC_MASTER Barcode Rule</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot"></div><span>Every Part must have exactly one <code>ATC_MASTER</code> identifier — auto-generated by the server at Part creation, never caller-supplied</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Any request including <code>ATC_MASTER</code> in the identifiers list is rejected with <code>400 ATC_MASTER_NOT_ALLOWED</code></span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Format: 7-digit zero-padded integer (e.g. <code>0000001</code>). <code>Unit_multiplier_to_base = 1</code> and <code>Issue_uom = EA</code> are hardcoded — never caller-controlled</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>ATC_MASTER values must remain below <code>8000000</code> — design boundary to avoid collision with TOOL_MASTER namespace</span></div>
+  </div>
+
+  <h3>TOOL_MASTER Barcode Rule</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot"></div><span>Every Equipment item must have exactly one <code>TOOL_MASTER</code> identifier — auto-generated at Equipment creation, never caller-supplied</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Any request including <code>TOOL_MASTER</code> is rejected with <code>400 TOOL_MASTER_NOT_ALLOWED</code>. Cannot be added or deleted manually.</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Stored value: bare integer (e.g. <code>8000001</code>). Display format <code>8-000001</code> is UI-only — never stored or scanned</span></div>
+  </div>
+
+  <h3>Barcode Namespace Routing</h3>
+  <div class="namespace-grid">
+    <div class="namespace-card parts">
+      <div class="ns-range">0000001 – 7999999</div>
+      <div class="ns-label">Parts / ATC_MASTER</div>
+      <div class="ns-desc">Routes to <code>Identifiers</code> table. Any scanned value below 8000000.</div>
+    </div>
+    <div class="namespace-card equipment">
+      <div class="ns-range">8000001 +</div>
+      <div class="ns-label">Equipment / TOOL_MASTER</div>
+      <div class="ns-desc">Routes to <code>EquipmentIdentifiers</code> table. Any 7-digit value ≥ 8000000.</div>
+    </div>
+  </div>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">On equipment scan screens, the PWA passes <code>"tool"</code> mode to <code>normalizeBarcode(input, mode)</code>. In tool mode, pure numeric input is treated as an equipment barcode suffix — the app automatically prepends <code>8</code> and zero-pads to 7 digits. Example: user types <code>12</code> → resolves as <code>8000012</code>. This shorthand is only active on equipment scan screens.</div>
+  </div>
+
+  <h3>Supplies Base-Unit Rule</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot"></div><span>The Supplies table always represents EA-level (base unit) quantities</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span><code>Unit_multiplier_to_base</code> is a stock-in conversion only — applied at scan time, <strong>never persisted</strong></span></div>
+  </div>
+
+  <h3>Database Rules</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot"></div><span>EF Core with SQLite in development (<code>dev_data/inventory_dev.db</code>); Azure SQL in production</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Unique constraints: <code>Category.Name</code>, <code>Part.Name</code>, <code>Vendor.Name</code>, <code>Identifier.Id_value</code>, <code>Supply(Part_id, Warehouse_id)</code>, <code>VendorParts(Vendor_id, Part_id)</code>, <code>Warehouse(PropCode, Name)</code></span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Name normalization + similarity checks (threshold 0.85) prevent near-duplicate names before hitting UNIQUE indexes</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Migrations auto-apply at startup in both Development and Production via <code>db.Database.Migrate()</code></span></div>
+  </div>
+</div>
+
+<!-- §04 REPO 3 — FUNCTIONS -->
+<div class="section" id="s4">
+  <div class="section-header"><span class="sn">04</span><h2>Repo 3 — Azure Functions (Automations)</h2></div>
+
+  <h3>Purpose</h3>
+  <p>Azure Functions handle side effects and automation — not core CRUD logic.</p>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot green"></div><span>Scheduled reports (daily/weekly/monthly)</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Low-stock scans and notifications</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>PDF generation and label printing</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Invoice analysis via Azure Document Intelligence + GPT-4.1-mini</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Queue-triggered notification delivery via <code>inventory-notifications</code></span></div>
+  </div>
+
+  <h3>Rules</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Functions must <strong>not</strong> expose CRUD endpoints that bypass API business rules. HTTP-triggered Functions (reports, labels, invoice analysis) are permitted — they do not write to the database</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Functions must <strong>never</strong> write directly to the database — only read-only access via Managed Identity for report generation</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Functions may call ASP.NET endpoints for operations requiring business rule enforcement</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Functions may consume messages from <code>inventory-notifications</code> Azure Storage Queue via <code>QueueTrigger</code></span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Secrets must not be stored in code — use Managed Identity or secure app credentials</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Queue-based notification processing must not block user-facing API requests — the API writes to the queue fire-and-forget</span></div>
+  </div>
+
+  <h4>Versioning</h4>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot"></div><span>Automatic semantic versioning — version visible in Azure Portal</span></div>
+  </div>
+</div>
+
+<!-- §05 CROSS-CUTTING RULES -->
+<div class="section" id="s5">
+  <div class="section-header"><span class="sn">05</span><h2>Cross-Cutting Rules</h2></div>
+
+  <h3>Separation of Concerns</h3>
+  <table>
+    <thead><tr><th>Layer</th><th>Responsibility</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">inventory_pwa</td><td>UX, authentication, SignalR cache invalidation</td></tr>
+      <tr><td class="t-accent">inventory_api</td><td>Validation, authorization, business rules, integrations, SignalR hub</td></tr>
+      <tr><td class="t-accent">inventory_functions</td><td>Automation and side effects</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Security</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Never store passwords</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Never trust frontend authorization</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Keep third-party API keys server-side only — never exposed to the frontend or in error responses</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Never store Azure SignalR Service connection strings in source control — use Azure Key Vault or App Service configuration slots</span></div>
+  </div>
+
+  <h3>CI/CD</h3>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot green"></div><span>Each repo deploys automatically from GitHub</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Deployments must clearly identify: application, environment, and version</span></div>
+  </div>
+</div>
+
+<!-- §06 REQUIRED DOCUMENTATION -->
+<div class="section" id="s6">
+  <div class="section-header"><span class="sn">06</span><h2>Required Documentation per Repo</h2></div>
+  <p>Each repository must include the following documentation files.</p>
+  <table>
+    <thead><tr><th>File</th><th>All Repos</th><th>API Repo Only</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">README.md</td><td class="t-accent2">✓</td><td></td></tr>
+      <tr><td class="t-accent">PROJECT_RULES.md</td><td class="t-accent2">✓</td><td></td></tr>
+      <tr><td class="t-accent">ARCHITECTURE.md</td><td class="t-accent2">✓</td><td></td></tr>
+      <tr><td class="t-accent">SCHEMA.md</td><td></td><td class="t-accent2">✓</td></tr>
+    </tbody>
+  </table>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">The authoritative versions of these documents live in the <code>inventory_documentation</code> repo. Each application repo links back to the documentation site in its README.</div>
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<!-- ── FOOTER ── -->
+<div class="doc-footer">
+  <span>ATC Inventory Application</span>
+  <span>Project Rules · May 2026</span>
+  <span>All Repos · Internal Use Only</span>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATC Inventory — Azure SQL Query Editor Access</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2230;
+    --border: #2a3444;
+    --accent: #4fa3e0;
+    --accent2: #3ddc97;
+    --warn: #e6a817;
+    --danger: #e05c5c;
+    --text: #cdd9e5;
+    --muted: #768a9e;
+    --code: #a8d1f0;
+    --white: #f0f6fc;
+  }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.65;
+  }
+
+  /* ── Nav Bar ── */
+  .nav-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 56px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-bar a {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-decoration: none;
+    letter-spacing: 1px;
+    transition: color 0.15s;
+  }
+  .nav-bar a:hover { color: var(--accent); }
+  .nav-sep {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--border);
+  }
+  .nav-current {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+  }
+
+  .page {
+    max-width: 1060px;
+    margin: 0 auto;
+    padding: 0 0 80px;
+  }
+
+  /* ── Header ── */
+  .doc-header {
+    padding: 52px 56px 44px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .doc-header::before {
+    content: "";
+    position: absolute;
+    top: 0; right: 0;
+    width: 420px; height: 100%;
+    background: radial-gradient(ellipse at 80% 40%, rgba(79,163,224,0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .doc-header .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .doc-header h1 {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--white);
+    line-height: 1.1;
+    margin-bottom: 8px;
+  }
+  .doc-header .subtitle {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 32px;
+  }
+  .meta-strip {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    width: fit-content;
+  }
+  .meta-cell {
+    padding: 10px 20px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .meta-cell:last-child { border-right: none; }
+  .meta-cell .lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .meta-cell .val {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--white);
+  }
+  .meta-cell .val.green { color: var(--accent2); }
+  .meta-cell .val.warn  { color: var(--warn); }
+
+  /* ── TOC ── */
+  .toc {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 20px 56px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .toc a {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    transition: all 0.15s;
+  }
+  .toc a:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ── Content ── */
+  .content { padding: 0 56px; }
+
+  .section {
+    padding: 44px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .section:last-child { border-bottom: none; }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .sn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 2px;
+    background: rgba(79,163,224,0.08);
+    border: 1px solid rgba(79,163,224,0.2);
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .section-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--white);
+  }
+  .section-header h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--white);
+  }
+
+  h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--white);
+    margin: 24px 0 12px;
+  }
+
+  p {
+    color: var(--text);
+    margin-bottom: 14px;
+    max-width: 800px;
+  }
+
+  /* ── Code blocks ── */
+  pre {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--code);
+    overflow-x: auto;
+    margin: 10px 0 16px;
+    line-height: 1.7;
+  }
+  .pre-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 16px;
+    margin-bottom: 4px;
+  }
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--code);
+    background: rgba(79,163,224,0.08);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  pre code {
+    background: none;
+    padding: 0;
+    font-size: inherit;
+  }
+
+  /* ── Callouts ── */
+  .callout {
+    display: flex;
+    gap: 14px;
+    padding: 14px 18px;
+    border-radius: 8px;
+    margin: 16px 0;
+    max-width: 800px;
+  }
+  .callout.c-info  { background: rgba(79,163,224,0.07);  border: 1px solid rgba(79,163,224,0.2);  }
+  .callout.c-warn  { background: rgba(230,168,23,0.07);  border: 1px solid rgba(230,168,23,0.2);  }
+  .callout.c-ok    { background: rgba(61,220,151,0.07);  border: 1px solid rgba(61,220,151,0.2);  }
+  .callout .icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .callout .body { font-size: 13px; color: var(--text); line-height: 1.6; }
+  .callout .body strong { color: var(--white); }
+
+  /* ── Tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+  thead tr {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    padding: 10px 16px;
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+  }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface); }
+  .t-accent  { color: var(--accent); }
+  .t-accent2 { color: var(--accent2); }
+  .t-warn    { color: var(--warn); }
+  .t-muted   { color: var(--muted); }
+
+  /* ── Footer ── */
+  .doc-footer {
+    margin-top: 60px;
+    padding: 20px 56px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── NAV BAR ── -->
+<div class="nav-bar">
+  <a href="../index.html">← Home</a>
+  <span class="nav-sep">/</span>
+  <span class="nav-current">Azure SQL Query Editor Access</span>
+</div>
+
+<div class="page">
+
+<!-- ── HEADER ── -->
+<div class="doc-header">
+  <div class="eyebrow">ATC Inventory Application — Operations</div>
+  <h1>Azure SQL Query Editor Access</h1>
+  <p class="subtitle">Procedures for granting, revoking, and auditing database access on the dev and production Azure SQL instances.</p>
+  <div class="meta-strip">
+    <div class="meta-cell">
+      <span class="lbl">Applies To</span>
+      <span class="val">atc-inventory-db-dev · atc-inventory-db</span>
+    </div>
+    <div class="meta-cell">
+      <span class="lbl">Who Can Perform</span>
+      <span class="val warn">Entra Admins</span>
+    </div>
+    <div class="meta-cell">
+      <span class="lbl">Updated</span>
+      <span class="val">May 2026</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOC ── -->
+<div class="toc">
+  <a href="#s1">01 Prerequisites</a>
+  <a href="#s2">02 Add a User</a>
+  <a href="#s3">03 Remove a User</a>
+  <a href="#s4">04 Audit Current Access</a>
+  <a href="#s5">05 Current Access</a>
+  <a href="#s6">06 Notes</a>
+</div>
+
+<div class="content">
+
+<!-- §01 PREREQUISITES -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <span class="sn">01</span>
+    <h2>Prerequisites</h2>
+  </div>
+  <p>Open the Query Editor connected as yourself before performing any of the operations below.</p>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      <strong>Azure Portal → SQL database → Query editor → Continue as <code>jamie@atcdevelopment.com</code></strong><br>
+      You must be connected as the Entra admin to create or remove Entra-based users.
+    </div>
+  </div>
+</div>
+
+<!-- §02 ADD A USER -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <span class="sn">02</span>
+    <h2>Add a User</h2>
+  </div>
+
+  <h3>Full Admin (IT Staff)</h3>
+  <div class="pre-label">sql</div>
+  <pre>CREATE USER [user@atcdevelopment.com] FROM EXTERNAL PROVIDER;
+ALTER ROLE db_owner ADD MEMBER [user@atcdevelopment.com];</pre>
+
+  <h3>Read-Only</h3>
+  <div class="pre-label">sql</div>
+  <pre>CREATE USER [user@atcdevelopment.com] FROM EXTERNAL PROVIDER;
+ALTER ROLE db_datareader ADD MEMBER [user@atcdevelopment.com];</pre>
+</div>
+
+<!-- §03 REMOVE A USER -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <span class="sn">03</span>
+    <h2>Remove a User</h2>
+  </div>
+  <p>Drop the role membership first, then drop the user.</p>
+  <div class="pre-label">sql</div>
+  <pre>ALTER ROLE db_owner DROP MEMBER [user@atcdevelopment.com];
+DROP USER [user@atcdevelopment.com];</pre>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      If the user was assigned <code>db_datareader</code> instead of <code>db_owner</code>, substitute accordingly in the first line.
+    </div>
+  </div>
+</div>
+
+<!-- §04 AUDIT CURRENT ACCESS -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <span class="sn">04</span>
+    <h2>Audit Current Access</h2>
+  </div>
+  <div class="pre-label">sql</div>
+  <pre>SELECT dp.name, dp.type_desc, r.name AS role
+FROM sys.database_principals dp
+JOIN sys.database_role_members rm ON dp.principal_id = rm.member_principal_id
+JOIN sys.database_principals r ON rm.role_principal_id = r.principal_id
+WHERE dp.type IN ('E', 'X')
+ORDER BY dp.name</pre>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      <strong>Jamie does not appear in this query.</strong> Server-level Entra admin access is not a database principal and is not visible here.
+    </div>
+  </div>
+</div>
+
+<!-- §05 CURRENT ACCESS -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <span class="sn">05</span>
+    <h2>Current Access — Dev Database</h2>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>User</th>
+        <th>Role</th>
+        <th>Purpose</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="t-accent">courtney@atcdevelopment.com</td>
+        <td class="t-warn">db_owner</td>
+        <td class="t-muted">IT admin access</td>
+      </tr>
+      <tr>
+        <td class="t-accent">atc-inventory-functions</td>
+        <td class="t-accent2">db_datareader</td>
+        <td class="t-muted">Azure Functions read access</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §06 NOTES -->
+<div class="section" id="s6">
+  <div class="section-header">
+    <span class="sn">06</span>
+    <h2>Notes</h2>
+  </div>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>Account must exist.</strong> Users must have an active <code>@atcdevelopment.com</code> Entra account. The <code>FROM EXTERNAL PROVIDER</code> clause fails immediately if the account does not exist.
+    </div>
+  </div>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      <strong>Database-level access only.</strong> This grants database access only — no Azure Portal or resource group permissions are implied.
+    </div>
+  </div>
+  <div class="callout c-ok">
+    <span class="icon">✅</span>
+    <div class="body">
+      <strong>Immediate effect.</strong> Changes take effect immediately. No token refresh required for Query Editor access. When granting access to the production database, repeat the same steps against <code>atc-inventory-db</code>.
+    </div>
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<!-- ── FOOTER ── -->
+<div class="doc-footer">
+  <span>ATC Inventory Application</span>
+  <span>Azure SQL Query Editor Access · May 2026</span>
+  <span>Operations · Internal Use Only</span>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>
