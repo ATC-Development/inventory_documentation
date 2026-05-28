@@ -229,7 +229,7 @@
     </div>
     <div class="meta-cell">
       <span class="lbl">Updated</span>
-      <span class="val">March 2026</span>
+      <span class="val">May 2026</span>
     </div>
     <div class="meta-cell">
       <span class="lbl">Code Changes Required</span>
@@ -247,10 +247,11 @@
   <a href="#s5">05 Property Role Mapping</a>
   <a href="#s6">06 Adding a New Property</a>
   <a href="#s7">07 DatabaseManager Role</a>
-  <a href="#s8">08 Managing Property Access</a>
-  <a href="#s9">09 Token Behavior</a>
-  <a href="#s10">10 Troubleshooting</a>
-  <a href="#s11">11 Quick Reference</a>
+  <a href="#s7b">08 InvApp_Users Role</a>
+  <a href="#s8">09 Managing Property Access</a>
+  <a href="#s9">10 Token Behavior</a>
+  <a href="#s10">11 Troubleshooting</a>
+  <a href="#s11">12 Quick Reference</a>
 </div>
 
 <div class="content">
@@ -319,20 +320,33 @@
       </tr>
       <tr>
         <td class="t-accent">Property Role (e.g. ms_wh)</td>
-        <td>Property staff</td>
+        <td>Trained property staff</td>
         <td class="t-accent2">All properties</td>
         <td class="t-accent2">All properties</td>
         <td>Own property only</td>
       </tr>
       <tr>
+        <td class="t-accent">inventoryApp only</td>
+        <td>Trained users without a property role</td>
+        <td class="t-accent2">All properties</td>
+        <td class="t-accent2">All properties</td>
+        <td class="t-danger">✗</td>
+      </tr>
+      <tr>
         <td class="t-muted">No role assigned</td>
-        <td>Everyone else</td>
+        <td>Untrained / new employees</td>
         <td>Read only</td>
         <td class="t-danger">✗</td>
         <td class="t-danger">✗</td>
       </tr>
     </tbody>
   </table>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      <strong>inventoryApp is a prerequisite for all write access.</strong> A user must be in the <code>InvApp_Users</code> group (or be a DatabaseManager) before any write operations are enabled — regardless of whether they also hold a property role. This gate is enforced in the PWA and is intended to prevent untrained users from modifying live data.
+    </div>
+  </div>
 </div>
 
 <!-- §04 HOW IT WORKS -->
@@ -346,10 +360,11 @@
     <div class="flow-line"><span class="flow-arrow">→</span><span>User logs in</span></div>
     <div class="flow-line"><span class="flow-arrow">→</span><span>Entra checks group memberships → resolves App Role assignments</span></div>
     <div class="flow-line"><span class="flow-arrow">→</span><span>Access token issued with <code>roles</code> claim:</span></div>
-    <div class="flow-line"><span class="flow-arrow">&nbsp;&nbsp;</span><span class="flow-highlight">{ "roles": ["DatabaseManager"] }</span></div>
-    <div class="flow-line"><span class="flow-arrow">&nbsp;&nbsp;</span><span class="flow-highlight">{ "roles": ["ms_wh", "aug_wh"] }</span></div>
-    <div class="flow-line"><span class="flow-arrow">&nbsp;&nbsp;</span><span class="flow-dim">{ "roles": [] }  ← read only</span></div>
-    <div class="flow-line"><span class="flow-arrow">→</span><span>PWA reads roles → drives UI visibility</span></div>
+    <div class="flow-line"><span class="flow-arrow">&nbsp;&nbsp;</span><span class="flow-highlight">{ "roles": ["DatabaseManager"] }  ← full access</span></div>
+    <div class="flow-line"><span class="flow-arrow">&nbsp;&nbsp;</span><span class="flow-highlight">{ "roles": ["inventoryApp", "ms_wh", "aug_wh"] }  ← trained property staff</span></div>
+    <div class="flow-line"><span class="flow-arrow">&nbsp;&nbsp;</span><span class="flow-highlight">{ "roles": ["inventoryApp"] }  ← trained, no property role yet</span></div>
+    <div class="flow-line"><span class="flow-arrow">&nbsp;&nbsp;</span><span class="flow-dim">{ "roles": [] }  ← untrained / read only</span></div>
+    <div class="flow-line"><span class="flow-arrow">→</span><span>PWA reads roles → drives UI visibility and write gates</span></div>
     <div class="flow-line"><span class="flow-arrow">→</span><span>API reads roles → enforces write permissions</span></div>
   </div>
 </div>
@@ -468,10 +483,51 @@
   </div>
 </div>
 
-<!-- §08 MANAGING PROPERTY ACCESS -->
-<div class="section" id="s8">
+<!-- §08 INVAPP_USERS ROLE -->
+<div class="section" id="s7b">
   <div class="section-header">
     <span class="sn">08</span>
+    <h2>Managing the InvApp_Users Role</h2>
+  </div>
+  <p>The <code>inventoryApp</code> App Role is the write-access gate for the Inventory Application. It must be assigned to any user who needs to perform write operations (scan out, stock-in, add parts, adjustments, equipment actions). DatabaseManagers bypass this gate automatically.</p>
+  <p>This role is assigned by adding users to the <code>InvApp_Users</code> M365 group, which is assigned to the <code>inventoryApp</code> App Role in Enterprise Applications.</p>
+
+  <h3>Grant Write Access (After Training)</h3>
+  <ol style="margin: 12px 0 16px 20px; max-width: 800px;">
+    <li style="color:var(--text); font-size:13px; margin-bottom:6px; line-height:1.6;">Add the user to the <code>InvApp_Users</code> M365 group in Teams or Entra Admin</li>
+    <li style="color:var(--text); font-size:13px; margin-bottom:6px; line-height:1.6;">The user must log out and back in for the token to reflect the change</li>
+  </ol>
+
+  <h3>Revoke Write Access</h3>
+  <ol style="margin: 12px 0 16px 20px; max-width: 800px;">
+    <li style="color:var(--text); font-size:13px; margin-bottom:6px; line-height:1.6;">Remove the user from the <code>InvApp_Users</code> M365 group</li>
+    <li style="color:var(--text); font-size:13px; margin-bottom:6px; line-height:1.6;">The user must log out and back in for the change to take effect</li>
+  </ol>
+
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      <code>InvApp_Users</code> group is assigned to the <code>inventoryApp</code> App Role in <strong>Enterprise Applications → ATC_InventoryAPI → Users and Groups</strong>.
+    </div>
+  </div>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>New employees are read-only by default.</strong> Any authenticated ATC user can log into the PWA and browse inventory, but cannot perform any write operations until they are added to <code>InvApp_Users</code> after completing training. This is by design.
+    </div>
+  </div>
+  <div class="callout c-ok">
+    <span class="icon">✅</span>
+    <div class="body">
+      <strong>DatabaseManagers do not need to be in InvApp_Users.</strong> The <code>DatabaseManager</code> role already implies full write access. Adding a DM to <code>InvApp_Users</code> is harmless but unnecessary.
+    </div>
+  </div>
+</div>
+
+<!-- §09 MANAGING PROPERTY ACCESS -->
+<div class="section" id="s8">
+  <div class="section-header">
+    <span class="sn">09</span>
     <h2>Managing Property Access for Individual Users</h2>
   </div>
   <p>Property access is controlled entirely by M365 group membership.</p>
@@ -494,11 +550,17 @@
   </div>
 </div>
 
-<!-- §09 TOKEN BEHAVIOR -->
+<!-- §10 TOKEN BEHAVIOR -->
 <div class="section" id="s9">
   <div class="section-header">
-    <span class="sn">09</span>
+    <span class="sn">10</span>
     <h2>Token Behavior Notes</h2>
+  </div>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>Write access requires inventoryApp.</strong> A user with only property roles but without <code>inventoryApp</code> in their token will be treated as read-only. Both <code>inventoryApp</code> and a property role are required for property write access.
+    </div>
   </div>
   <div class="callout c-info">
     <span class="icon">ℹ️</span>
@@ -509,13 +571,13 @@
   <div class="callout c-info">
     <span class="icon">ℹ️</span>
     <div class="body">
-      A user assigned to multiple property groups will have all corresponding roles in their token (e.g. <code>["ms_wh", "aug_wh"]</code>).
+      A user assigned to multiple property groups will have all corresponding roles in their token (e.g. <code>["inventoryApp", "ms_wh", "aug_wh"]</code>).
     </div>
   </div>
   <div class="callout c-ok">
     <span class="icon">✅</span>
     <div class="body">
-      <code>DatabaseManager</code> overrides all property role checks — a DatabaseManager can write to any warehouse regardless of property group membership.
+      <code>DatabaseManager</code> overrides all role checks — a DatabaseManager can write to any warehouse and bypasses the <code>inventoryApp</code> gate entirely.
     </div>
   </div>
   <div class="callout c-warn">
@@ -526,10 +588,10 @@
   </div>
 </div>
 
-<!-- §10 TROUBLESHOOTING -->
+<!-- §11 TROUBLESHOOTING -->
 <div class="section" id="s10">
   <div class="section-header">
-    <span class="sn">10</span>
+    <span class="sn">11</span>
     <h2>Troubleshooting</h2>
   </div>
   <table>
@@ -548,13 +610,18 @@
         <td class="t-muted">Complete Step 2 above</td>
       </tr>
       <tr>
-        <td>User can read but not scan out</td>
-        <td class="t-warn">Not assigned to any property group or DatabaseManager</td>
-        <td class="t-muted">Add to appropriate M365 group</td>
+        <td>User can read but cannot scan out or perform any writes</td>
+        <td class="t-warn">Not in InvApp_Users — inventoryApp role missing from token</td>
+        <td class="t-muted">Add to <code>InvApp_Users</code> group after training is complete</td>
+      </tr>
+      <tr>
+        <td>User has inventoryApp but cannot stock-in at a property</td>
+        <td class="t-warn">Not assigned to that property's group</td>
+        <td class="t-muted">Add to property M365 group</td>
       </tr>
       <tr>
         <td>User can scan out but not stock-in at a property</td>
-        <td class="t-warn">Not assigned to that property's group</td>
+        <td class="t-warn">Has inventoryApp but not assigned to that property's group</td>
         <td class="t-muted">Add to property M365 group</td>
       </tr>
       <tr>
@@ -566,10 +633,10 @@
   </table>
 </div>
 
-<!-- §11 QUICK REFERENCE -->
+<!-- §12 QUICK REFERENCE -->
 <div class="section" id="s11">
   <div class="section-header">
-    <span class="sn">11</span>
+    <span class="sn">12</span>
     <h2>Quick Reference — Azure Portal Navigation</h2>
   </div>
   <h3>App Role Definitions</h3>
@@ -595,7 +662,7 @@ Microsoft Teams → Team membership</pre>
 <!-- ── FOOTER ── -->
 <div class="doc-footer">
   <span>ATC Inventory Application</span>
-  <span>Entra Property Access Management · March 2026</span>
+  <span>Entra Property Access Management · May 2026</span>
   <span>Access Management · Internal Use Only</span>
 </div>
 
