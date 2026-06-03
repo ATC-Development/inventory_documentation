@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATC Inventory — Extension Developer Guide</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2230;
+    --border: #2a3444;
+    --accent: #4fa3e0;
+    --accent2: #3ddc97;
+    --warn: #e6a817;
+    --danger: #e05c5c;
+    --text: #cdd9e5;
+    --muted: #768a9e;
+    --code: #a8d1f0;
+    --white: #f0f6fc;
+  }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.65;
+  }
+
+  /* ── Nav Bar ── */
+  .nav-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 56px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-bar a {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-decoration: none;
+    letter-spacing: 1px;
+    transition: color 0.15s;
+  }
+  .nav-bar a:hover { color: var(--accent); }
+  .nav-sep {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--border);
+  }
+  .nav-current {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+  }
+
+  .page {
+    max-width: 1060px;
+    margin: 0 auto;
+    padding: 0 0 80px;
+  }
+
+  /* ── Header ── */
+  .doc-header {
+    padding: 52px 56px 44px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .doc-header::before {
+    content: "";
+    position: absolute;
+    top: 0; right: 0;
+    width: 420px; height: 100%;
+    background: radial-gradient(ellipse at 80% 40%, rgba(79,163,224,0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .doc-header .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .doc-header h1 {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--white);
+    line-height: 1.1;
+    margin-bottom: 8px;
+  }
+  .doc-header .subtitle {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 32px;
+  }
+  .meta-strip {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    width: fit-content;
+  }
+  .meta-cell {
+    padding: 10px 20px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .meta-cell:last-child { border-right: none; }
+  .meta-cell .lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .meta-cell .val {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--white);
+  }
+  .meta-cell .val.green  { color: var(--accent2); }
+  .meta-cell .val.warn   { color: var(--warn); }
+  .meta-cell .val.accent { color: var(--accent); }
+
+  /* ── TOC ── */
+  .toc {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 20px 56px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .toc a {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    transition: all 0.15s;
+  }
+  .toc a:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ── Content ── */
+  .content { padding: 0 56px; }
+
+  .section {
+    padding: 44px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .section:last-child { border-bottom: none; }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .sn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 2px;
+    background: rgba(79,163,224,0.08);
+    border: 1px solid rgba(79,163,224,0.2);
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .section-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--white);
+  }
+
+  h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--white);
+    margin: 28px 0 12px;
+  }
+  h3:first-child { margin-top: 0; }
+
+  p {
+    color: var(--text);
+    margin-bottom: 14px;
+    max-width: 820px;
+  }
+  p:last-child { margin-bottom: 0; }
+
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--code);
+    background: rgba(79,163,224,0.08);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  pre {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--code);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin: 14px 0;
+    overflow-x: auto;
+    line-height: 1.7;
+  }
+  .pre-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 20px 0 6px;
+  }
+  .pre-label:first-child { margin-top: 0; }
+
+  /* ── Callouts ── */
+  .callout {
+    display: flex;
+    gap: 14px;
+    padding: 16px 20px;
+    border-radius: 8px;
+    margin: 16px 0;
+    max-width: 820px;
+  }
+  .callout .icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .callout .body { font-size: 13px; line-height: 1.65; }
+  .callout .body strong { color: var(--white); }
+  .callout .body code { font-size: 11px; }
+  .c-warn  { background: rgba(230,168,23,0.08);  border: 1px solid rgba(230,168,23,0.25); }
+  .c-warn .body  { color: #d4a017; }
+  .c-ok    { background: rgba(61,220,151,0.08);  border: 1px solid rgba(61,220,151,0.25); }
+  .c-ok .body    { color: var(--accent2); }
+  .c-info  { background: rgba(79,163,224,0.08);  border: 1px solid rgba(79,163,224,0.25); }
+  .c-info .body  { color: var(--accent); }
+  .c-danger { background: rgba(224,92,92,0.08); border: 1px solid rgba(224,92,92,0.25); }
+  .c-danger .body { color: var(--danger); }
+
+  /* ── Tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  th {
+    padding: 10px 16px;
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    background: var(--surface2);
+  }
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    font-size: 13px;
+  }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+  .t-accent  { color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  .t-accent2 { color: var(--accent2); }
+  .t-warn    { color: var(--warn); }
+  .t-muted   { color: var(--muted); }
+  .t-mono    { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+  /* ── Steps ── */
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 16px 0;
+    max-width: 820px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .step {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .step:last-child { border-bottom: none; }
+  .step-num {
+    width: 52px;
+    min-width: 52px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 18px 0 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+  }
+  .step-body {
+    padding: 16px 20px;
+    flex: 1;
+    background: var(--bg);
+  }
+  .step-title {
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 6px;
+    font-size: 14px;
+  }
+  .step-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .step-desc code { font-size: 11px; }
+
+  /* ── Flow ── */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 16px 0;
+    max-width: 820px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .flow-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .flow-step:last-child { border-bottom: none; }
+  .flow-step:nth-child(odd)  { background: var(--bg); }
+  .flow-step:nth-child(even) { background: var(--surface); }
+  .flow-arrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    white-space: nowrap;
+    margin-top: 2px;
+  }
+
+  /* ── File tree ── */
+  .file-tree {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin: 14px 0;
+    line-height: 2;
+    max-width: 600px;
+  }
+  .ft-dir  { color: var(--accent); }
+  .ft-file { color: var(--text); }
+  .ft-muted { color: var(--muted); }
+  .ft-note { color: var(--warn); font-size: 11px; }
+
+  /* ── Badge ── */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }
+  .badge-blue   { background: rgba(79,163,224,0.12); color: var(--accent);  border: 1px solid rgba(79,163,224,0.3); }
+  .badge-green  { background: rgba(61,220,151,0.12); color: var(--accent2); border: 1px solid rgba(61,220,151,0.3); }
+  .badge-warn   { background: rgba(230,168,23,0.12); color: var(--warn);    border: 1px solid rgba(230,168,23,0.3); }
+
+  /* ── Footer ── */
+  .doc-footer {
+    margin-top: 60px;
+    padding: 20px 56px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── NAV BAR ── -->
+<div class="nav-bar">
+  <a href="../index.html">← Home</a>
+  <span class="nav-sep">/</span>
+  <span class="nav-current">Extension Developer Guide</span>
+</div>
+
+<div class="page">
+
+<!-- ── HEADER ── -->
+<div class="doc-header">
+  <div class="eyebrow">ATC Inventory Application — inventory_extension</div>
+  <h1>Extension Developer Guide</h1>
+  <p class="subtitle">Architecture, message flow, security model, local setup, build process, and vendor onboarding guide for the ATC Inventory vendor cart fill Chrome/Edge extension.</p>
+  <div class="meta-strip">
+    <div class="meta-cell">
+      <span class="lbl">Repo</span>
+      <span class="val accent">inventory_extension</span>
+    </div>
+    <div class="meta-cell">
+      <span class="lbl">Status</span>
+      <span class="val green">Active — v1.0.0</span>
+    </div>
+    <div class="meta-cell">
+      <span class="lbl">Vendor</span>
+      <span class="val">Fox Appliance Parts (Kodaris)</span>
+    </div>
+    <div class="meta-cell">
+      <span class="lbl">Updated</span>
+      <span class="val">June 2026</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOC ── -->
+<div class="toc">
+  <a href="#s1">01 Overview</a>
+  <a href="#s2">02 Repository Structure</a>
+  <a href="#s3">03 Architecture</a>
+  <a href="#s4">04 Message Flow</a>
+  <a href="#s5">05 Security Model</a>
+  <a href="#s6">06 Local Setup</a>
+  <a href="#s7">07 Build Process</a>
+  <a href="#s8">08 Configuration</a>
+  <a href="#s9">09 Fox Parts — Platform Details</a>
+  <a href="#s10">10 Adding a New Vendor</a>
+  <a href="#s11">11 Deployment</a>
+</div>
+
+<div class="content">
+
+<!-- §01 OVERVIEW -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <span class="sn">01</span>
+    <h2>Overview</h2>
+  </div>
+  <p>The <strong style="color:var(--white)">ATC Inventory Extension</strong> is a Manifest V3 Chrome/Edge extension that automates filling vendor web carts on behalf of property managers. It is the fourth component of the ATC Inventory system alongside <code>inventory_api</code>, <code>inventory_pwa</code>, and <code>inventory_functions</code>.</p>
+  <p>The extension bridges the PWA and the vendor's web platform. The PWA orchestrates the session lifecycle — login verification, preflight validation, order confirmation — while the extension handles the actual browser automation: detecting login state, clearing existing cart items, and bulk-posting order line items to the vendor's API.</p>
+
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      <strong>First vendor: Fox Appliance Parts</strong> — foxparts.com, running the Kodaris B2B e-commerce platform. The architecture is intentionally generalized to support additional vendors with separate per-vendor content scripts and configuration.
+    </div>
+  </div>
+
+  <h3>What the extension does not do</h3>
+  <p>The extension does not store credentials, manage sessions beyond the current fill operation, make API calls to the ATC inventory system, or hold any state beyond what is needed for the current active cart fill. All business logic, order status transitions, and audit trails live in <code>inventory_api</code>.</p>
+</div>
+
+<!-- §02 REPOSITORY STRUCTURE -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <span class="sn">02</span>
+    <h2>Repository Structure</h2>
+  </div>
+
+  <div class="file-tree">
+    <span class="ft-dir">inventory_extension/</span><br>
+    &nbsp;&nbsp;<span class="ft-dir">src/</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">background.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Service worker — message router</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">content-bridge.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Injected into PWA — postMessage ↔ runtime bridge</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-dir">vendors/</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-dir">fox/</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">vendor.config.js</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Fox-specific constants (URLs, company ID)</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">content.main.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// MAIN world — reads kd global from page</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">content.isolated.js</span>&nbsp;<span class="ft-note">// ISOLATED world — all fetch calls, cart logic</span><br>
+    &nbsp;&nbsp;<span class="ft-dir">manifests/</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">manifest.json</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// MV3 manifest — permissions, content scripts</span><br>
+    &nbsp;&nbsp;<span class="ft-dir">dist/</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-dir">fox/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Built output — load this in Chrome/Edge</span><br>
+    &nbsp;&nbsp;<span class="ft-file">build.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// esbuild build script</span><br>
+    &nbsp;&nbsp;<span class="ft-file">package.json</span>
+  </div>
+
+  <h3>Key Constraint — Two Content Script Worlds</h3>
+  <p>The Fox vendor integration uses two content scripts running in different browser execution worlds on <code>foxparts.com</code>:</p>
+  <table>
+    <thead><tr><th>File</th><th>World</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="t-accent">content.main.js</td>
+        <td class="t-mono">MAIN</td>
+        <td>Reads <code>kd</code> global (Kodaris state object) which is not accessible from the isolated world. Passes <code>csrfToken</code>, <code>isLoggedIn</code>, <code>selectedCompanyID</code> to the isolated world via <code>window.postMessage</code>. Contains no fetch calls.</td>
+      </tr>
+      <tr>
+        <td class="t-accent">content.isolated.js</td>
+        <td class="t-mono">ISOLATED</td>
+        <td>Executes all fetch calls, cart operations, and overlay rendering. Receives identity values from the MAIN world. All network requests run here — the page's JavaScript cannot intercept them.</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>Never put fetch calls in content.main.js.</strong> The MAIN world is accessible to the page's own JavaScript. All network calls that could expose credentials or CSRF tokens must run in the ISOLATED world only.
+    </div>
+  </div>
+</div>
+
+<!-- §03 ARCHITECTURE -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <span class="sn">03</span>
+    <h2>Architecture</h2>
+  </div>
+
+  <h3>Components</h3>
+  <table>
+    <thead><tr><th>Component</th><th>Location</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="t-accent">background.js</td>
+        <td class="t-mono">Service Worker</td>
+        <td>Message router and session manager. Handles all <code>chrome.runtime.sendMessage</code> calls. Owns one active session at a time (<code>step: 'login' | 'fill'</code>). Pushes async messages to the PWA tab via <code>chrome.tabs.sendMessage</code>.</td>
+      </tr>
+      <tr>
+        <td class="t-accent">content-bridge.js</td>
+        <td class="t-mono">PWA tab (ISOLATED)</td>
+        <td>Injected into the PWA origin. Bridges <code>window.postMessage</code> from the PWA page into <code>chrome.runtime.sendMessage</code> (outbound) and forwards push messages from background back into the PWA page via <code>window.postMessage</code> (inbound).</td>
+      </tr>
+      <tr>
+        <td class="t-accent">content.main.js</td>
+        <td class="t-mono">Vendor tab (MAIN)</td>
+        <td>Reads Kodaris <code>kd</code> global and relays identity values to the isolated world.</td>
+      </tr>
+      <tr>
+        <td class="t-accent">content.isolated.js</td>
+        <td class="t-mono">Vendor tab (ISOLATED)</td>
+        <td>Handles login detection, pending login tracking across page reloads, cart inspection, cart clearing, bulk item POST, post-fill cart verification, and the post-fill overlay.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Active Session Model</h3>
+  <p>The background maintains a single <code>activeSession</code> object — only one cart fill operation can be in progress at a time. The session tracks: <code>step</code> (login or fill), <code>vendorKey</code>, <code>correlationId</code>, <code>tabId</code> (vendor tab), <code>pwaTabId</code> (PWA tab), and a timeout handle.</p>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      <strong>correlationId</strong> is generated by the PWA and passed through every message. The PWA validates it on all async push messages to prevent stale responses from a previous session from being processed.
+    </div>
+  </div>
+</div>
+
+<!-- §04 MESSAGE FLOW -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <span class="sn">04</span>
+    <h2>Message Flow</h2>
+  </div>
+
+  <h3>Step 1 — Login Check</h3>
+  <div class="flow">
+    <div class="flow-step"><span class="flow-arrow">1 →</span><span>PWA sends <code>check_login</code> via <code>window.postMessage</code> (with <code>vendorKey</code>, <code>correlationId</code>)</span></div>
+    <div class="flow-step"><span class="flow-arrow">2 →</span><span>content-bridge forwards to background via <code>chrome.runtime.sendMessage</code></span></div>
+    <div class="flow-step"><span class="flow-arrow">3 →</span><span>background opens/focuses the vendor tab and sends <code>check_login</code> to content.isolated.js</span></div>
+    <div class="flow-step"><span class="flow-arrow">4a →</span><span><strong>Logged in:</strong> isolated script returns <code>login_verified</code> → background sends immediate response to PWA</span></div>
+    <div class="flow-step"><span class="flow-arrow">4b →</span><span><strong>Not logged in:</strong> isolated stores <code>PENDING_LOGIN_KEY</code> in session storage, shows login banner → returns <code>login_required</code> immediately</span></div>
+    <div class="flow-step"><span class="flow-arrow">5 →</span><span>On page reload after login: <code>checkPendingLogin()</code> detects login, clears flag, pushes <code>login_ready</code> to PWA asynchronously</span></div>
+  </div>
+
+  <h3>Step 2 — Cart Fill</h3>
+  <div class="flow">
+    <div class="flow-step"><span class="flow-arrow">1 →</span><span>PWA sends <code>fill_cart</code> with <code>{ vendor_key, items[], warehouse_name, correlationId }</code></span></div>
+    <div class="flow-step"><span class="flow-arrow">2 →</span><span>background opens/focuses vendor tab and sends <code>fill_cart</code> payload to content.isolated.js</span></div>
+    <div class="flow-step"><span class="flow-arrow">3 →</span><span>isolated script checks existing cart — if not empty, shows clear-cart warning overlay</span></div>
+    <div class="flow-step"><span class="flow-arrow">4a →</span><span><strong>User cancels clear:</strong> returns <code>{ success: false, error: 'user_cancelled' }</code></span></div>
+    <div class="flow-step"><span class="flow-arrow">4b →</span><span><strong>User confirms / cart empty:</strong> DELETEs existing items via <code>Promise.all()</code>, then bulk POSTs new items</span></div>
+    <div class="flow-step"><span class="flow-arrow">5 →</span><span>isolated verifies cart via GET, stores overlay state, navigates to cart page</span></div>
+    <div class="flow-step"><span class="flow-arrow">6 →</span><span>background pushes <code>cart_filled</code> (or <code>cart_fill_failed</code>) to PWA tab asynchronously</span></div>
+  </div>
+
+  <h3>Message Types Reference</h3>
+  <table>
+    <thead><tr><th>Direction</th><th>Type</th><th>Transport</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent2">PWA → Extension</td><td class="t-mono">check_login</td><td class="t-muted">postMessage → runtime</td><td>Carries vendorKey, correlationId</td></tr>
+      <tr><td class="t-accent2">PWA → Extension</td><td class="t-mono">fill_cart</td><td class="t-muted">postMessage → runtime</td><td>Carries vendor_key, items[], warehouse_name, correlationId</td></tr>
+      <tr><td class="t-accent2">PWA → Extension</td><td class="t-mono">ping</td><td class="t-muted">postMessage → runtime</td><td>Extension availability check</td></tr>
+      <tr><td class="t-accent">Extension → PWA (sync)</td><td class="t-mono">check_login:response</td><td class="t-muted">runtime → postMessage</td><td>login_verified or login_required</td></tr>
+      <tr><td class="t-accent">Extension → PWA (sync)</td><td class="t-mono">fill_cart:response</td><td class="t-muted">runtime → postMessage</td><td>Acknowledgement only — fill is async</td></tr>
+      <tr><td class="t-accent">Extension → PWA (async push)</td><td class="t-mono">login_ready</td><td class="t-muted">tabs.sendMessage → postMessage</td><td>Pushed after page-reload login detection</td></tr>
+      <tr><td class="t-accent">Extension → PWA (async push)</td><td class="t-mono">cart_filled</td><td class="t-muted">tabs.sendMessage → postMessage</td><td>Carries vendor_order_id, items_added, items_failed</td></tr>
+      <tr><td class="t-accent">Extension → PWA (async push)</td><td class="t-mono">cart_fill_failed</td><td class="t-muted">tabs.sendMessage → postMessage</td><td>Carries error string; user_cancelled for user-initiated cancels</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §05 SECURITY MODEL -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <span class="sn">05</span>
+    <h2>Security Model</h2>
+  </div>
+
+  <h3>PWA Origin Validation</h3>
+  <p>The background service worker maintains an <code>APPROVED_PWA_ORIGINS</code> allowlist. Every message received from a content script is validated against this set before processing. Messages from unapproved origins are rejected with a 403-equivalent error.</p>
+  <pre>const APPROVED_PWA_ORIGINS = new Set([
+  'http://localhost:5173',
+  'https://gray-tree-0fe80630f.4.azurestaticapps.net',
+]);</pre>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>Update this set when the PWA URL changes.</strong> Adding a new Azure Static Web Apps deployment or a custom domain requires adding the new origin here and rebuilding.
+    </div>
+  </div>
+
+  <h3>content-bridge.js Filtering</h3>
+  <p>The content-bridge only forwards messages that pass all of these checks:</p>
+  <ul style="margin: 10px 0 14px 20px; color: var(--text); font-size: 13px; line-height: 2;">
+    <li><code>event.source === window</code> — same window only</li>
+    <li><code>event.origin === PWA_ORIGIN</code> — same origin only</li>
+    <li><code>data.source === 'ATC_PWA'</code> — correct source tag</li>
+    <li><code>ALLOWED_TYPES.has(data.type)</code> — only <code>ping</code>, <code>fill_cart</code>, <code>check_login</code></li>
+  </ul>
+
+  <h3>Sensitive Values</h3>
+  <table>
+    <thead><tr><th>Value</th><th>Handling</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">Fox session cookies</td><td>HttpOnly — never accessible to JavaScript in any world</td></tr>
+      <tr><td class="t-accent">CSRF token (kd.csrfToken)</td><td>Read in MAIN world, passed to ISOLATED via postMessage. Never logged or stored beyond the current fill operation.</td></tr>
+      <tr><td class="t-accent">callback_token</td><td>Carried in PWA session state only. Never passed to the extension — the PWA calls cartConfirm directly using the stored token.</td></tr>
+      <tr><td class="t-accent">session_id</td><td>Same as callback_token — stays in the PWA, never sent to the extension.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>No Stored Credentials</h3>
+  <p>The extension stores no vendor credentials. The manager logs in manually via the browser. The extension only reads identity state that the vendor's own page exposes after login (<code>kd.customer.isLoggedIn</code>, <code>kd.customer.selectedCompanyID</code>).</p>
+</div>
+
+<!-- §06 LOCAL SETUP -->
+<div class="section" id="s6">
+  <div class="section-header">
+    <span class="sn">06</span>
+    <h2>Local Setup</h2>
+  </div>
+
+  <h3>Prerequisites</h3>
+  <table>
+    <thead><tr><th>Requirement</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">Node.js ≥ 18</td><td>Required by esbuild</td></tr>
+      <tr><td class="t-accent">Microsoft Edge or Chrome</td><td>Extension targets Chrome 120+; Edge uses same engine</td></tr>
+      <tr><td class="t-accent">inventory_api running locally</td><td>Port 5077 — required for preflight and confirm calls from the PWA</td></tr>
+      <tr><td class="t-accent">inventory_pwa running locally</td><td>Port 5173 — PWA origin must match APPROVED_PWA_ORIGINS</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Install and Build</h3>
+  <div class="pre-label">bash</div>
+  <pre>cd inventory_extension
+npm install
+npm run build</pre>
+
+  <p>This produces <code>dist/fox/</code> containing the built extension ready to load.</p>
+
+  <h3>Load in Edge (Developer Mode)</h3>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Open Extensions</div>
+        <div class="step-desc">Navigate to <code>edge://extensions</code> (or <code>chrome://extensions</code>)</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Enable Developer Mode</div>
+        <div class="step-desc">Toggle <strong style="color:var(--white)">Developer mode</strong> on (top-right toggle)</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Load Unpacked</div>
+        <div class="step-desc">Click <strong style="color:var(--white)">Load unpacked</strong> → select <code>dist/fox/</code></div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Note the Extension ID</div>
+        <div class="step-desc">Copy the extension ID shown on the card. This is needed for <code>VITE_CART_EXTENSION_ID</code> in the PWA's <code>.env.local</code> if direct messaging is required.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-title">Verify ping</div>
+        <div class="step-desc">Open the PWA at <code>http://localhost:5173</code>, navigate to On Order, select an order with Fox as vendor, and click Fill Web Cart. The Fill Cart button should appear if the extension is detected.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      After any source change, run <code>npm run build</code> then click the reload icon on the extension card in <code>edge://extensions</code>. The vendor tab (foxparts.com) must also be refreshed to pick up updated content scripts.
+    </div>
+  </div>
+</div>
+
+<!-- §07 BUILD PROCESS -->
+<div class="section" id="s7">
+  <div class="section-header">
+    <span class="sn">07</span>
+    <h2>Build Process</h2>
+  </div>
+
+  <p>The build uses <strong style="color:var(--white)">esbuild</strong> to bundle each source file into a self-contained output. No TypeScript — all source is plain JavaScript with ES modules.</p>
+
+  <h3>Build Commands</h3>
+  <div class="pre-label">bash — build all vendors</div>
+  <pre>npm run build</pre>
+  <div class="pre-label">bash — build specific vendor</div>
+  <pre>npm run build:fox
+# or: node build.js --vendor=fox</pre>
+
+  <h3>Build Outputs</h3>
+  <table>
+    <thead><tr><th>Output File</th><th>Format</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">dist/fox/background.js</td><td class="t-mono">ESM</td><td>Service worker — must be ESM for MV3</td></tr>
+      <tr><td class="t-accent">dist/fox/content-bridge.js</td><td class="t-mono">IIFE</td><td>Injected into PWA page — IIFE required for content scripts</td></tr>
+      <tr><td class="t-accent">dist/fox/vendors/fox/content.main.js</td><td class="t-mono">IIFE</td><td>MAIN world content script</td></tr>
+      <tr><td class="t-accent">dist/fox/vendors/fox/content.isolated.js</td><td class="t-mono">IIFE</td><td>ISOLATED world content script</td></tr>
+      <tr><td class="t-accent">dist/fox/manifest.json</td><td class="t-muted">—</td><td>Copied from manifests/manifest.json</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>dist/ is gitignored.</strong> Never commit built output. The extension is deployed via Intune policy referencing a packaged CRX — not by committing dist files.
+    </div>
+  </div>
+</div>
+
+<!-- §08 CONFIGURATION -->
+<div class="section" id="s8">
+  <div class="section-header">
+    <span class="sn">08</span>
+    <h2>Configuration</h2>
+  </div>
+
+  <h3>manifest.json — Key Settings</h3>
+  <table>
+    <thead><tr><th>Setting</th><th>Value</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">permissions</td><td class="t-mono">tabs, scripting, storage</td><td>Minimum required set</td></tr>
+      <tr><td class="t-accent">host_permissions</td><td class="t-mono">https://www.foxparts.com/*</td><td>Add new vendor domains here when onboarding</td></tr>
+      <tr><td class="t-accent">content_scripts[0].matches</td><td class="t-mono">localhost:5173, gray-tree-*.azurestaticapps.net/*</td><td>PWA origins — must stay in sync with APPROVED_PWA_ORIGINS in background.js</td></tr>
+      <tr><td class="t-accent">background.type</td><td class="t-mono">module</td><td>Required for ESM service worker</td></tr>
+    </tbody>
+  </table>
+
+  <h3>vendor.config.js — Fox</h3>
+  <pre>export const FOX_CONFIG = {
+  vendor_key: 'fox',           // Must match Vendors.Vendor_key in the database
+  base_url: 'https://www.foxparts.com',
+  cart_endpoint: '/api/user/cart/item/bulk',
+  cart_page: '/spcu/cart',
+  company_id: 2771,            // ATC's Kodaris company ID — identity verification
+};</pre>
+
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>vendor_key must match Vendors.Vendor_key in the database.</strong> The preflight API response returns this key and the PWA passes it to the extension for routing. If it doesn't match <code>VENDOR_CONFIG</code> in background.js, the fill_cart message will be rejected.
+    </div>
+  </div>
+
+  <h3>background.js — APPROVED_PWA_ORIGINS</h3>
+  <p>When the PWA URL changes (new deployment, custom domain), add the new origin to the set in <code>src/background.js</code> and rebuild:</p>
+  <pre>const APPROVED_PWA_ORIGINS = new Set([
+  'http://localhost:5173',
+  'https://gray-tree-0fe80630f.4.azurestaticapps.net',
+  // Add new origins here
+]);</pre>
+
+  <h3>PWA Environment Variable</h3>
+  <table>
+    <thead><tr><th>Variable</th><th>Purpose</th><th>Where to Set</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="t-accent">VITE_CART_EXTENSION_ID</td>
+        <td>Extension ID used for the availability ping. If empty, Fill Web Cart is hidden in the method selection UI.</td>
+        <td><code>.env.local</code> for dev; Azure Static Web Apps environment variable for production</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §09 FOX PARTS — PLATFORM DETAILS -->
+<div class="section" id="s9">
+  <div class="section-header">
+    <span class="sn">09</span>
+    <h2>Fox Parts — Platform Details</h2>
+  </div>
+  <p>Fox Appliance Parts runs on the <strong style="color:var(--white)">Kodaris B2B e-commerce platform</strong>. All discoveries below were confirmed by live testing against an authenticated ATC session.</p>
+
+  <h3>Identity Detection</h3>
+  <p>Kodaris exposes a <code>kd</code> global object on every page via an inline script block. It is not attached to <code>window</code> and must be accessed directly. Two fields are used for identity verification:</p>
+  <pre>kd.customer.isLoggedIn        // boolean
+kd.customer.selectedCompanyID  // ATC's company ID: 2771
+kd.csrfToken                   // Required as X-CSRF-TOKEN header on mutating requests</pre>
+
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      <code>kd</code> is only accessible from the MAIN world. The isolated world cannot read it directly. <code>content.main.js</code> reads it and passes the values to <code>content.isolated.js</code> via <code>window.postMessage</code>.
+    </div>
+  </div>
+
+  <h3>Confirmed API Endpoints</h3>
+  <table>
+    <thead><tr><th>Method</th><th>Endpoint</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="t-mono">GET</td><td class="t-accent">/api/user/cart</td><td>Retrieve current cart state — orderID and line items</td></tr>
+      <tr><td class="t-mono">POST</td><td class="t-accent">/api/user/cart/item/bulk</td><td>Add multiple items by part code and quantity</td></tr>
+      <tr><td class="t-mono">DELETE</td><td class="t-accent">/api/user/cart/item/{orderItemID}</td><td>Remove single item — no bulk delete endpoint exists</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Cart Clearing</h3>
+  <p>No clear-all cart endpoint exists. Per-item DELETE is required. All DELETEs are issued in parallel via <code>Promise.all()</code> before the bulk POST. Never chain them sequentially — the Fox API does not require ordering and parallel execution is significantly faster.</p>
+  <pre>const deleteResponses = await Promise.all(
+  existingItems.map((item) =>
+    fetch(`/api/user/cart/item/${item.orderItemID}`, {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: { 'X-CSRF-TOKEN': csrfToken },
+    })
+  )
+);</pre>
+
+  <h3>Authentication</h3>
+  <p>All Fox API calls require two things: session cookies (<code>sscaltoken</code> and <code>JSESSIONID</code> — HttpOnly, set by Fox on login, not accessible to JavaScript) and the CSRF token set as <code>X-CSRF-TOKEN</code> on all mutating requests. The <code>credentials: 'include'</code> fetch option handles cookie forwarding automatically.</p>
+</div>
+
+<!-- §10 ADDING A NEW VENDOR -->
+<div class="section" id="s10">
+  <div class="section-header">
+    <span class="sn">10</span>
+    <h2>Adding a New Vendor</h2>
+  </div>
+  <p>The extension is designed to support multiple vendors. Each vendor gets its own content scripts and configuration. The shared infrastructure (background.js, content-bridge.js, manifest) does not need to change for most additions.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Create vendor directory and config</div>
+        <div class="step-desc">
+          Create <code>src/vendors/{vendorkey}/</code> with a <code>vendor.config.js</code> file matching the Fox pattern. Set <code>vendor_key</code> to match the value that will be stored in <code>Vendors.Vendor_key</code> in the database.
+        </div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Create content.main.js</div>
+        <div class="step-desc">
+          Handles reading any page-level globals that are not accessible from the isolated world. If the vendor's platform does not use MAIN world globals, this file can be minimal — just respond to the request message and return empty values.
+        </div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Create content.isolated.js</div>
+        <div class="step-desc">
+          Implement <code>handleCheckLogin()</code> and <code>handleFillCart(payload)</code> following the Fox pattern. Every <code>handleFillCart</code> path must return either <code>{ success: true, ... }</code> or <code>{ success: false, error: '...' }</code> — no silent failures or unresolved promises. Use <code>'user_cancelled'</code> specifically when the user cancels a warning dialog.
+        </div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Register in background.js</div>
+        <div class="step-desc">
+          Add the new vendor config to <code>VENDOR_CONFIG</code>:
+          <pre style="margin-top:10px">import { NEW_VENDOR_CONFIG } from './vendors/newvendor/vendor.config.js';
+
+const VENDOR_CONFIG = {
+  fox: FOX_CONFIG,
+  newvendor: NEW_VENDOR_CONFIG,  // add here
+};</pre>
+        </div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-title">Update manifest.json</div>
+        <div class="step-desc">
+          Add the new vendor's domain to <code>host_permissions</code> and add two new <code>content_scripts</code> entries (MAIN and ISOLATED worlds) targeting the new domain.
+        </div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <div class="step-title">Register vendor in build.js</div>
+        <div class="step-desc">
+          Add the new vendor key to <code>ALL_VENDORS</code> in <code>build.js</code>:
+          <pre style="margin-top:10px">const ALL_VENDORS = ['fox', 'newvendor'];</pre>
+        </div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">7</div>
+      <div class="step-body">
+        <div class="step-title">Database — add vendor records</div>
+        <div class="step-desc">
+          In the inventory database: add a <code>Vendors</code> row with <code>Vendor_key</code> matching your config, add a <code>VendorOrderMethods</code> row with <code>method = 'web_cart'</code> and a valid <code>Config_json</code>, and populate <code>VendorParts</code> cross-reference rows with the vendor's part codes.
+        </div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">8</div>
+      <div class="step-body">
+        <div class="step-title">Build and test</div>
+        <div class="step-desc">
+          Run <code>npm run build</code>, reload the extension, and test the full flow from the PWA On Order page. Verify login detection, cart clear warning, fill, confirmation, and the post-fill overlay.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout c-ok">
+    <span class="icon">✅</span>
+    <div class="body">
+      <strong>No API changes required for new vendors</strong> — the session management, collision detection, confirm/mark-ordered flow, and all status transitions reuse existing endpoints. The only API change needed is the database records and potentially a <code>web_cart</code> Config_json validation rule for the new vendor's required fields.
+    </div>
+  </div>
+</div>
+
+<!-- §11 DEPLOYMENT -->
+<div class="section" id="s11">
+  <div class="section-header">
+    <span class="sn">11</span>
+    <h2>Deployment</h2>
+  </div>
+  <p>The extension is deployed to all managed Edge browsers via Microsoft Intune using Edge ADMX policy. Users do not install it manually.</p>
+
+  <h3>Build for Deployment</h3>
+  <div class="pre-label">bash — build and package</div>
+  <pre>npm run build
+# Zip the dist/fox/ directory contents (not the folder itself)
+# The zip must contain manifest.json at the root level</pre>
+
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>Update the version in manifest.json</strong> before each deployment. Intune and Edge use the version number to detect updates. Increment following semver: patch for bug fixes, minor for new vendor support, major for breaking changes to the message protocol.
+    </div>
+  </div>
+
+  <h3>Hosting the Extension Package</h3>
+  <p>The packaged extension (<code>.crx</code> or <code>.zip</code>) must be hosted at a stable URL accessible to managed devices. GitHub Releases on the <code>inventory_extension</code> repo is the recommended approach — tag each release and use the release asset URL in the Intune policy.</p>
+
+  <h3>Intune Deployment via Edge Policy</h3>
+  <p>See the companion document <strong style="color:var(--white)">Extension Intune Deployment</strong> for the step-by-step ADMX policy configuration. The key policy setting is <code>ExtensionInstallForcelist</code> which takes a value in the format:</p>
+  <pre>extensionid;https://path/to/update_manifest.xml</pre>
+  <p>An update manifest XML file must be hosted alongside the extension package to support automatic updates.</p>
+
+  <h3>Update Manifest Format</h3>
+  <pre>&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+&lt;gupdate xmlns='http://www.google.com/update2/response' protocol='2.0'&gt;
+  &lt;app appid='YOUR_EXTENSION_ID'&gt;
+    &lt;updatecheck
+      codebase='https://your-host/atc-inventory-extension-1.0.0.crx'
+      version='1.0.0' /&gt;
+  &lt;/app&gt;
+&lt;/gupdate&gt;</pre>
+
+  <h3>After Deployment — Verify</h3>
+  <table>
+    <thead><tr><th>Check</th><th>How</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent2">Extension installed</td><td>Navigate to <code>edge://extensions</code> on a managed device — extension should appear without developer mode</td></tr>
+      <tr><td class="t-accent2">PWA detects extension</td><td>On Order page → select orders → Fill Web Cart button should be enabled when extension is active</td></tr>
+      <tr><td class="t-accent2">APPROVED_PWA_ORIGINS</td><td>Confirm the production PWA URL is in the allowlist before deploying a production build</td></tr>
+      <tr><td class="t-accent2">vendor_key matches DB</td><td>Confirm <code>Vendors.Vendor_key = 'fox'</code> for the Fox vendor record in production</td></tr>
+    </tbody>
+  </table>
+</div>
+
+</div><!-- /content -->
+
+<!-- ── FOOTER ── -->
+<div class="doc-footer">
+  <span>ATC Inventory Application</span>
+  <span>Extension Developer Guide · June 2026</span>
+  <span>inventory_extension · Internal Use Only</span>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>
