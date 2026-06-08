@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fox Cart — Annotated Extension Workflow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2330;
+    --border: #30363d;
+    --border-subtle: #21262d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --text-subtle: #6e7681;
+    --accent-blue: #58a6ff;
+    --accent-blue-dim: #1f3a5f;
+    --accent-green: #3fb950;
+    --accent-green-dim: #1a3a24;
+    --accent-amber: #d29922;
+    --accent-amber-dim: #3d2e00;
+    --accent-purple: #bc8cff;
+    --accent-purple-dim: #2a1f4a;
+    --accent-teal: #39d0d0;
+    --accent-teal-dim: #0d2e30;
+    --accent-coral: #f85149;
+    --accent-coral-dim: #3a1d1b;
+    --code-bg: #161b22;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Syne', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.7;
+    padding: 48px 24px 80px;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  /* ── Header ── */
+  .doc-header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 32px;
+    margin-bottom: 48px;
+  }
+  .doc-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+  }
+  .doc-subtitle {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-top: 6px;
+    font-family: var(--mono);
+  }
+  .doc-meta {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+  .badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid;
+  }
+  .badge-blue  { color: var(--accent-blue);   background: var(--accent-blue-dim);   border-color: #1f4a8a; }
+  .badge-green { color: var(--accent-green);  background: var(--accent-green-dim);  border-color: #1f5a30; }
+  .badge-amber { color: var(--accent-amber);  background: var(--accent-amber-dim);  border-color: #5a4000; }
+  .badge-purple{ color: var(--accent-purple); background: var(--accent-purple-dim); border-color: #4a2a8a; }
+  .badge-teal  { color: var(--accent-teal);   background: var(--accent-teal-dim);   border-color: #1a4a4a; }
+  .badge-coral { color: var(--accent-coral);  background: var(--accent-coral-dim);  border-color: #6a1f1c; }
+
+  /* ── TOC ── */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 48px;
+  }
+  .toc-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-subtle);
+    margin-bottom: 12px;
+    font-family: var(--mono);
+  }
+  .toc ol {
+    list-style: none;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 24px;
+  }
+  .toc a {
+    font-size: 13px;
+    color: var(--accent-blue);
+    text-decoration: none;
+    font-family: var(--mono);
+  }
+  .toc a:hover { text-decoration: underline; }
+
+  /* ── Phase sections ── */
+  .phase {
+    margin-bottom: 56px;
+    scroll-margin-top: 24px;
+  }
+  .phase-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .phase-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-subtle);
+    width: 28px;
+    flex-shrink: 0;
+  }
+  .phase-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.3px;
+  }
+  .phase-where {
+    margin-left: auto;
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  /* ── Step cards ── */
+  .step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .step-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .step-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--mono);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .icon-pwa    { background: var(--accent-blue-dim);   color: var(--accent-blue);   border: 1px solid #1f4a8a; }
+  .icon-ext    { background: var(--accent-purple-dim); color: var(--accent-purple); border: 1px solid #4a2a8a; }
+  .icon-fox    { background: var(--accent-teal-dim);   color: var(--accent-teal);   border: 1px solid #1a4a4a; }
+  .icon-api    { background: var(--accent-green-dim);  color: var(--accent-green);  border: 1px solid #1f5a30; }
+  .icon-user   { background: var(--accent-amber-dim);  color: var(--accent-amber);  border: 1px solid #5a4000; }
+  .icon-err    { background: var(--accent-coral-dim);  color: var(--accent-coral);  border: 1px solid #6a1f1c; }
+
+  .step-meta { flex: 1 1 auto; }
+  .step-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.3;
+  }
+  .step-location {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-subtle);
+    margin-top: 3px;
+  }
+  .step-body {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .step-desc {
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.65;
+  }
+  .step-desc strong { color: var(--text); font-weight: 600; }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .code-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-subtle);
+    padding: 6px 14px 5px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border-subtle);
+    letter-spacing: 0.3px;
+  }
+  pre {
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--text-muted);
+    padding: 14px 16px;
+    overflow-x: auto;
+    margin: 0;
+  }
+  .kw   { color: #ff7b72; }   /* keyword */
+  .fn   { color: #d2a8ff; }   /* function/method */
+  .str  { color: #a5d6ff; }   /* string */
+  .cmt  { color: #8b949e; font-style: italic; }   /* comment */
+  .num  { color: #79c0ff; }   /* number/const */
+  .typ  { color: #ffa657; }   /* type */
+  .hl   { color: #e6edf3; }   /* highlighted */
+  .ann  { color: #3fb950; }   /* annotation / note inline */
+
+  /* ── Flow connectors between phases ── */
+  .flow-arrow {
+    text-align: center;
+    padding: 8px 0;
+    color: var(--text-subtle);
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  /* ── Info callouts ── */
+  .callout {
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.6;
+    border: 1px solid;
+  }
+  .callout strong { font-weight: 600; }
+  .callout-blue   { background: var(--accent-blue-dim);   border-color: #1f4a8a;   color: #90c4ff; }
+  .callout-green  { background: var(--accent-green-dim);  border-color: #1f5a30;   color: #7ee0a0; }
+  .callout-amber  { background: var(--accent-amber-dim);  border-color: #5a4000;   color: #f0c060; }
+  .callout-purple { background: var(--accent-purple-dim); border-color: #4a2a8a;   color: #d0a8ff; }
+  .callout-coral  { background: var(--accent-coral-dim);  border-color: #6a1f1c;   color: #ff9088; }
+  .callout-teal   { background: var(--accent-teal-dim);   border-color: #1a4a4a;   color: #70e0e0; }
+
+  /* ── Status table ── */
+  .status-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 12px;
+    margin-top: 4px;
+  }
+  .status-table th {
+    text-align: left;
+    padding: 6px 12px;
+    background: var(--surface2);
+    color: var(--text-subtle);
+    font-size: 11px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+  }
+  .status-table td {
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-muted);
+    vertical-align: top;
+  }
+  .status-table tr:last-child td { border-bottom: none; }
+
+  .mono { font-family: var(--mono); font-size: 12px; color: var(--accent-blue); }
+
+  /* ── Section header ── */
+  h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-subtle);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 12px;
+    font-family: var(--mono);
+  }
+
+  /* ── Legend ── */
+  .legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 14px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 40px;
+    align-items: center;
+  }
+  .legend-title {
+    font-size: 11px;
+    color: var(--text-subtle);
+    font-family: var(--mono);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    width: 100%;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+  }
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  /* ── Divider ── */
+  hr { border: none; border-top: 1px solid var(--border-subtle); margin: 32px 0; }
+</style>
+</head>
+<body>
+
+<!-- ── Header ───────────────────────────────────────────────────────────── -->
+<div class="doc-header">
+  <div class="doc-title">Fox Cart — Annotated Extension Workflow</div>
+  <div class="doc-subtitle">inventory_pwa / inventory_api / inventory_extension · feature/implement-fox-cart</div>
+  <div class="doc-meta">
+    <span class="badge badge-blue">PWA: ExtensionCartProvider</span>
+    <span class="badge badge-purple">Extension: background.js · content-bridge.js</span>
+    <span class="badge badge-teal">Fox: content.isolated.js · content.main.js</span>
+    <span class="badge badge-green">API: cartPreflight · cartConfirm · cartMarkOrdered</span>
+  </div>
+</div>
+
+<!-- ── Legend ───────────────────────────────────────────────────────────── -->
+<div class="legend">
+  <div class="legend-title">Layer key</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#58a6ff"></div>PWA (React)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#bc8cff"></div>Extension background service worker</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#39d0d0"></div>foxparts.com content scripts</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#3fb950"></div>ATC Inventory API</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#d29922"></div>User / manual action</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f85149"></div>Error / abandon path</div>
+</div>
+
+<!-- ── TOC ──────────────────────────────────────────────────────────────── -->
+<div class="toc">
+  <div class="toc-title">Phases</div>
+  <ol>
+    <li><a href="#p0">0 · Extension availability ping</a></li>
+    <li><a href="#p1">1 · Fill Cart button pressed</a></li>
+    <li><a href="#p2">2 · Login check (Step 1)</a></li>
+    <li><a href="#p3">3 · Login required path</a></li>
+    <li><a href="#p4">4 · Preflight API call</a></li>
+    <li><a href="#p5">5 · fill_cart sent to extension</a></li>
+    <li><a href="#p6">6 · Fox cart operations</a></li>
+    <li><a href="#p7">7 · cart_filled / confirm</a></li>
+    <li><a href="#p8">8 · Mark as ordered</a></li>
+    <li><a href="#p9">9 · Error &amp; abandon paths</a></li>
+  </ol>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     PHASE 0 — Extension availability ping
+════════════════════════════════════════════════════════════════════════ -->
+<div class="phase" id="p0">
+  <div class="phase-header">
+    <div class="phase-num">00</div>
+    <div class="phase-title">Extension availability ping</div>
+    <div class="phase-where">
+      <span class="badge badge-blue">VendorOrderActionsModal.tsx</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-pwa">PWA</div>
+      <div class="step-meta">
+        <div class="step-title">pingExtension() fires when the method selection step loads</div>
+        <div class="step-location">src/components/QuoteRequest/VendorOrderActionsModal.tsx · pingExtension()</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        When the modal reaches the "method" step and <strong>web_cart</strong> is one of the available order methods, the component runs <span class="mono">pingExtension()</span>. It posts a <span class="mono">ping</span> message to the extension via <span class="mono">window.postMessage</span> with a 2-second timeout. The result sets the <span class="mono">extensionAvailable</span> state flag, which controls whether the "Fill Vendor Cart" button is rendered at all.
+      </div>
+      <div class="code-block">
+        <div class="code-label">VendorOrderActionsModal.tsx · pingExtension()</div>
+        <pre><span class="kw">function</span> <span class="fn">pingExtension</span>(timeoutMs = <span class="num">2000</span>): Promise&lt;<span class="typ">boolean</span>&gt; {
+  <span class="kw">return new</span> <span class="fn">Promise</span>((resolve) => {
+    <span class="kw">const</span> requestId = <span class="str">`ping-${Date.now()}`</span>;
+    <span class="kw">const</span> timer = <span class="fn">setTimeout</span>(() => {
+      window.<span class="fn">removeEventListener</span>(<span class="str">"message"</span>, handler);
+      <span class="fn">resolve</span>(<span class="kw">false</span>);  <span class="cmt">// timeout → Fill Web Cart hidden</span>
+    }, timeoutMs);
+
+    <span class="kw">function</span> <span class="fn">handler</span>(event: MessageEvent) {
+      <span class="kw">if</span> (event.data?.source !== <span class="str">"ATC_EXTENSION"</span>) <span class="kw">return</span>;
+      <span class="kw">if</span> (event.data?.type !== <span class="str">"ping:response"</span>) <span class="kw">return</span>;
+      <span class="kw">if</span> (event.data?.requestId !== requestId) <span class="kw">return</span>;
+      <span class="fn">resolve</span>(event.data?.data?.type === <span class="str">"pong"</span>);
+    }
+
+    window.<span class="fn">addEventListener</span>(<span class="str">"message"</span>, handler);
+    window.<span class="fn">postMessage</span>({ source: <span class="str">"ATC_PWA"</span>, type: <span class="str">"ping"</span>, requestId }, window.location.origin);
+  });
+}</pre>
+      </div>
+      <div class="callout callout-blue">
+        <strong>Why postMessage instead of chrome.runtime.sendMessage?</strong> The PWA page cannot call extension APIs directly. <code>content-bridge.js</code> (ISOLATED world, injected into the PWA origin) intercepts <code>window.postMessage</code> with <code>source: "ATC_PWA"</code> and relays it to the extension background via <code>chrome.runtime.sendMessage</code>.
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-ext">EXT</div>
+      <div class="step-meta">
+        <div class="step-title">Background service worker receives ping, validates sender, returns pong</div>
+        <div class="step-location">src/background.js · handlePing()</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        The message arrives at the background service worker via <span class="mono">chrome.runtime.onMessage</span>. The router checks the message type and dispatches to <span class="mono">handlePing()</span>, which validates the sender origin against <span class="mono">APPROVED_PWA_ORIGINS</span> before responding. The response travels back through <span class="mono">content-bridge.js</span> which posts it back to the PWA page.
+      </div>
+      <div class="code-block">
+        <div class="code-label">src/background.js · APPROVED_PWA_ORIGINS + handlePing()</div>
+        <pre><span class="kw">const</span> <span class="num">APPROVED_PWA_ORIGINS</span> = <span class="kw">new</span> <span class="fn">Set</span>([
+  <span class="str">'http://localhost:5173'</span>,
+  <span class="str">'https://gray-tree-0fe80630f.4.azurestaticapps.net'</span>,
+]);
+
+<span class="kw">function</span> <span class="fn">handlePing</span>(message, sender, sendResponse) {
+  <span class="kw">if</span> (!<span class="fn">isApprovedPwaSender</span>(sender)) {
+    <span class="fn">sendResponse</span>({ success: <span class="kw">false</span>, error: <span class="str">'Unauthorized sender.'</span> });
+    <span class="kw">return true</span>;
+  }
+  <span class="fn">sendResponse</span>({ success: <span class="kw">true</span>, type: <span class="str">'pong'</span> });
+  <span class="kw">return true</span>;
+}</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-arrow">↓</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     PHASE 1 — Fill Cart button pressed
+════════════════════════════════════════════════════════════════════════ -->
+<div class="phase" id="p1">
+  <div class="phase-header">
+    <div class="phase-num">01</div>
+    <div class="phase-title">Fill Cart button pressed</div>
+    <div class="phase-where">
+      <span class="badge badge-blue">CartFillPanel.tsx</span>
+      <span class="badge badge-blue">ExtensionCartProvider.tsx</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-user">USR</div>
+      <div class="step-meta">
+        <div class="step-title">User selects "web_cart" method → CartFillPanel renders</div>
+        <div class="step-location">src/components/QuoteRequest/VendorOrderActionsModal.tsx</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        When the user selects the web_cart method, <span class="mono">VendorOrderActionsModal</span> unmounts itself and renders <span class="mono">CartFillPanel</span> in its place, passing <span class="mono">vendorId</span>, <span class="mono">vendorName</span>, <span class="mono">warehouseId</span>, <span class="mono">warehouseName</span>, and <span class="mono">orderIds</span> as props.
+      </div>
+      <div class="code-block">
+        <div class="code-label">VendorOrderActionsModal.tsx — routing to CartFillPanel</div>
+        <pre><span class="kw">if</span> (selectedVendor && selectedMethod === <span class="str">"web_cart"</span>) {
+  <span class="kw">return</span> (
+    &lt;<span class="fn">CartFillPanel</span>
+      vendorId={selectedVendor.vendor_id}
+      vendorName={selectedVendor.vendor_name}
+      warehouseId={warehouseId}
+      warehouseName={warehouseName}
+      orderIds={selectedVendor.order_ids}
+      onClose={onClose}
+      onComplete={() => { onClose(); }}
+    /&gt;
+  );
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-pwa">PWA</div>
+      <div class="step-meta">
+        <div class="step-title">User clicks "Fill Cart" → handleFillCart() → startCartFill()</div>
+        <div class="step-location">src/components/QuoteRequest/CartFillPanel.tsx → useExtensionCart() → ExtensionCartProvider.tsx</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        <span class="mono">CartFillPanel</span> is <strong>display/control only</strong> — it holds no state itself. It consumes the <span class="mono">ExtensionCartContext</span> via the <span class="mono">useExtensionCart()</span> hook. When the button is clicked, it calls <span class="mono">startCartFill()</span> provided by the context provider.
+      </div>
+      <div class="code-block">
+        <div class="code-label">CartFillPanel.tsx · handleFillCart()</div>
+        <pre><span class="kw">const</span> { activeSession, startCartFill, markOrdered, clearSession } =
+  <span class="fn">useExtensionCart</span>();
+
+<span class="kw">function</span> <span class="fn">handleFillCart</span>() {
+  <span class="fn">startCartFill</span>({
+    vendorId,
+    vendorName,
+    warehouseId,
+    warehouseName,
+    orderIds,
+  });
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-pwa">PWA</div>
+      <div class="step-meta">
+        <div class="step-title">startCartFill() creates session, sets status → checking_login, sends check_login</div>
+        <div class="step-location">src/context/ExtensionCartProvider.tsx · startCartFill()</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        <span class="mono">startCartFill()</span> first guards: if <span class="mono">VITE_CART_EXTENSION_ID</span> is not set, it bails immediately. Otherwise it generates a <span class="mono">correlationId</span> (a UUID), constructs an <span class="mono">ActiveCartSession</span> object with <span class="mono">status: "checking_login"</span>, stores it in state, and immediately posts a <span class="mono">check_login</span> message to the extension.
+        <br><br>The <strong>correlationId</strong> threads through every subsequent message in this workflow — PWA → extension → API — so that async push responses arriving later can be matched to the correct session.
+      </div>
+      <div class="code-block">
+        <div class="code-label">ExtensionCartProvider.tsx · startCartFill()</div>
+        <pre><span class="kw">const</span> correlationId = crypto.<span class="fn">randomUUID</span>();
+
+<span class="kw">const</span> session: <span class="typ">ActiveCartSession</span> = {
+  correlationId,
+  vendorKey: <span class="str">""</span>,           <span class="cmt">// populated from preflight response later</span>
+  vendorId: params.vendorId,
+  vendorName: params.vendorName,
+  warehouseId: params.warehouseId,
+  warehouseName: params.warehouseName,
+  orderIds: params.orderIds,
+  preflight: <span class="kw">null</span>,
+  status: <span class="str">"checking_login"</span>,
+  itemsFilled: <span class="num">0</span>,
+  itemsFailed: [],
+  error: <span class="kw">null</span>,
+  abandonAttempted: <span class="kw">false</span>,
+};
+
+<span class="fn">setActiveSession</span>(session);
+
+<span class="fn">postToExtension</span>({
+  type: <span class="str">"check_login"</span>,
+  requestId: <span class="str">`login-${Date.now()}`</span>,
+  correlationId,
+  vendorKey: <span class="str">"fox"</span>,          <span class="cmt">// hardcoded v1 — only fox supported</span>
+});</pre>
+      </div>
+      <div class="code-block">
+        <div class="code-label">ExtensionCartProvider.tsx · postToExtension()</div>
+        <pre><span class="kw">function</span> <span class="fn">postToExtension</span>(message: Record&lt;<span class="typ">string</span>, <span class="typ">unknown</span>&gt;): <span class="typ">void</span> {
+  window.<span class="fn">postMessage</span>(
+    { source: <span class="str">"ATC_PWA"</span>, ...message },
+    window.location.origin  <span class="cmt">// targetOrigin — same origin only</span>
+  );
+}</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-arrow">↓</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     PHASE 2 — Login check (Step 1)
+════════════════════════════════════════════════════════════════════════ -->
+<div class="phase" id="p2">
+  <div class="phase-header">
+    <div class="phase-num">02</div>
+    <div class="phase-title">Login check — Step 1</div>
+    <div class="phase-where">
+      <span class="badge badge-purple">background.js</span>
+      <span class="badge badge-teal">content.isolated.js (fox)</span>
+      <span class="badge badge-teal">content.main.js (fox)</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-ext">EXT</div>
+      <div class="step-meta">
+        <div class="step-title">content-bridge.js forwards check_login to background via chrome.runtime.sendMessage</div>
+        <div class="step-location">src/content-bridge.js</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        <span class="mono">content-bridge.js</span> runs in the ISOLATED world on the PWA origin. It listens to <span class="mono">window.postMessage</span> events from the same window, validates <span class="mono">source === "ATC_PWA"</span>, checks the type against an allowlist (<span class="mono">ping</span>, <span class="mono">fill_cart</span>, <span class="mono">check_login</span>), and relays the message to the background service worker.
+      </div>
+      <div class="code-block">
+        <div class="code-label">src/content-bridge.js — outbound relay</div>
+        <pre><span class="kw">const</span> <span class="num">ALLOWED_TYPES</span> = <span class="kw">new</span> <span class="fn">Set</span>([<span class="str">'ping'</span>, <span class="str">'fill_cart'</span>, <span class="str">'check_login'</span>]);
+
+window.<span class="fn">addEventListener</span>(<span class="str">'message'</span>, <span class="kw">async</span> (event) => {
+  <span class="kw">if</span> (event.source !== window) <span class="kw">return</span>;
+  <span class="kw">if</span> (event.origin !== PWA_ORIGIN) <span class="kw">return</span>;
+  <span class="kw">if</span> (data.source !== <span class="str">'ATC_PWA'</span>) <span class="kw">return</span>;
+  <span class="kw">if</span> (!<span class="num">ALLOWED_TYPES</span>.<span class="fn">has</span>(data.type)) <span class="kw">return</span>;
+
+  <span class="kw">const</span> response = <span class="kw">await</span> chrome.runtime.<span class="fn">sendMessage</span>({
+    type: data.type,
+    requestId,
+    correlationId,
+    vendorKey,
+    payload: data.payload ?? <span class="kw">null</span>,
+  });
+
+  <span class="cmt">// Echo the response back to the PWA page</span>
+  window.<span class="fn">postMessage</span>({
+    source: <span class="str">'ATC_EXTENSION'</span>,
+    requestId,
+    type: <span class="str">`${data.type}:response`</span>,  <span class="cmt">// e.g. "check_login:response"</span>
+    ok: <span class="kw">true</span>,
+    data: response,
+  }, PWA_ORIGIN);
+});</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-ext">EXT</div>
+      <div class="step-meta">
+        <div class="step-title">background.js: handleCheckLogin() creates session, opens foxparts.com tab</div>
+        <div class="step-location">src/background.js · handleCheckLogin()</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        The background worker creates an <span class="mono">activeSession</span> object (step = <span class="mono">'login'</span>), starts a 60-second timeout, then calls <span class="mono">openOrFocusTab(config.base_url, 'check_login', {})</span>. The tab open is async — if foxparts.com is already open it focuses it; if not it creates a new tab. The <span class="mono">sendResponse</span> callback is stored on <span class="mono">activeSession</span> and will be called later by <span class="mono">handleLoginCheckResult()</span>.
+      </div>
+      <div class="code-block">
+        <div class="code-label">src/background.js · handleCheckLogin()</div>
+        <pre>activeSession = {
+  step: <span class="str">'login'</span>,
+  vendorKey,
+  correlationId: message.correlationId ?? <span class="kw">null</span>,
+  tabId: <span class="kw">null</span>,
+  pwaTabId: sender.tab?.id ?? <span class="kw">null</span>,
+  sendResponse,         <span class="cmt">// stored — called when login result arrives</span>
+  timeoutId: <span class="kw">null</span>,
+};
+
+activeSession.timeoutId = <span class="fn">setTimeout</span>(() => {
+  <span class="fn">finishActiveSession</span>({ success: <span class="kw">false</span>, error: <span class="str">'Login check timed out.'</span> });
+}, CART_FILL_TIMEOUT_MS);  <span class="cmt">// 60_000 ms</span>
+
+<span class="fn">openOrFocusTab</span>(config.base_url, <span class="str">'check_login'</span>, {})
+  .<span class="fn">then</span>((tabId) => { <span class="kw">if</span> (activeSession) activeSession.tabId = tabId; });</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-teal">FOX</div>
+      <div class="step-meta">
+        <div class="step-title">content.isolated.js runs handleCheckLogin() — requests kd values from MAIN world</div>
+        <div class="step-location">src/vendors/fox/content.isolated.js · handleCheckLogin()</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        The fox isolated script receives the <span class="mono">check_login</span> message from the background. It calls <span class="mono">requestKdValues()</span>, which posts a <span class="mono">fox_request_kd</span> message to the MAIN world. Because the isolated world cannot access page JavaScript variables directly, it asks the MAIN world script to read them.
+      </div>
+      <div class="callout callout-purple">
+        <strong>Why two content scripts?</strong> The Kodaris <code>kd</code> global is a constant declared in inline page JavaScript — it is not attached to <code>window</code>. Only the <strong>MAIN</strong> world script can read it. However, the MAIN world is accessible to page scripts, so all fetch calls and security logic must live in the <strong>ISOLATED</strong> world where the page cannot intercept them. The two scripts communicate via <code>window.postMessage</code>.
+      </div>
+      <div class="code-block">
+        <div class="code-label">src/vendors/fox/content.main.js — reads kd and responds</div>
+        <pre>window.<span class="fn">addEventListener</span>(<span class="str">'message'</span>, (event) => {
+  <span class="kw">if</span> (event.data.type !== <span class="str">'fox_request_kd'</span>) <span class="kw">return</span>;
+
+  <span class="cmt">// kd is NOT on window — access it directly by name</span>
+  csrfToken  = kd?.csrfToken ?? <span class="kw">null</span>;
+  isLoggedIn = kd?.customer?.isLoggedIn ?? <span class="kw">false</span>;
+  companyId  = kd?.customer?.selectedCompanyID ?? <span class="kw">null</span>;
+
+  window.<span class="fn">postMessage</span>({
+    type: <span class="str">'fox_kd_response'</span>,
+    csrfToken, isLoggedIn, companyId,
+  }, PAGE_ORIGIN);
+});</pre>
+      </div>
+      <div class="code-block">
+        <div class="code-label">src/vendors/fox/content.isolated.js · handleCheckLogin()</div>
+        <pre><span class="kw">async function</span> <span class="fn">handleCheckLogin</span>() {
+  <span class="kw">const</span> kd = <span class="kw">await</span> <span class="fn">requestKdValues</span>();
+
+  <span class="kw">if</span> (kd.isLoggedIn && <span class="fn">Number</span>(kd.companyId) === <span class="fn">Number</span>(COMPANY_ID)) {
+    <span class="kw">return</span> { status: <span class="str">'login_verified'</span> };  <span class="cmt">// ✓ correct ATC account</span>
+  }
+
+  <span class="cmt">// Not logged in or wrong account — store pending flag, show banner</span>
+  <span class="kw">await</span> chrome.runtime.<span class="fn">sendMessage</span>({
+    type: <span class="str">'set_overlay_state'</span>,
+    key: PENDING_LOGIN_KEY,
+    value: { vendorKey: <span class="str">'fox'</span> },
+  });
+
+  <span class="fn">showLoginOverlay</span>(kd.isLoggedIn && <span class="fn">Number</span>(kd.companyId) !== <span class="fn">Number</span>(COMPANY_ID));
+
+  <span class="kw">return</span> { status: <span class="str">'login_required'</span> };
+}</pre>
+      </div>
+      <div class="callout callout-amber">
+        <strong>Identity check:</strong> <code>COMPANY_ID</code> = <code>2771</code> (from vendor.config.js). <code>isLoggedIn && companyId === 2771</code> = ATC account confirmed. Wrong companyId = different user logged in — overlay shows a "wrong account" warning. Not logged in = show login prompt.
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-ext">EXT</div>
+      <div class="step-meta">
+        <div class="step-title">background.js: handleLoginCheckResult() — routes login_verified or login_required</div>
+        <div class="step-location">src/background.js · handleLoginCheckResult()</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        The isolated script sends a <span class="mono">login_check_result</span> message back to the background with either <span class="mono">status: 'login_verified'</span> or <span class="mono">status: 'login_required'</span>. The background validates it came from the expected tab, then routes:
+        <br><br>
+        <strong>login_verified:</strong> calls <span class="mono">finishActiveSession()</span>, which fires the stored <span class="mono">sendResponse</span> back to <span class="mono">content-bridge.js</span>, which posts <span class="mono">check_login:response</span> back to the PWA.<br>
+        <strong>login_required:</strong> fires the <span class="mono">sendResponse</span> immediately with <span class="mono">status: 'login_required'</span> but <strong>keeps <span class="mono">activeSession</span> alive</strong> to wait for the async <span class="mono">login_ready</span> push.
+      </div>
+      <div class="code-block">
+        <div class="code-label">src/background.js · handleLoginCheckResult()</div>
+        <pre><span class="kw">if</span> (result.status === <span class="str">'login_required'</span>) {
+  <span class="cmt">// Respond to bridge immediately — PWA shows "waiting for login"</span>
+  activeSession.<span class="fn">sendResponse</span>({ success: <span class="kw">false</span>, status: <span class="str">'login_required'</span> });
+  <span class="cmt">// Do NOT clear session — keep it alive for login_ready push</span>
+} <span class="kw">else</span> {
+  <span class="cmt">// login_verified — close session, response carries back to PWA</span>
+  <span class="fn">finishActiveSession</span>({ success: <span class="kw">true</span>, status: <span class="str">'login_verified'</span> });
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-pwa">PWA</div>
+      <div class="step-meta">
+        <div class="step-title">ExtensionCartProvider listens for check_login:response (login_verified path)</div>
+        <div class="step-location">src/context/ExtensionCartProvider.tsx — window message listener</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        The provider has a <span class="mono">useEffect</span> that registers a <span class="mono">window.addEventListener('message', ...)</span> listener on mount. It handles both direct responses to sent messages (matched by <span class="mono">requestId</span> and type <span class="mono">check_login:response</span>) and async push messages from the extension (<span class="mono">login_ready</span>, <span class="mono">cart_filled</span>, <span class="mono">cart_fill_failed</span>). On <span class="mono">login_verified</span>, it immediately calls <span class="mono">runPreflight()</span>.
+      </div>
+      <div class="callout callout-green">
+        <strong>login_verified → Phase 4 (Preflight).</strong> No user action needed on the happy path.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-arrow">↓ login_required path ↓</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     PHASE 3 — Login required path
+════════════════════════════════════════════════════════════════════════ -->
+<div class="phase" id="p3">
+  <div class="phase-header">
+    <div class="phase-num">03</div>
+    <div class="phase-title">Login required — user logs in on foxparts.com</div>
+    <div class="phase-where">
+      <span class="badge badge-amber">User action</span>
+      <span class="badge badge-teal">content.isolated.js</span>
+      <span class="badge badge-purple">background.js</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-pwa">PWA</div>
+      <div class="step-meta">
+        <div class="step-title">PWA receives login_required → sets status to login_pending</div>
+        <div class="step-location">ExtensionCartProvider.tsx — check_login:response handler</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        When <span class="mono">check_login:response</span> arrives with <span class="mono">status: 'login_required'</span>, the provider sets session status to <span class="mono">"login_pending"</span>. <span class="mono">CartFillPanel</span> renders a waiting state: "Please log in to Fox Parts. The cart will fill automatically once you are logged in."
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-user">USR</div>
+      <div class="step-meta">
+        <div class="step-title">User logs in to Fox Parts manually</div>
+        <div class="step-location">foxparts.com tab — browser UI</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        The extension has shown a non-blocking overlay banner on foxparts.com: "Please log in to Fox Parts. The cart will fill automatically once you are logged in." The user logs in. Fox redirects (page reload or SPA navigation). The isolated content script's <span class="mono">checkPendingLogin()</span> runs on every page load.
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-teal">FOX</div>
+      <div class="step-meta">
+        <div class="step-title">checkPendingLogin() detects successful login, sends login_ready to background</div>
+        <div class="step-location">src/vendors/fox/content.isolated.js · checkPendingLogin()</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        On page load, the isolated script calls <span class="mono">checkPendingLogin()</span>. It reads the <span class="mono">atc_fox_pending_login</span> flag from extension storage. If the flag is set, it requests kd values and checks identity again. If now logged in with the correct account, it clears the flag and sends <span class="mono">login_ready</span> to the background service worker.
+      </div>
+      <div class="code-block">
+        <div class="code-label">content.isolated.js · checkPendingLogin() (simplified)</div>
+        <pre><span class="kw">async function</span> <span class="fn">checkPendingLogin</span>() {
+  <span class="kw">const</span> response = <span class="kw">await</span> chrome.runtime.<span class="fn">sendMessage</span>({
+    type: <span class="str">'get_overlay_state'</span>, key: PENDING_LOGIN_KEY,
+  });
+  <span class="kw">const</span> pending = response?.state ?? <span class="kw">null</span>;
+  <span class="kw">if</span> (!pending) <span class="kw">return</span>;  <span class="cmt">// no pending login — nothing to do</span>
+
+  <span class="kw">const</span> kd = <span class="kw">await</span> <span class="fn">requestKdValues</span>();
+  <span class="kw">if</span> (!kd.isLoggedIn || <span class="fn">Number</span>(kd.companyId) !== <span class="fn">Number</span>(COMPANY_ID)) <span class="kw">return</span>;
+
+  <span class="cmt">// Logged in with correct account — clear flag, notify background</span>
+  <span class="kw">await</span> chrome.runtime.<span class="fn">sendMessage</span>({
+    type: <span class="str">'set_overlay_state'</span>, key: PENDING_LOGIN_KEY, value: <span class="kw">null</span>,
+  });
+  <span class="kw">await</span> chrome.runtime.<span class="fn">sendMessage</span>({ type: <span class="str">'login_ready'</span> });
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-ext">EXT</div>
+      <div class="step-meta">
+        <div class="step-title">background.js: handleLoginReady() pushes login_ready to PWA tab</div>
+        <div class="step-location">src/background.js · handleLoginReady()</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        The background clears the active session (the login step is done), then pushes a <span class="mono">login_ready</span> message to the PWA tab via <span class="mono">chrome.tabs.sendMessage</span>. That message lands in <span class="mono">content-bridge.js</span> on the PWA origin, which forwards it via <span class="mono">window.postMessage</span> to the PWA page.
+      </div>
+      <div class="code-block">
+        <div class="code-label">src/background.js · handleLoginReady()</div>
+        <pre><span class="kw">const</span> pwaTabId = activeSession.pwaTabId;
+<span class="kw">const</span> correlationId = activeSession.correlationId;
+<span class="kw">const</span> vendorKey = activeSession.vendorKey;
+
+<span class="cmt">// Clear session — fill_cart will create a new one</span>
+clearTimeout(activeSession.timeoutId);
+activeSession = <span class="kw">null</span>;
+
+<span class="fn">pushToPwa</span>(pwaTabId, {
+  type: <span class="str">'login_ready'</span>,
+  source: <span class="str">'ATC_EXTENSION'</span>,
+  correlationId,
+  vendorKey,
+});</pre>
+      </div>
+      <div class="callout callout-blue">
+        <strong>Push direction reversal:</strong> Up to this point, messages flow PWA → extension. The <code>login_ready</code> push flows the other way: background → <code>chrome.tabs.sendMessage</code> → <code>content-bridge.js</code> on the PWA tab → <code>window.postMessage</code> → PWA provider listener.
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-pwa">PWA</div>
+      <div class="step-meta">
+        <div class="step-title">ExtensionCartProvider receives login_ready push → calls runPreflight()</div>
+        <div class="step-location">ExtensionCartProvider.tsx — message listener · type: "login_ready"</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        The PWA's <span class="mono">window</span> message listener catches <span class="mono">type: "login_ready"</span> with <span class="mono">source: "ATC_EXTENSION"</span> and the matching <span class="mono">correlationId</span>. It validates the match, then calls <span class="mono">runPreflight()</span> with the current session, advancing to Phase 4.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-arrow">↓ both paths converge here ↓</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     PHASE 4 — Preflight API call
+════════════════════════════════════════════════════════════════════════ -->
+<div class="phase" id="p4">
+  <div class="phase-header">
+    <div class="phase-num">04</div>
+    <div class="phase-title">Preflight API call — validate orders, create session, get callback token</div>
+    <div class="phase-where">
+      <span class="badge badge-blue">ExtensionCartProvider.tsx</span>
+      <span class="badge badge-green">POST /vendors/{id}/cart/preflight</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-pwa">PWA</div>
+      <div class="step-meta">
+        <div class="step-title">runPreflight() sets status → preflight_loading, calls cartPreflight() API</div>
+        <div class="step-location">ExtensionCartProvider.tsx · runPreflight() → src/api/vendorCart.ts · cartPreflight()</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        <span class="mono">runPreflight()</span> sets session status to <span class="mono">"preflight_loading"</span>, then calls <span class="mono">cartPreflight(vendorId, warehouseId, orderIds)</span>. This is a <strong>POST /vendors/{vendorId}/cart/preflight</strong> to the ATC API.
+      </div>
+      <div class="code-block">
+        <div class="code-label">src/api/vendorCart.ts · cartPreflight()</div>
+        <pre><span class="kw">export async function</span> <span class="fn">cartPreflight</span>(
+  vendorId: <span class="typ">number</span>,
+  warehouseId: <span class="typ">number</span>,
+  orderIds: <span class="typ">number</span>[]
+): Promise&lt;<span class="typ">CartPreflightResponse</span>&gt; {
+  <span class="kw">return</span> <span class="fn">apiFetch</span>&lt;<span class="typ">CartPreflightResponse</span>&gt;(<span class="str">`/vendors/${vendorId}/cart/preflight`</span>, {
+    method: <span class="str">'POST'</span>,
+    body: <span class="fn">JSON.stringify</span>({
+      warehouse_id: warehouseId,
+      order_ids: orderIds,
+    }),
+  });
+}</pre>
+      </div>
+      <div class="callout callout-amber">
+        <strong>409 CART_SESSION_OPEN:</strong> If another manager already has an open session for this vendor, the API returns 409 with a <code>CartCollisionError</code> body (manager name, property, started time, <code>can_override</code> flag). The PWA shows the collision warning UI. DatabaseManager sees an "Override Session" button; regular managers see only "Save for Later" and "Cancel."
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-api">API</div>
+      <div class="step-meta">
+        <div class="step-title">API validates orders, creates VendorCartSession, returns callback_token + item payload</div>
+        <div class="step-location">inventory_api · POST /vendors/{vendorId}/cart/preflight</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        The API validates that all orders belong to the requesting user's warehouse, verifies they are in <span class="mono">pending</span> status, resolves <span class="mono">VendorParts.Vendor_stock_number</span> for each item, creates a <span class="mono">VendorCartSessions</span> record with status <span class="mono">open</span>, generates a GUID <span class="mono">callback_token</span>, and returns the response. The token expires at <span class="mono">Expires_dt</span> (60 minutes from creation).
+      </div>
+      <div class="callout callout-teal">
+        <strong>What the callback_token is for:</strong> The isolated script on foxparts.com will later POST to <code>/vendors/cart/confirm</code> using this token — but it cannot use MSAL authentication (it's running inside a vendor website). The token is the authorization mechanism for that specific confirm call. It is scoped to one session, expires in 60 minutes, and is rate-limited to 5 consecutive failures.
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-pwa">PWA</div>
+      <div class="step-meta">
+        <div class="step-title">Preflight response stored on session → sendFillCart() called</div>
+        <div class="step-location">ExtensionCartProvider.tsx · runPreflight() continuation</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        The preflight response is stored on <span class="mono">activeSession.preflight</span> and <span class="mono">vendorKey</span> is set from <span class="mono">result.vendor_key</span>. Then <span class="mono">sendFillCart(updatedSession)</span> is called immediately.
+      </div>
+      <div class="code-block">
+        <div class="code-label">ExtensionCartProvider.tsx · runPreflight() → sendFillCart()</div>
+        <pre><span class="kw">const</span> result = <span class="kw">await</span> <span class="fn">cartPreflight</span>(session.vendorId, session.warehouseId, session.orderIds);
+
+<span class="kw">const</span> updatedSession: <span class="typ">ActiveCartSession</span> = {
+  ...session,
+  preflight: result,
+  vendorKey: result.vendor_key ?? session.vendorKey,
+  status: <span class="str">"preflight_loading"</span>,
+};
+
+<span class="fn">setActiveSession</span>(updatedSession);
+<span class="fn">sendFillCart</span>(updatedSession);  <span class="cmt">// proceeds to Phase 5</span></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-arrow">↓</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     PHASE 5 — fill_cart sent to extension
+════════════════════════════════════════════════════════════════════════ -->
+<div class="phase" id="p5">
+  <div class="phase-header">
+    <div class="phase-num">05</div>
+    <div class="phase-title">fill_cart sent to extension — Step 2</div>
+    <div class="phase-where">
+      <span class="badge badge-blue">ExtensionCartProvider.tsx</span>
+      <span class="badge badge-purple">background.js</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-pwa">PWA</div>
+      <div class="step-meta">
+        <div class="step-title">sendFillCart() sets status → filling, posts fill_cart with item payload</div>
+        <div class="step-location">ExtensionCartProvider.tsx · sendFillCart()</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        <span class="mono">sendFillCart()</span> sets session status to <span class="mono">"filling"</span> then posts the <span class="mono">fill_cart</span> message to the extension. The payload contains the <span class="mono">vendor_key</span>, <span class="mono">warehouse_name</span> (for the overlay on foxparts.com), and <span class="mono">items</span> (each with <span class="mono">code</span> = vendor stock number and <span class="mono">quantity</span>).
+      </div>
+      <div class="code-block">
+        <div class="code-label">ExtensionCartProvider.tsx · sendFillCart()</div>
+        <pre><span class="fn">postToExtension</span>({
+  type: <span class="str">"fill_cart"</span>,
+  requestId: <span class="str">`fill-${Date.now()}`</span>,
+  correlationId: session.correlationId,
+  payload: {
+    vendor_key: session.vendorKey,
+    warehouse_name: session.warehouseName,
+    items: session.preflight.items.<span class="fn">map</span>((item) => ({
+      code: item.vendor_code,      <span class="cmt">// VendorParts.Vendor_stock_number</span>
+      quantity: item.quantity,
+    })),
+  },
+});</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-ext">EXT</div>
+      <div class="step-meta">
+        <div class="step-title">background.js: handleFillCartRequest() validates payload, opens/focuses fox tab, sends to isolated script</div>
+        <div class="step-location">src/background.js · handleFillCartRequest()</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        The background validates the payload (vendor_key exists in <span class="mono">VENDOR_CONFIG</span>, items array non-empty, all items have code and positive quantity), creates a new <span class="mono">activeSession</span> (step = <span class="mono">'fill'</span>), sets a 60-second timeout, then calls <span class="mono">openOrFocusTab()</span> to open/focus foxparts.com. Once the tab is ready, the background sends the <span class="mono">fill_cart</span> message to the isolated script via <span class="mono">chrome.tabs.sendMessage</span>.
+      </div>
+      <div class="code-block">
+        <div class="code-label">src/background.js · handleFillCartRequest() — session setup</div>
+        <pre>activeSession = {
+  step: <span class="str">'fill'</span>,
+  vendorKey: payload.vendor_key,
+  correlationId: message.correlationId ?? <span class="kw">null</span>,
+  tabId: <span class="kw">null</span>,
+  pwaTabId: sender.tab?.id ?? <span class="kw">null</span>,
+  sendResponse,      <span class="cmt">// stored — called when cart_fill_result arrives</span>
+  timeoutId: <span class="kw">null</span>,
+};
+
+activeSession.timeoutId = <span class="fn">setTimeout</span>(() => {
+  <span class="fn">finishActiveSession</span>({
+    success: <span class="kw">false</span>,
+    error: <span class="str">'Cart fill timed out before receiving a vendor response.'</span>,
+  });
+}, CART_FILL_TIMEOUT_MS);</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-arrow">↓</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     PHASE 6 — Fox cart operations (isolated world)
+════════════════════════════════════════════════════════════════════════ -->
+<div class="phase" id="p6">
+  <div class="phase-header">
+    <div class="phase-num">06</div>
+    <div class="phase-title">Fox cart operations — ISOLATED world on foxparts.com</div>
+    <div class="phase-where">
+      <span class="badge badge-teal">content.isolated.js (fox)</span>
+    </div>
+  </div>
+
+  <div class="callout callout-purple" style="margin-bottom:16px;">
+    All Fox API calls happen here. The ISOLATED world cannot be intercepted by page scripts. The CSRF token and session cookies are used — no ATC credentials are ever stored in the extension.
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-teal">FOX</div>
+      <div class="step-meta">
+        <div class="step-title">handleFillCart() — read kd values, check existing cart items</div>
+        <div class="step-location">src/vendors/fox/content.isolated.js · handleFillCart()</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        The isolated script again calls <span class="mono">requestKdValues()</span> (the CSRF token may have changed since login check). It then calls <span class="mono">getCart(csrfToken)</span> which POSTs an empty array to <span class="mono">/api/user/cart/item/bulk</span> — this is a Fox API quirk where posting an empty array returns the current cart state without modifying it.
+      </div>
+      <div class="code-block">
+        <div class="code-label">content.isolated.js · getCart() — reads existing cart state</div>
+        <pre><span class="kw">async function</span> <span class="fn">getCart</span>(csrfToken) {
+  <span class="cmt">// Fox API: POST [] to bulk endpoint returns current cart without modifying it</span>
+  <span class="kw">const</span> response = <span class="kw">await</span> <span class="fn">fetch</span>(CART_ENDPOINT, {
+    method: <span class="str">'POST'</span>,
+    credentials: <span class="str">'include'</span>,   <span class="cmt">// uses Fox session cookies (HttpOnly)</span>
+    headers: {
+      <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span>,
+      <span class="str">'X-CSRF-TOKEN'</span>: csrfToken,  <span class="cmt">// from kd.csrfToken (MAIN world)</span>
+    },
+    body: <span class="fn">JSON.stringify</span>([]),
+  });
+  <span class="kw">if</span> (!response.ok) <span class="kw">return null</span>;
+  <span class="kw">return</span> response.<span class="fn">json</span>();
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-teal">FOX</div>
+      <div class="step-meta">
+        <div class="step-title">If existing items: show clear-cart warning, then DELETE per-item in parallel</div>
+        <div class="step-location">content.isolated.js · showClearCartWarning() + Promise.all DELETEs</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        If the cart already has items, the extension shows a blocking overlay on foxparts.com: "Fox cart currently contains N item(s). These will be removed before filling your ATC order. Continue?" If the user cancels, the fill returns <span class="mono">{ success: false, error: 'user_cancelled' }</span>. If they confirm, all items are deleted in parallel using <span class="mono">Promise.all()</span> — a per-item DELETE (no bulk-clear endpoint exists on Fox).
+      </div>
+      <div class="code-block">
+        <div class="code-label">content.isolated.js · parallel cart clear</div>
+        <pre><span class="kw">const</span> deleteResponses = <span class="kw">await</span> <span class="fn">Promise.all</span>(
+  existingItems.<span class="fn">map</span>((item) =>
+    <span class="fn">fetch</span>(<span class="str">`/api/user/cart/item/${item.orderItemID}`</span>, {
+      method: <span class="str">'DELETE'</span>,
+      credentials: <span class="str">'include'</span>,
+      headers: { <span class="str">'X-CSRF-TOKEN'</span>: kd.csrfToken },
+    })
+  )
+);
+
+<span class="kw">const</span> failedDeletes = deleteResponses.<span class="fn">filter</span>((r) => !r.ok);
+<span class="kw">if</span> (failedDeletes.length > <span class="num">0</span>) {
+  <span class="kw">return</span> { success: <span class="kw">false</span>, error: <span class="str">'Failed to clear existing Fox cart items.'</span> };
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-teal">FOX</div>
+      <div class="step-meta">
+        <div class="step-title">POST /api/user/cart/item/bulk — add ATC order items to Fox cart</div>
+        <div class="step-location">content.isolated.js · handleFillCart() — bulk POST</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        Each item from the ATC payload is mapped to Fox's format (<span class="mono">{ code, quantity: String(qty) }</span> — Fox requires quantity as a string) and POSTed in a single bulk request.
+      </div>
+      <div class="code-block">
+        <div class="code-label">content.isolated.js · bulk POST to Fox</div>
+        <pre><span class="kw">const</span> bulkResponse = <span class="kw">await</span> <span class="fn">fetch</span>(CART_ENDPOINT, {
+  method: <span class="str">'POST'</span>,
+  credentials: <span class="str">'include'</span>,
+  headers: {
+    <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span>,
+    <span class="str">'X-CSRF-TOKEN'</span>: kd.csrfToken,
+  },
+  body: <span class="fn">JSON.stringify</span>(
+    payload.items.<span class="fn">map</span>((item) => ({
+      code: item.code,
+      quantity: <span class="fn">String</span>(item.quantity),  <span class="cmt">// Fox requires string</span>
+    }))
+  ),
+});</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-teal">FOX</div>
+      <div class="step-meta">
+        <div class="step-title">GET cart to verify — compare expected vs actual codes</div>
+        <div class="step-location">content.isolated.js · handleFillCart() — verification</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        After the bulk POST, the isolated script reads the cart again (same getCart technique) and compares expected item codes against the actual cart contents. Items that were expected but are missing end up in <span class="mono">itemsFailed</span>. The <span class="mono">vendorOrderId</span> is extracted from <span class="mono">cart.data.orderID</span>.
+      </div>
+      <div class="code-block">
+        <div class="code-label">content.isolated.js · verification + overlay state</div>
+        <pre><span class="kw">const</span> addedCodes  = cartItems.<span class="fn">map</span>((item) => item.code ?? item.itemCode ?? <span class="str">''</span>);
+<span class="kw">const</span> expectedCodes = payload.items.<span class="fn">map</span>((item) => item.code);
+<span class="kw">const</span> failedCodes   = expectedCodes.<span class="fn">filter</span>((code) => !addedCodes.<span class="fn">includes</span>(code));
+<span class="kw">const</span> itemsFilled   = expectedCodes.length - failedCodes.length;
+
+<span class="cmt">// Store overlay state in extension storage so it persists across SPA nav</span>
+<span class="kw">await</span> chrome.runtime.<span class="fn">sendMessage</span>({
+  type: <span class="str">'set_overlay_state'</span>,
+  key: OVERLAY_STORAGE_KEY,
+  value: { itemCount: itemsFilled, warehouseName: payload.warehouse_name },
+});
+
+<span class="kw">return</span> {
+  success: <span class="kw">true</span>,
+  vendor_order_id: vendorOrderId,
+  items_added: itemsFilled,
+  items_failed: failedCodes,
+  error: <span class="kw">null</span>,
+};</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-teal">FOX</div>
+      <div class="step-meta">
+        <div class="step-title">Navigate to /spcu/cart — show post-fill overlay, install MutationObserver</div>
+        <div class="step-location">content.isolated.js · navigateToCart() + showPostFillOverlay()</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        After reporting success, the isolated script navigates the foxparts.com tab to the cart page and injects the post-fill overlay: "Cart filled — N items for [Warehouse Name]. Next steps: 1. Create a Purchase Order in YARDI. 2. Enter the PO number in Fox checkout. 3. Submit the Fox order." A <span class="mono">MutationObserver</span> on the layout wrapper re-injects the overlay if Fox's SPA removes it on route change.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-arrow">↓</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     PHASE 7 — cart_filled received / cartConfirm
+════════════════════════════════════════════════════════════════════════ -->
+<div class="phase" id="p7">
+  <div class="phase-header">
+    <div class="phase-num">07</div>
+    <div class="phase-title">cart_filled received → cartConfirm API call → success</div>
+    <div class="phase-where">
+      <span class="badge badge-purple">background.js</span>
+      <span class="badge badge-blue">ExtensionCartProvider.tsx</span>
+      <span class="badge badge-green">POST /vendors/cart/confirm</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-ext">EXT</div>
+      <div class="step-meta">
+        <div class="step-title">background.js: handleCartFillResult() — pushes cart_filled to PWA tab</div>
+        <div class="step-location">src/background.js · handleCartFillResult()</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        The isolated script sends <span class="mono">cart_fill_result</span> to the background. The background validates it came from the expected tab, calls <span class="mono">finishActiveSession()</span> to close the session, then pushes <span class="mono">cart_filled</span> (or <span class="mono">cart_fill_failed</span>) to the PWA tab via <span class="mono">chrome.tabs.sendMessage</span>.
+      </div>
+      <div class="code-block">
+        <div class="code-label">src/background.js · push to PWA after fill result</div>
+        <pre><span class="fn">pushToPwa</span>(pwaTabId, {
+  type: result.success ? <span class="str">'cart_filled'</span> : <span class="str">'cart_fill_failed'</span>,
+  source: <span class="str">'ATC_EXTENSION'</span>,
+  correlationId,
+  vendorKey,
+  data: result,     <span class="cmt">// { vendor_order_id, items_added, items_failed, error }</span>
+});</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-pwa">PWA</div>
+      <div class="step-meta">
+        <div class="step-title">ExtensionCartProvider receives cart_filled → sets status confirming → calls cartConfirm()</div>
+        <div class="step-location">ExtensionCartProvider.tsx — message listener · type: "cart_filled"</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        The PWA's <span class="mono">window</span> message listener catches <span class="mono">type: "cart_filled"</span>, validates the <span class="mono">correlationId</span> matches the active session, sets status to <span class="mono">"confirming"</span>, and calls <span class="mono">cartConfirm()</span>.
+      </div>
+      <div class="code-block">
+        <div class="code-label">src/api/vendorCart.ts · cartConfirm()</div>
+        <pre><span class="kw">export async function</span> <span class="fn">cartConfirm</span>(
+  sessionId: <span class="typ">number</span>,
+  callbackToken: <span class="typ">string</span>,
+  vendorOrderId: <span class="typ">string</span> | <span class="kw">null</span>,
+  itemsAdded: <span class="typ">number</span>,
+  itemsFailed: <span class="typ">string</span>[]
+): Promise&lt;<span class="typ">void</span>&gt; {
+  <span class="kw">return</span> <span class="fn">apiFetch</span>&lt;<span class="typ">void</span>&gt;(<span class="str">'/vendors/cart/confirm'</span>, {
+    method: <span class="str">'POST'</span>,
+    body: <span class="fn">JSON.stringify</span>({
+      session_id: sessionId,
+      callback_token: callbackToken,   <span class="cmt">// never logged — security requirement</span>
+      vendor_order_id: vendorOrderId,
+      items_added: itemsAdded,
+      items_failed: itemsFailed,
+    }),
+  });
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-api">API</div>
+      <div class="step-meta">
+        <div class="step-title">API validates token, sets orders → cart_filled, session → completed, fires SignalR</div>
+        <div class="step-location">inventory_api · POST /vendors/cart/confirm</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        The API validates: token not expired + session ID + vendor ID match + session in <span class="mono">open</span> status. Then in a single transaction:
+      </div>
+      <div class="callout callout-green">
+        <strong>Single transaction:</strong> Sets <code>InventoryOrders.Status</code> → <code>cart_filled</code> for all successfully filled orders. Sets <code>Cart_filled_dt</code>, <code>Cart_filled_by_oid</code>, <code>Cart_filled_by_email</code>, <code>Vendor_order_ref</code>. Sets <code>VendorCartSessions.Status</code> → <code>completed</code>. Fires SignalR <code>orders.updated</code> after commit.
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-pwa">PWA</div>
+      <div class="step-meta">
+        <div class="step-title">cartConfirm succeeds → status set to "success"</div>
+        <div class="step-location">ExtensionCartProvider.tsx</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        On successful confirm, the session status is set to <span class="mono">"success"</span>. <span class="mono">CartFillPanel</span> renders the success state: "Cart filled — N items added." The "Mark as Ordered" button becomes available. The SignalR message from the API triggers a query cache invalidation so the On Order page reflects <span class="mono">cart_filled</span> status in real time.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-arrow">↓</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     PHASE 8 — Mark as Ordered
+════════════════════════════════════════════════════════════════════════ -->
+<div class="phase" id="p8">
+  <div class="phase-header">
+    <div class="phase-num">08</div>
+    <div class="phase-title">Mark as Ordered — after manager submits the Fox order</div>
+    <div class="phase-where">
+      <span class="badge badge-amber">User action</span>
+      <span class="badge badge-blue">CartFillPanel.tsx</span>
+      <span class="badge badge-green">POST /vendors/cart/mark-ordered</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-user">USR</div>
+      <div class="step-meta">
+        <div class="step-title">Manager creates PO in YARDI, enters PO in Fox checkout, submits Fox order</div>
+        <div class="step-location">foxparts.com + YARDI — manual steps</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        Fox enforces <span class="mono">purchaseOrderRequired: true</span> on the ATC account. The manager must create a PO in YARDI first, then enter it in Fox checkout, then submit. The post-fill overlay on foxparts.com reminds them of these steps.
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-pwa">PWA</div>
+      <div class="step-meta">
+        <div class="step-title">Manager clicks "Mark as Ordered" → handleMarkOrdered() → cartMarkOrdered()</div>
+        <div class="step-location">CartFillPanel.tsx · handleMarkOrdered() → src/api/vendorCart.ts · cartMarkOrdered()</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="code-block">
+        <div class="code-label">CartFillPanel.tsx · handleMarkOrdered()</div>
+        <pre><span class="kw">async function</span> <span class="fn">handleMarkOrdered</span>() {
+  <span class="kw">await</span> <span class="fn">markOrdered</span>();   <span class="cmt">// from useExtensionCart() → ExtensionCartProvider</span>
+  <span class="fn">onComplete</span>();         <span class="cmt">// closes the panel</span>
+}</pre>
+      </div>
+      <div class="code-block">
+        <div class="code-label">src/api/vendorCart.ts · cartMarkOrdered()</div>
+        <pre><span class="kw">export async function</span> <span class="fn">cartMarkOrdered</span>(
+  sessionId: <span class="typ">number</span>,
+  callbackToken: <span class="typ">string</span>
+): Promise&lt;<span class="typ">void</span>&gt; {
+  <span class="kw">return</span> <span class="fn">apiFetch</span>&lt;<span class="typ">void</span>&gt;(<span class="str">'/vendors/cart/mark-ordered'</span>, {
+    method: <span class="str">'POST'</span>,
+    body: <span class="fn">JSON.stringify</span>({ session_id: sessionId, callback_token: callbackToken }),
+  });
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-api">API</div>
+      <div class="step-meta">
+        <div class="step-title">API validates token (second use), sets orders → ordered, fires SignalR</div>
+        <div class="step-location">inventory_api · POST /vendors/cart/mark-ordered</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        Validates: token associated with a <span class="mono">completed</span> session + session ID + vendor ID match. Sets <span class="mono">InventoryOrders.Status</span> → <span class="mono">ordered</span> for all <span class="mono">cart_filled</span> orders in the session, sets <span class="mono">Ordered_dt</span>, <span class="mono">Ordered_by_oid</span>, <span class="mono">Ordered_by_email</span>. Fires SignalR <span class="mono">orders.updated</span> after commit. Session is now fully terminal.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-arrow">↓ error paths ↓</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     PHASE 9 — Error & Abandon paths
+════════════════════════════════════════════════════════════════════════ -->
+<div class="phase" id="p9">
+  <div class="phase-header">
+    <div class="phase-num">09</div>
+    <div class="phase-title">Error paths &amp; session abandon</div>
+    <div class="phase-where">
+      <span class="badge badge-coral">Error handling</span>
+      <span class="badge badge-blue">ExtensionCartProvider.tsx</span>
+      <span class="badge badge-green">POST /vendors/cart/abandon-session</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-err">ERR</div>
+      <div class="step-meta">
+        <div class="step-title">Abandon triggers: cart_fill_failed / cartConfirm throws / clearSession with preflight</div>
+        <div class="step-location">ExtensionCartProvider.tsx · tryAbandon()</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        Once a preflight has created a <span class="mono">VendorCartSession</span> record, any failure must abandon it so the session slot is freed. Three conditions trigger <span class="mono">tryAbandon()</span>:
+        <br>— <span class="mono">cart_fill_failed</span> push received from extension
+        <br>— <span class="mono">cartConfirm()</span> throws
+        <br>— <span class="mono">clearSession()</span> called when <span class="mono">preflight !== null</span> and status is not <span class="mono">"success"</span> (user closes the panel early)
+        <br><br>The <span class="mono">abandonAttempted</span> flag on the session prevents duplicate calls.
+      </div>
+      <div class="code-block">
+        <div class="code-label">ExtensionCartProvider.tsx · tryAbandon() guard</div>
+        <pre><span class="kw">const</span> <span class="fn">tryAbandon</span> = <span class="fn">useCallback</span>(<span class="kw">async</span> (session: <span class="typ">ActiveCartSession</span>) => {
+  <span class="kw">if</span> (
+    session.preflight === <span class="kw">null</span> ||       <span class="cmt">// no API session created yet</span>
+    session.status === <span class="str">"success"</span> ||     <span class="cmt">// already confirmed — don't abandon</span>
+    session.abandonAttempted            <span class="cmt">// guard against double-call</span>
+  ) <span class="kw">return</span>;
+
+  <span class="fn">setActiveSession</span>((prev) => prev ? { ...prev, abandonAttempted: <span class="kw">true</span> } : prev);
+
+  <span class="kw">try</span> {
+    <span class="kw">await</span> <span class="fn">cartAbandonSession</span>(session.preflight.session_id);
+  } <span class="kw">catch</span> {
+    <span class="cmt">// Abandon is best-effort — do not surface to user</span>
+  }
+}, []);</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-icon icon-api">API</div>
+      <div class="step-meta">
+        <div class="step-title">POST /vendors/cart/abandon-session — idempotent, sets session → abandoned</div>
+        <div class="step-location">inventory_api · POST /vendors/cart/abandon-session/{sessionId}</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">
+        Safe to call even if the session is already abandoned. Sets <span class="mono">VendorCartSessions.Status</span> → <span class="mono">abandoned</span>, freeing the vendor session slot. Note: <span class="mono">abandoned_reason</span> column deferred until reporting requires it.
+      </div>
+    </div>
+  </div>
+
+  <hr>
+
+  <h3>Session status reference</h3>
+  <div class="code-block">
+    <div class="code-label">ExtensionCartContext.ts · CartSessionStatus</div>
+    <table class="status-table">
+      <thead>
+        <tr><th>Status</th><th>Meaning</th><th>UI shown</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>idle / null</td><td>No session active — initial render</td><td>Review step with "Fill Cart" button</td></tr>
+        <tr><td>checking_login</td><td>check_login sent, awaiting response</td><td>Spinner</td></tr>
+        <tr><td>login_pending</td><td>login_required received — waiting for user to log in on Fox</td><td>"Please log in to Fox Parts…" message</td></tr>
+        <tr><td>preflight_loading</td><td>cartPreflight() running</td><td>Spinner</td></tr>
+        <tr><td>filling</td><td>fill_cart sent, extension filling cart</td><td>Spinner</td></tr>
+        <tr><td>confirming</td><td>cart_filled received, cartConfirm() running</td><td>Spinner</td></tr>
+        <tr><td>success</td><td>Confirmed — orders are cart_filled</td><td>Success message + "Mark as Ordered" button</td></tr>
+        <tr><td>error</td><td>Unrecoverable — session being abandoned</td><td>Error message</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <hr>
+
+  <h3>Background session — one at a time</h3>
+  <div class="step-desc" style="font-size:14px;color:var(--text-muted);line-height:1.65;margin-top:8px;">
+    The background service worker holds a single <span class="mono">activeSession</span> variable. If a second <span class="mono">check_login</span> or <span class="mono">fill_cart</span> arrives while a session is active, the background immediately responds with <span class="mono">{ success: false, error: 'Another session is already in progress.' }</span>. This is separate from the API-level collision guard (<span class="mono">VendorCartSessions</span> soft lock per vendor), which blocks concurrent sessions for the same vendor even across different browsers or machines.
+  </div>
+</div>
+
+</body>
+</html>
