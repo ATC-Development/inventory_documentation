@@ -140,7 +140,7 @@
     <div class="meta-cell"><span class="lbl">Source of Truth</span><span class="val">InventoryDbModelSnapshot</span></div>
     <div class="meta-cell"><span class="lbl">Dev DB</span><span class="val">SQLite</span></div>
     <div class="meta-cell"><span class="lbl">Production DB</span><span class="val">Azure SQL</span></div>
-    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">May 2026</span></div>
+    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">June 2026</span></div>
     <div class="meta-cell"><span class="lbl">ORM</span><span class="val green">EF Core + Migrations</span></div>
   </div>
 </div>
@@ -168,6 +168,8 @@
   <a href="#s19">19 QuoteRequests</a>
   <a href="#s20">20 QuoteRequestItems</a>
   <a href="#s21">21 QuoteRequestEmailEvents</a>
+  <a href="#s23">23 VendorOrderMethods</a>
+  <a href="#s24">24 VendorCartSessions</a>
   <a href="#s22">22 Core Guarantees</a>
 </div>
 
@@ -194,6 +196,7 @@
     <div class="col-row"><div class="col-name">Address</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
     <div class="col-row"><div class="col-name">Latitude</div><div class="col-type">float</div><div class="col-notes"></div></div>
     <div class="col-row"><div class="col-name">Longitude</div><div class="col-type">float</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Is_active</div><div class="col-type">bit, not null</div><div class="col-notes">Default 1 — soft delete</div></div>
   </div>
   <div class="callout c-info"><span class="icon">ℹ️</span><div class="body"><strong>Unique constraint:</strong> UNIQUE composite index on <code>(PropCode, Name)</code> — enforced at the DB level.</div></div>
 </div>
@@ -258,6 +261,7 @@
 <!-- §05 VENDORS -->
 <div class="section" id="s5">
   <div class="section-header"><span class="sn">05</span><h2>Vendors</h2></div>
+  <p>Suppliers and parts vendors. Soft-deleted via <code>Is_active</code> — vendor rows are never hard-deleted to preserve FK integrity with VendorParts, VendorAliases, VendorOrderMethods, and VendorCartSessions.</p>
   <div class="col-list">
     <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
     <div class="col-row"><div class="col-name">Name</div><div class="col-type">nvarchar, required</div><div class="col-notes">UNIQUE</div></div>
@@ -265,20 +269,22 @@
     <div class="col-row"><div class="col-name">Contact_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
     <div class="col-row"><div class="col-name">Contact_phone</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
     <div class="col-row"><div class="col-name">Address</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Is_active</div><div class="col-type">bit, not null</div><div class="col-notes">Default 1 — soft delete. Inactive vendors are excluded from quote/cart flows.</div></div>
+    <div class="col-row"><div class="col-name">Vendor_key</div><div class="col-type">nvarchar(50), nullable</div><div class="col-notes">UNIQUE (filtered — non-null only). Machine-readable slug used by the extension to identify vendor context (e.g. <code>fox_parts</code>).</div></div>
   </div>
+  <div class="callout c-warn"><span class="icon">⚠️</span><div class="body"><strong>Reactivation over duplication:</strong> If a DatabaseManager attempts to create a new vendor with the same name as an inactive vendor, the API returns <code>409 VENDOR_NAME_ALREADY_EXISTS</code>. The correct action is to reactivate the existing vendor via ManageVendors.</div></div>
 </div>
 
 <!-- §06 VENDORPARTS -->
 <div class="section" id="s6">
   <div class="section-header"><span class="sn">06</span><h2>VendorParts</h2></div>
-  <p>Junction table linking parts to vendors with vendor-specific identification data.</p>
+  <p>Junction table linking parts to vendors with vendor-specific identification data. <code>Vendor_stock_number</code> is required for web cart fill — orders missing a cross-reference are rejected at preflight.</p>
   <div class="col-list">
     <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
     <div class="col-row fk"><div class="col-name">Vendor_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Vendors.Id, cascade delete</div></div>
     <div class="col-row fk"><div class="col-name">Part_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Parts.Id, cascade delete</div></div>
-    <div class="col-row"><div class="col-name">Vendor_sku</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
-    <div class="col-row"><div class="col-name">Vendor_stock_number</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
-    <div class="col-row"><div class="col-name">Vendor_upc_override</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Vendor_stock_number</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Vendor's catalog number — used as the cart fill item identifier</div></div>
+    <div class="col-row"><div class="col-name">Vendor_upc_override</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Optional UPC override when vendor UPC differs from standard</div></div>
   </div>
   <div class="callout c-info"><span class="icon">ℹ️</span><div class="body"><strong>Unique constraint:</strong> UNIQUE <code>(Vendor_id, Part_id)</code> — one record per vendor-part pair.</div></div>
 </div>
@@ -376,25 +382,41 @@
     <div class="col-row fk"><div class="col-name">Primary_category_id</div><div class="col-type">int, nullable</div><div class="col-notes">FK → Categories.Id</div></div>
     <div class="col-row"><div class="col-name">Category_name</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Denormalized at write time</div></div>
     <div class="col-row"><div class="col-name">Quantity_ordered</div><div class="col-type">int</div><div class="col-notes"></div></div>
-    <div class="col-row"><div class="col-name">Status</div><div class="col-type">nvarchar, required</div><div class="col-notes">pending → ordered → received | cancelled</div></div>
+    <div class="col-row"><div class="col-name">Status</div><div class="col-type">nvarchar, required</div><div class="col-notes">See status values below</div></div>
     <div class="col-row"><div class="col-name">Report_dt</div><div class="col-type">datetime2</div><div class="col-notes">When the order was reported/created</div></div>
+    <div class="col-row"><div class="col-name">Cart_filled_dt</div><div class="col-type">datetime2, nullable</div><div class="col-notes">Set when status transitions to cart_filled</div></div>
     <div class="col-row"><div class="col-name">Ordered_dt</div><div class="col-type">datetime2, nullable</div><div class="col-notes"></div></div>
     <div class="col-row"><div class="col-name">Received_dt</div><div class="col-type">datetime2, nullable</div><div class="col-notes"></div></div>
     <div class="col-row"><div class="col-name">Cancelled_dt</div><div class="col-type">datetime2, nullable</div><div class="col-notes"></div></div>
     <div class="col-row"><div class="col-name">Cancelled_reason</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Required on cancellation</div></div>
-    <div class="col-row"><div class="col-name">Requested_by_oid</div><div class="col-type">nvarchar, required</div><div class="col-notes">+ email, ordered_by, received_by, cancelled_by audit fields</div></div>
+    <div class="col-row"><div class="col-name">Requested_by_oid</div><div class="col-type">nvarchar, required</div><div class="col-notes">Entra OID of requester</div></div>
+    <div class="col-row"><div class="col-name">Requested_by_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Cart_filled_by_oid</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">OID of manager who initiated cart fill session; cleared on revert to pending</div></div>
+    <div class="col-row"><div class="col-name">Cart_filled_by_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Email snapshot; cleared on revert to pending</div></div>
+    <div class="col-row"><div class="col-name">Vendor_order_ref</div><div class="col-type">nvarchar(100), nullable</div><div class="col-notes">Vendor's order/confirmation number from cart fill; cleared on revert to pending</div></div>
+    <div class="col-row"><div class="col-name">Ordered_by_oid</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Ordered_by_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Received_by_oid</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Received_by_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Cancelled_by_oid</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Cancelled_by_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
   </div>
 
   <h3>Status Values</h3>
   <table>
     <thead><tr><th>Value</th><th>Meaning</th><th>Valid Transitions</th></tr></thead>
     <tbody>
-      <tr><td class="t-accent">pending</td><td>Reported, not yet ordered</td><td>→ ordered, received, cancelled</td></tr>
+      <tr><td class="t-accent">pending</td><td>Reported, not yet ordered</td><td>→ cart_filled, ordered, received, cancelled</td></tr>
+      <tr><td class="t-warn">cart_filled</td><td>Items placed in vendor web cart — awaiting PO creation and order submission</td><td>→ ordered, cancelled, pending (DM only)</td></tr>
       <tr><td class="t-accent">ordered</td><td>Order placed with vendor</td><td>→ received, cancelled, pending</td></tr>
       <tr><td class="t-accent2">received</td><td>Stock received (terminal)</td><td>none</td></tr>
       <tr><td class="t-danger">cancelled</td><td>Cancelled (terminal)</td><td>none</td></tr>
     </tbody>
   </table>
+
+  <div class="callout c-warn"><span class="icon">⚠️</span><div class="body">
+    <strong>Reverting cart_filled → pending:</strong> DatabaseManager only. Reason required. On revert: <code>Cart_filled_dt</code>, <code>Cart_filled_by_oid</code>, <code>Cart_filled_by_email</code>, and <code>Vendor_order_ref</code> are all cleared. The associated <code>VendorCartSession</code> (if still <code>open</code>) is set to <code>abandoned</code>.
+  </div></div>
 </div>
 
 <!-- §11 IDENTIFIERLOOKUPS -->
@@ -626,7 +648,91 @@
   </div>
 </div>
 
-<!-- §22 CORE GUARANTEES -->
+<!-- §23 VENDORORDERMETHODS -->
+<div class="section" id="s23">
+  <div class="section-header"><span class="sn">23</span><h2>VendorOrderMethods</h2></div>
+  <p>Configures one or more ordering methods per vendor. Controls which methods (email, web cart, SMS) are available in the quote/cart flow and how they are displayed and routed.</p>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row fk"><div class="col-name">Vendor_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Vendors.Id, DeleteBehavior.Restrict</div></div>
+    <div class="col-row"><div class="col-name">Method</div><div class="col-type">nvarchar(50), required</div><div class="col-notes">email | web_cart | sms — UNIQUE with Vendor_id</div></div>
+    <div class="col-row"><div class="col-name">Is_active</div><div class="col-type">bit, not null</div><div class="col-notes">Default 1. Deactivate via this flag — rows are never deleted.</div></div>
+    <div class="col-row"><div class="col-name">Display_label</div><div class="col-type">nvarchar(200), nullable</div><div class="col-notes">Overrides default button label in method selection UI</div></div>
+    <div class="col-row"><div class="col-name">Config_json</div><div class="col-type">nvarchar(max), nullable</div><div class="col-notes">Vendor-specific configuration — required keys validated by API on create/activate for web_cart</div></div>
+    <div class="col-row"><div class="col-name">Sort_order</div><div class="col-type">int, not null</div><div class="col-notes">Default 0 — controls display order of method buttons</div></div>
+    <div class="col-row"><div class="col-name">Created_dt</div><div class="col-type">datetime2, not null</div><div class="col-notes"></div></div>
+  </div>
+
+  <h3>Method Values</h3>
+  <table>
+    <thead><tr><th>Value</th><th>Description</th><th>Implemented</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">email</td><td>Graph OBO email — existing quote flow</td><td>Yes</td></tr>
+      <tr><td class="t-accent">web_cart</td><td>Chrome extension cart fill</td><td>Yes (Fox Parts)</td></tr>
+      <tr><td class="t-warn">sms</td><td>Text message to vendor</td><td>Deferred — API blocks activation</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout c-info"><span class="icon">ℹ️</span><div class="body">
+    <strong>Unique constraint:</strong> UNIQUE <code>(Vendor_id, Method)</code> — one method row per vendor per type.<br><br>
+    <strong>web_cart Config_json required keys:</strong> <code>base_url</code>, <code>cart_endpoint</code>, <code>cart_page</code>. The API validates these on create and on activation (<code>Is_active = 1</code>). Example for Fox Parts:
+    <pre style="margin-top:8px">{"base_url":"https://www.foxparts.com","cart_endpoint":"/api/user/cart/item/bulk","cart_page":"/spcu/cart"}</pre>
+  </div></div>
+
+  <div class="callout c-warn"><span class="icon">⚠️</span><div class="body">
+    <strong>sms cannot be activated:</strong> Setting <code>Is_active = 1</code> on an <code>sms</code> method row is rejected by the API. The schema supports it; the endpoint does not.
+  </div></div>
+</div>
+
+<!-- §24 VENDORCARTSESSIONS -->
+<div class="section" id="s24">
+  <div class="section-header"><span class="sn">24</span><h2>VendorCartSessions</h2></div>
+  <p>Tracks active and historical vendor web cart fill sessions. Provides soft-lock collision detection (one open session per vendor at a time) and a full audit trail of who initiated each cart fill, for which orders, and what outcome resulted.</p>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row fk"><div class="col-name">Vendor_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Vendors.Id, DeleteBehavior.Restrict</div></div>
+    <div class="col-row fk"><div class="col-name">Vendor_order_method_id</div><div class="col-type">int, nullable</div><div class="col-notes">FK → VendorOrderMethods.Id, DeleteBehavior.Restrict</div></div>
+    <div class="col-row"><div class="col-name">Method</div><div class="col-type">nvarchar(50), required</div><div class="col-notes">Denormalized at session creation for audit stability</div></div>
+    <div class="col-row"><div class="col-name">Started_by_oid</div><div class="col-type">nvarchar, required</div><div class="col-notes">Entra OID of the manager who initiated the session</div></div>
+    <div class="col-row"><div class="col-name">Started_by_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Started_by_name</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Display name — denormalized from JWT at session creation</div></div>
+    <div class="col-row fk"><div class="col-name">Warehouse_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Warehouses.Id, DeleteBehavior.Restrict</div></div>
+    <div class="col-row"><div class="col-name">Warehouse_name</div><div class="col-type">nvarchar, required</div><div class="col-notes">Denormalized at session creation</div></div>
+    <div class="col-row"><div class="col-name">Prop_code</div><div class="col-type">nvarchar, required</div><div class="col-notes">Denormalized at session creation</div></div>
+    <div class="col-row"><div class="col-name">Order_ids_json</div><div class="col-type">nvarchar(max), required</div><div class="col-notes">JSON array of InventoryOrder IDs included in this session</div></div>
+    <div class="col-row"><div class="col-name">Status</div><div class="col-type">nvarchar(50), required</div><div class="col-notes">open | completed | abandoned | overridden</div></div>
+    <div class="col-row"><div class="col-name">Vendor_order_id</div><div class="col-type">nvarchar(100), nullable</div><div class="col-notes">Vendor's order/confirmation reference returned by the extension</div></div>
+    <div class="col-row"><div class="col-name">Callback_token</div><div class="col-type">nvarchar(100), nullable</div><div class="col-notes">GUID — validated by extension callback endpoint. Never logged or returned in API responses.</div></div>
+    <div class="col-row"><div class="col-name">Started_dt</div><div class="col-type">datetime2, not null</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Expires_dt</div><div class="col-type">datetime2, not null</div><div class="col-notes">Started_dt + 60 minutes. Expired sessions do not block new sessions.</div></div>
+    <div class="col-row"><div class="col-name">Completed_dt</div><div class="col-type">datetime2, nullable</div><div class="col-notes">Set when status transitions to completed or overridden</div></div>
+    <div class="col-row"><div class="col-name">Overridden_by_oid</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">OID of DatabaseManager who forced override</div></div>
+    <div class="col-row"><div class="col-name">Overridden_by_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Override_reason</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Required when override is used</div></div>
+  </div>
+
+  <h3>Session Status Values</h3>
+  <table>
+    <thead><tr><th>Value</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">open</td><td>Session active — extension is filling or has filled the cart; awaiting manager confirmation</td></tr>
+      <tr><td class="t-accent2">completed</td><td>Manager confirmed the order; associated orders advanced to cart_filled</td></tr>
+      <tr><td class="t-muted">abandoned</td><td>Session expired or was abandoned (e.g. order reverted to pending)</td></tr>
+      <tr><td class="t-danger">overridden</td><td>A DatabaseManager forcibly took over the session; prior session owner was notified via Teams DM</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout c-info"><span class="icon">ℹ️</span><div class="body">
+    <strong>Collision detection:</strong> Only one <code>open</code> session per vendor is permitted at a time. A second attempt from any user returns the active session details. Property managers see a read-only block; DatabaseManagers see an override option.<br><br>
+    <strong>Session expiry:</strong> 60 minutes from <code>Started_dt</code>. Expired sessions do not block new sessions. A daily Azure Functions timer marks expired <code>open</code> sessions as <code>abandoned</code>.
+  </div></div>
+
+  <div class="callout c-warn"><span class="icon">⚠️</span><div class="body">
+    <strong>Callback token security:</strong> <code>Callback_token</code> is a GUID generated at session creation. It is transmitted to the extension via the preflight response and sent back in the extension's callback POST. It is validated server-side against the session ID, vendor ID, and method. It is never included in Application Insights logs, exception handlers, or Teams notifications.
+  </div></div>
+</div>
+
+
 <div class="section" id="s22">
   <div class="section-header"><span class="sn">22</span><h2>Core Guarantees</h2></div>
   <div class="guarantees">
@@ -640,6 +746,8 @@
     <div class="guarantee-item"><div class="guarantee-dot"></div><span>IdentifierLookup rows are never hard-deleted; soft delete + retention window governs cleanup</span></div>
     <div class="guarantee-item"><div class="guarantee-dot"></div><span>Orders are workflow artifacts and are never the write authority for inventory — all supply changes route through Transactions</span></div>
     <div class="guarantee-item"><div class="guarantee-dot"></div><span>Quote request tracking is orthogonal to the order status lifecycle — quote status does not affect order status</span></div>
+    <div class="guarantee-item"><div class="guarantee-dot"></div><span>Only one open VendorCartSession per vendor is permitted at a time — collision detection is enforced in the API service layer, not via a DB constraint</span></div>
+    <div class="guarantee-item"><div class="guarantee-dot"></div><span>VendorOrderMethod rows are never hard-deleted — deactivate via Is_active = 0 to preserve FK references from VendorCartSessions</span></div>
   </div>
 </div>
 
@@ -648,7 +756,7 @@
 <!-- ── FOOTER ── -->
 <div class="doc-footer">
   <span>ATC Inventory Application</span>
-  <span>Database Schema · May 2026</span>
+  <span>Database Schema · June 2026</span>
   <span>inventory_api · Internal Use Only</span>
 </div>
 
