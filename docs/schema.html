@@ -196,7 +196,7 @@
     <div class="col-row"><div class="col-name">Address</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
     <div class="col-row"><div class="col-name">Latitude</div><div class="col-type">float</div><div class="col-notes"></div></div>
     <div class="col-row"><div class="col-name">Longitude</div><div class="col-type">float</div><div class="col-notes"></div></div>
-    <div class="col-row"><div class="col-name">Is_active</div><div class="col-type">bit, not null</div><div class="col-notes">Default 1 — soft delete</div></div>
+    <div class="col-row"><div class="col-name">Is_active</div><div class="col-type">bit, not null</div><div class="col-notes">Default 1 — soft delete. Inactive warehouses (for example, sold properties) are excluded from Functions daily/weekly notifications; reports still include them</div></div>
   </div>
   <div class="callout c-info"><span class="icon">ℹ️</span><div class="body"><strong>Unique constraint:</strong> UNIQUE composite index on <code>(PropCode, Name)</code> — enforced at the DB level.</div></div>
 </div>
@@ -460,8 +460,8 @@
   <div class="col-list">
     <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
     <div class="col-row fk"><div class="col-name">Warehouse_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Warehouses.Id</div></div>
-    <div class="col-row"><div class="col-name">Channel_type</div><div class="col-type">nvarchar(100), required</div><div class="col-notes">PROPERTY (channel notification) or DM (direct message webhook)</div></div>
-    <div class="col-row"><div class="col-name">Is_active</div><div class="col-type">bit, required</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Channel_type</div><div class="col-type">nvarchar(100), required</div><div class="col-notes">Set by the client; all current rows hold <code>Teams</code>. Not used by Functions routing (the DM channel is in Key Vault config, not this table)</div></div>
+    <div class="col-row"><div class="col-name">Is_active</div><div class="col-type">bit, required</div><div class="col-notes">Functions timers use the active row for each active warehouse. Nothing in the database prevents two active rows for one warehouse (backlog: filtered unique index)</div></div>
     <div class="col-row"><div class="col-name">Channel_id</div><div class="col-type">nvarchar(400), required</div><div class="col-notes">Teams channel ID</div></div>
     <div class="col-row"><div class="col-name">Team_id</div><div class="col-type">nvarchar(200), required</div><div class="col-notes">Teams team ID — DM webhook URL lives in Key Vault, not this table</div></div>
   </div>

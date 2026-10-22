@@ -107,8 +107,8 @@
     <h1>Side Effects &amp; Automation Register</h1>
     <div class="subtitle">Complete function inventory: status, design decisions, and implementation notes</div>
     <div class="doc-meta">
-      <div class="meta-item"><span class="meta-label">Version</span><span class="meta-value">2.5</span></div>
-      <div class="meta-item"><span class="meta-label">Date</span><span class="meta-value">May 17, 2026</span></div>
+      <div class="meta-item"><span class="meta-label">Version</span><span class="meta-value">2.6</span></div>
+      <div class="meta-item"><span class="meta-label">Date</span><span class="meta-value">Oct 22, 2026</span></div>
       <div class="meta-item"><span class="meta-label">Repo</span><span class="meta-value">inventory_functions</span></div>
       <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">Active Development</span></div>
     </div>
@@ -199,7 +199,7 @@
             <td class="td-name">Weekly Inventory Report</td>
             <td><span class="badge badge-timer">Timer</span></td>
             <td><span class="badge badge-complete">Complete</span></td>
-            <td class="td-notes">Built and tested in dev. Live production smoke test pending natural schedule (Friday 6:00 AM). Implemented as <code>WeeklyOrderedItemsFunction</code> — fires weekly per active warehouse channel. Delivers consolidated report covering: below-minimum items (with correlated order status), pending orders, and ordered items awaiting stock-in. Delivered to property Teams channel via PA dispatcher (F-18). <code>SanitizeForNotification</code> applied to all string fields read from DB to prevent PA Adaptive Card JSON failures on part names containing special characters (e.g. inch marks).</td>
+            <td class="td-notes">Built and tested in dev. Live production smoke test pending natural schedule (Friday 6:00 AM). Implemented as <code>WeeklyOrderedItemsFunction</code> — fires weekly per active warehouse (see <strong>Timer targets</strong> under Test Override). Delivers consolidated report covering: below-minimum items (with correlated order status), pending orders (<code>pending</code> + <code>cart_filled</code>, shown together as pending), and ordered items awaiting stock-in. A below-minimum part with a <code>pending</code>, <code>cart_filled</code> or <code>ordered</code> order is not listed as below minimum. Delivered to property Teams channel via PA dispatcher (F-18). <code>SanitizeForNotification</code> applied to all string fields read from DB to prevent PA Adaptive Card JSON failures on part names containing special characters (e.g. inch marks).</td>
           </tr>
 
           <tr>
@@ -211,6 +211,7 @@
               Implemented, tested, and production verified (B-08). PdfSharpCore (MIT) used throughout — QuestPDF evaluated and rejected due to commercial licensing at PAX8's revenue level.<br><br>
               <strong>Implementation:</strong> <code>ReportDataService</code> (SQL via Managed Identity, read-only), <code>ExcelReportService</code> (ClosedXML), <code>PdfReportService</code> (PdfSharpCore, coordinate-based layout with per-page header repetition), <code>TabularReportFunction</code> (HTTP trigger, dispatches Excel or PDF by format param). NotoSans custom font resolver in place for Linux.<br><br>
               <strong>Report types (all 6, Excel + PDF):</strong> Transactions, Part Trend, Order History, On Order, Parts Catalog, Cross Reference.<br><br>
+              <strong>Order status in reports:</strong> On Order covers <code>pending</code>, <code>cart_filled</code> and <code>ordered</code> in lifecycle order (PDF: separate Pending, Cart Filled and Ordered sections). Status labels come from one helper (<code>OrderStatuses.Label</code>): Pending, Cart Filled, Ordered, Received, Cancelled — used by On Order and Order History, PDF and Excel.<br><br>
               <strong>Delivery flow:</strong> PWA sends filters + <code>report_meta</code> only (no raw data). Function fetches data from DB via Managed Identity, generates file, and returns the binary file directly as an HTTP response (<code>Content-Disposition: attachment</code>). PWA calls <code>response.blob()</code>, creates an object URL, and triggers a browser download.
             </td>
           </tr>
@@ -233,7 +234,7 @@
             <td class="td-name">Scheduled Order Status Report</td>
             <td><span class="badge badge-timer">Timer</span></td>
             <td><span class="badge badge-open">Open</span></td>
-            <td class="td-notes">Superseded. Daily pending orders are covered by <code>DailyPendingOrdersFunction</code> (fires daily at 6:00 AM, delivers pending orders per warehouse channel). Weekly ordered items are covered by <code>WeeklyOrderedItemsFunction</code> (fires Fridays at 6:00 AM, delivers below-minimum + pending + ordered per warehouse channel). Both implemented as part of F-18. No standalone F-11 implementation needed — retiring in next doc update once timer functions are production-verified.</td>
+            <td class="td-notes">Superseded. Daily pending orders are covered by <code>DailyPendingOrdersFunction</code> (fires daily at 6:00 AM UTC, delivers pending orders — <code>pending</code> + <code>cart_filled</code>, shown together as pending — per active warehouse). Weekly ordered items are covered by <code>WeeklyOrderedItemsFunction</code> (fires Fridays at 6:00 AM UTC, delivers below-minimum + pending + ordered per active warehouse). Both implemented as part of F-18. No standalone F-11 implementation needed — retiring in next doc update once timer functions are production-verified.</td>
           </tr>
 
           <tr>
@@ -281,7 +282,7 @@
               <strong>PA flow URLs</strong> stored as per-event Azure App Settings: <code>PA__new_part_created</code>, <code>PA__new_part_in_warehouse</code>, <code>PA__bulk_parts_created</code>, <code>PA__bulk_supplies_created</code>, <code>PA__daily_pending_orders</code>, <code>PA__weekly_warehouse_report</code>, <code>PA__daily_channel_failures</code>. Never hardcoded in source.<br><br>
               <strong>String sanitization:</strong> <code>SanitizeForNotification</code> helper applied at all notification body construction points (API enqueue and Function DB reads) — replaces <code>"</code> with <code>in</code> to prevent PA Adaptive Card JSON failures on user-entered strings containing inch marks or quotes.<br><br>
               <strong>DM channel:</strong> DatabaseManager Teams channel stored in Key Vault config (<code>DM__TeamId</code> + <code>DM__ChannelId</code>) — not in the channel registry.<br><br>
-              <strong>Test override:</strong> <code>NotificationOverride__TeamId</code> + <code>NotificationOverride__ChannelId</code> App Settings route all dispatches to a test channel when both are set. Failure reporting suppressed when override is active.<br><br>
+              <strong>Test override:</strong> <code>NotificationOverride=true</code> with <code>NotificationOverride__TeamId</code> + <code>NotificationOverride__ChannelId</code> routes all dispatches to the test channel. Override on with either ID missing sends nothing (fail closed). Failure and success records are still written, against the real channel where one exists (see Test Override).<br><br>
               <strong>Production verified:</strong> new_part_created, new_part_in_warehouse, bulk_parts_created, bulk_supplies_created. Daily/weekly timer flows pending natural schedule validation.
             </td>
           </tr>
@@ -293,8 +294,8 @@
             <td><span class="badge badge-live">Live</span></td>
             <td class="td-notes">
               Live. <code>DailyChannelFailuresFunction</code> — timer-triggered daily report to the DM Teams channel summarizing any unreported PA delivery failures. Called internally by any Function that uses F-18 when PA returns a failure response.<br><br>
-              <strong>Flow:</strong> PA failure → Function calls <code>PATCH /property-channels/{id}/failure</code> on the API via Managed Identity token (<code>PropertyChannelFailure.Write</code> App Role, configured and live). API writes <code>LastFailedAt</code> to <code>PropertyChannels</code>. Daily timer function queries unreported failures and posts consolidated report to DM channel.<br><br>
-              <strong>Note:</strong> If <code>NotificationOverride__TeamId</code> + <code>NotificationOverride__ChannelId</code> are both active, failure reporting is skipped entirely — test channel failures must not mark production channel records. Functions remain read-only against the database — all writes route through the API.
+              <strong>Flow:</strong> PA failure → Function calls <code>POST /notification-failures</code> on the API via Managed Identity token (<code>PropertyChannelFailure.Write</code> App Role, <code>FunctionApp</code> policy). Successful deliveries call <code>POST /notification-failures/delivery-successes</code>. API writes <code>PropertyChannelFailureLogs</code>. Daily timer function queries unreported failures, posts a consolidated report to the DM channel, then calls <code>POST /notification-failures/mark-reported</code>.<br><br>
+              <strong>Note:</strong> Failure reporting is <strong>not</strong> suppressed under the Test override; records are written to the Test database only (Test and Live have separate databases, so Test records never touch Live). Functions remain read-only against the database — all writes route through the API.
             </td>
           </tr>
 
@@ -479,21 +480,26 @@
             <td class="td-notes">Deployed. Schema: <code>Id</code>, <code>PropCode</code> (unique), <code>DisplayName</code>, <code>ManagedByWarehouseId</code> (FK → Warehouses, required), <code>Notes</code> (nullable), <code>CreatedDt</code>. Satellite properties (no independent warehouse, no independent stock) are recorded here. A propCode in this table is considered reconciled by F-20 — not a gap.</td>
           </tr>
           <tr>
-            <td><strong>PATCH /failure Auth</strong></td>
-            <td class="td-notes"><code>PATCH /property-channels/{id}/failure</code> is gated to the <code>PropertyChannelFailure.Write</code> App Role (not DatabaseManager). This role is assigned to the <code>atc-inventory-functions</code> Managed Identity via Graph API — service-to-service auth, not user-based. Configured and live.</td>
+            <td><strong>Failure Endpoint Auth</strong></td>
+            <td class="td-notes">The <code>/notification-failures</code> endpoints are gated to the <code>PropertyChannelFailure.Write</code> App Role (<code>FunctionApp</code> policy) (not DatabaseManager). This role is assigned to the <code>atc-inventory-functions</code> Managed Identity via Graph API — service-to-service auth, not user-based. Configured and live.</td>
           </tr>
           <tr>
             <td><strong>Test Override</strong></td>
             <td class="td-notes">
-              Two Azure App Settings on the Function App (also in <code>local.settings.json</code> for dev):<br>
+              Three Azure App Settings on the Function App (also in <code>local.settings.json</code> for dev):<br>
+              — <code>NotificationOverride</code> (<code>true</code> in Test, <code>false</code> in Live)<br>
               — <code>NotificationOverride__TeamId</code><br>
               — <code>NotificationOverride__ChannelId</code><br>
-              When both are present and non-empty, all PA dispatches use these values regardless of what <code>PropertyChannels</code> resolves. Failure reporting (F-19 / <code>PATCH /property-channels/{id}/failure</code>) is suppressed when override is active. When either is absent or empty, normal routing applies. Zero code path impact in production when unset. Values set in Azure Portal App Settings — never in source control.
+              <strong>Override on, both IDs set:</strong> all PA dispatches go to the test channel regardless of what <code>PropertyChannels</code> resolves. Failure/success records keep the real channel where one exists.<br>
+              <strong>Override on, either ID missing:</strong> nothing is sent (fail closed) and an error is logged — Test notifications can never reach real channels.<br>
+              <strong>Override off:</strong> normal routing.<br>
+              <strong>Timer targets (daily and weekly):</strong> only warehouses with <code>Warehouses.Is_active = 1</code>. Override on: every active warehouse, including those without an active channel (they use the test channel). Override off: active warehouses with an active <code>PropertyChannels</code> row; the rest are logged each run as a warning (<em>Warehouses skipped — no active Teams channel</em>).<br>
+              Values set in Azure Portal App Settings — never in source control.
             </td>
           </tr>
           <tr>
             <td><strong>PA Flow URL</strong></td>
-            <td class="td-notes">PA HTTP trigger URL stored as Azure App Setting: <code>PowerAutomate__FlowUrl</code>. Generated when the PA flow is created (B-12 Step 2). Never hardcoded in source.</td>
+            <td class="td-notes">One PA HTTP trigger URL per event, stored as Azure App Settings <code>PA__&lt;event&gt;</code> (see F-18). A missing URL skips the dispatch without HTTP or reporting. The URLs contain a signature (<code>sig=</code>); treat them as secrets. Never hardcoded in source.</td>
           </tr>
           <tr>
             <td><strong>Channel Routing</strong></td>
@@ -501,7 +507,7 @@
           </tr>
           <tr>
             <td><strong>Failure Handling</strong></td>
-            <td class="td-notes">PA failure → Function calls <code>PATCH /property-channels/{id}/failure</code> via Managed Identity. API writes <code>LastFailedAt</code>. API fires DM alert. Functions remain read-only against the database — all writes route through the API per architectural rule.</td>
+            <td class="td-notes">PA failure → Function calls <code>POST /notification-failures</code> via Managed Identity; API writes a <code>PropertyChannelFailureLogs</code> row. A later successful delivery calls <code>POST /notification-failures/delivery-successes</code>. The DM channel is alerted by the daily digest (F-19), not at failure time. Functions remain read-only against the database — all writes route through the API per architectural rule.</td>
           </tr>
           <tr>
             <td><strong>Satellite Properties</strong></td>

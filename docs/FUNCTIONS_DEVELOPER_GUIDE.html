@@ -145,10 +145,10 @@
   <p class="subtitle">Automation and side-effects layer — report generation, invoice analysis, notification pipeline, local setup, deployment, and troubleshooting.</p>
   <div class="meta-strip">
     <div class="meta-cell"><span class="lbl">Repo</span><span class="val">inventory_functions</span></div>
-    <div class="meta-cell"><span class="lbl">Runtime</span><span class="val">.NET 9 · Azure Functions v4 Isolated</span></div>
+    <div class="meta-cell"><span class="lbl">Runtime</span><span class="val">.NET 10 · Azure Functions v4 Isolated</span></div>
     <div class="meta-cell"><span class="lbl">Hosting</span><span class="val">Flex Consumption · Linux</span></div>
     <div class="meta-cell"><span class="lbl">Status</span><span class="val">Draft</span></div>
-    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">May 2026</span></div>
+    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">Oct 2026 (v1.0.0)</span></div>
   </div>
 </div>
 
@@ -226,7 +226,7 @@
   <p>Both <code>ReportDataService</code> and <code>NotificationDataService</code> read the database directly using raw ADO.NET (<code>DbCommand</code> / <code>DbConnection</code>). EF Core is not used in this repo.</p>
   <ul>
     <li><strong>Development / Testing:</strong> SQLite via connection string pointing at <code>inventory_api/dev_data/inventory_dev.db</code></li>
-    <li><strong>Production:</strong> Azure SQL via <code>SqlConnection</code> with access token from <code>DefaultAzureCredential</code> (Managed Identity)</li>
+    <li><strong>Azure (Test and Live):</strong> Azure SQL via a plain <code>SqlConnection</code>. The connection string itself authenticates the Function App's managed identity: <code>Authentication=Active Directory Managed Identity;Application Name=inventory-functions</code>. No token code in the repo; the identity has <code>db_datareader</code> only</li>
   </ul>
   <div class="callout c-warn">
     <span class="icon">⚠️</span>
@@ -252,7 +252,7 @@
 <div class="section" id="s3">
   <div class="section-header"><span class="sn">03</span><h2>Technology Stack</h2></div>
   <ul>
-    <li><strong>.NET 9</strong> isolated process worker model</li>
+    <li><strong>.NET 10</strong> isolated process worker model (LTS). <code>global.json</code> pins SDK <code>10.0.100</code> with <code>rollForward: latestFeature</code></li>
     <li><strong>Azure Functions v4</strong> (<code>Microsoft.Azure.Functions.Worker</code> 2.51.0)</li>
     <li><strong>Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore</strong> — enables <code>HttpRequest</code>/<code>IActionResult</code> in HTTP triggers and supports the ASP.NET Core middleware pipeline (required for <code>JwtValidationMiddleware</code>)</li>
   </ul>
@@ -267,11 +267,13 @@
       <tr><td class="t-accent">Azure.AI.FormRecognizer</td><td>4.1.0</td><td>Azure Document Intelligence client (invoice extraction)</td></tr>
       <tr><td class="t-accent">Azure.AI.OpenAI</td><td>2.1.0</td><td>Azure OpenAI client (semantic line item matching)</td></tr>
       <tr><td class="t-accent">Microsoft.Identity.Web</td><td>3.8.2</td><td>JWT validation infrastructure</td></tr>
-      <tr><td class="t-accent">Azure.Identity</td><td>1.17.0</td><td>DefaultAzureCredential for Managed Identity (DB token, Key Vault, API calls)</td></tr>
+      <tr><td class="t-accent">Azure.Identity</td><td>1.17.0</td><td>DefaultAzureCredential for Managed Identity (Key Vault, API calls). Not used for SQL</td></tr>
       <tr><td class="t-accent">Microsoft.Data.SqlClient</td><td>5.2.2</td><td>Azure SQL connection</td></tr>
-      <tr><td class="t-accent">Microsoft.Data.Sqlite</td><td>9.0.0</td><td>SQLite connection for local dev</td></tr>
+      <tr><td class="t-accent">Microsoft.Data.Sqlite</td><td>10.0.5</td><td>SQLite connection for local dev</td></tr>
       <tr><td class="t-accent">Azure.Security.KeyVault.Secrets</td><td>4.6.0</td><td>Direct Key Vault reads for non-ConnectionStrings secrets</td></tr>
       <tr><td class="t-accent">Extensions.Storage.Queues</td><td>5.5.1</td><td>Queue trigger binding</td></tr>
+      <tr><td class="t-accent">Microsoft.ApplicationInsights.WorkerService</td><td>2.23.0</td><td>Classic Application Insights SDK (same line as the API). Keep on 2.x: 3.0.0 is reported to break Functions startup</td></tr>
+      <tr><td class="t-accent">Microsoft.Azure.Functions.Worker.ApplicationInsights</td><td>2.50.0</td><td>Functions worker telemetry integration</td></tr>
     </tbody>
   </table>
 
@@ -287,7 +289,7 @@
 
   <h3>Prerequisites</h3>
   <ul>
-    <li>.NET 9 SDK</li>
+    <li>.NET 10 SDK (the repo's <code>global.json</code> rejects older SDKs)</li>
     <li>Azure Functions Core Tools v4 (<code>func</code> CLI)</li>
     <li>Azurite (local Azure Storage emulator) — required for the queue trigger and <code>AzureWebJobsStorage</code></li>
     <li><code>inventory_api</code> checked out locally with its dev SQLite database present at <code>dev_data/inventory_dev.db</code></li>
@@ -351,7 +353,7 @@
   <h3>NotificationOverride</h3>
   <div class="callout c-warn">
     <span class="icon">⚠️</span>
-    <div class="body"><strong>Always enable <code>NotificationOverride=true</code> in local dev.</strong> When active, all Teams notifications are routed to the team/channel configured in <code>NotificationOverride__TeamId</code> and <code>NotificationOverride__ChannelId</code> — regardless of the intended property channel. If override IDs are not set, the service logs a Warning and falls back to the real channel (intentional — a misconfigured override does not silently drop notifications).</div>
+    <div class="body"><strong>Always enable <code>NotificationOverride=true</code> in local dev.</strong> When active, all Teams notifications are routed to the team/channel configured in <code>NotificationOverride__TeamId</code> and <code>NotificationOverride__ChannelId</code> — regardless of the intended property channel. If override is on and either ID is missing, <strong>nothing is sent</strong> and an error is logged (fail closed) — a misconfigured Test or local app can never post to real channels. With override on, the daily and weekly timers also process every active warehouse, including warehouses without a Teams channel.</div>
   </div>
 
   <h3>Azurite Setup</h3>
@@ -374,21 +376,24 @@ func start</pre>
   <div class="pipeline">
     <div class="pipeline-step"><span class="pipeline-arrow">1 →</span><span><code>ConfigureAppConfiguration</code> — loads <code>local.settings.json</code> (optional) then environment variables</span></div>
     <div class="pipeline-step"><span class="pipeline-arrow">2 →</span><span><code>ConfigureFunctionsWebApplication</code> — registers ASP.NET Core middleware pipeline including <code>JwtValidationMiddleware</code></span></div>
-    <div class="pipeline-step"><span class="pipeline-arrow">3 →</span><span><code>ConfigureServices</code> — environment detection, connection string selection, <code>AddInventoryServices</code>, Application Insights</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">3 →</span><span><code>ConfigureServices</code> — environment detection, connection string selection, <code>AddInventoryServices</code>, Application Insights with <code>ApplicationVersion</code> = assembly informational version (<code>1.0.0+&lt;commit&gt;</code>)</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">3a →</span><span><code>ConfigureLogging</code> — removes the default Warning-only Application Insights rule (Information and above reach App Insights); filters <code>System.Net.Http.HttpClient</code> to Warning</span></div>
     <div class="pipeline-step"><span class="pipeline-arrow">4 →</span><span>Global font resolver: <code>GlobalFontSettings.FontResolver = CustomFontResolver.Instance</code> — must run before <code>host.Run()</code></span></div>
-    <div class="pipeline-step"><span class="pipeline-arrow">5 →</span><span>Startup warnings logged: NotificationOverride state, missing PA flow URLs</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">5 →</span><span>Startup log: <code>InventoryFunctions {Version} starting on {Site}</code> (<code>WEBSITE_SITE_NAME</code>, or <code>local</code>), then warnings for an active NotificationOverride and for missing PA flow URLs</span></div>
     <div class="pipeline-step"><span class="pipeline-arrow">6 →</span><span><code>host.Run()</code></span></div>
   </div>
 
   <h3>Environment Detection</h3>
   <div class="pre-label">csharp</div>
   <pre>var useSqlite = env.IsDevelopment() || env.IsEnvironment("Testing");</pre>
-  <p><code>ASPNETCORE_ENVIRONMENT</code> drives this check. <code>Development</code> and <code>Testing</code> use the SQLite connection string. Any other value (including <code>Production</code>) uses <code>DefaultConnection</code> and Azure SQL with Managed Identity token auth.</p>
+  <p><code>ASPNETCORE_ENVIRONMENT</code> drives this check. <code>Development</code> and <code>Testing</code> use the SQLite connection string. Any other value (including <code>Production</code>) uses <code>DefaultConnection</code> (App Setting <code>ConnectionStrings__DefaultConnection</code>) and Azure SQL with managed identity authentication in the connection string.</p>
 
-  <h3>AddInventoryServices — Registered Services (all Scoped)</h3>
+  <h3>AddInventoryServices — Registered Services</h3>
+  <p>Registered in <code>Extensions/ServiceCollectionExtensions.cs</code>. Scoped unless noted.</p>
   <table>
     <thead><tr><th>Service</th><th>Implementation</th></tr></thead>
     <tbody>
+      <tr><td class="t-accent">IJwtValidationParametersProvider</td><td>EntraJwtValidationParametersProvider (<strong>singleton</strong>)</td></tr>
       <tr><td class="t-accent">IReportDataService</td><td>ReportDataService(connectionString, useSqlite)</td></tr>
       <tr><td class="t-accent">IExcelReportService</td><td>ExcelReportService</td></tr>
       <tr><td class="t-accent">IPdfReportService</td><td>PdfReportService</td></tr>
@@ -396,6 +401,7 @@ func start</pre>
       <tr><td class="t-accent">INotificationDataService</td><td>NotificationDataService(connectionString, useSqlite, logger)</td></tr>
       <tr><td class="t-accent">IApiClient</td><td>ApiClient</td></tr>
       <tr><td class="t-accent">IPowerAutomateService</td><td>PowerAutomateService</td></tr>
+      <tr><td class="t-accent">NotificationTargetResolver</td><td>Concrete class, no interface — chooses the warehouses the daily/weekly timers post for</td></tr>
     </tbody>
   </table>
   <p>Two named <code>HttpClient</code> instances are also registered: <code>"InventoryApi"</code> and <code>"PowerAutomate"</code>.</p>
@@ -409,7 +415,8 @@ func start</pre>
   <p>Located at <code>Services/Auth/JwtValidationMiddleware.cs</code>. This is the sole authentication enforcement point for HTTP triggers.</p>
   <ul>
     <li><strong>Timer and queue triggers:</strong> Middleware checks for <code>HttpContext</code> at the start of <code>Invoke</code>. When none exists, it calls <code>next(context)</code> immediately. No token required, negligible overhead.</li>
-    <li><strong>HTTP triggers:</strong> Extracts <code>Authorization: Bearer &lt;token&gt;</code>, fetches signing keys from Entra ID OpenID Connect metadata, validates issuer/audience/lifetime/signing key. On success sets <code>ITokenClaims</code> on <code>context.Features</code> and sets <code>httpContext.User</code>. On failure returns <code>401</code>.</li>
+    <li><strong>HTTP triggers:</strong> Extracts <code>Authorization: Bearer &lt;token&gt;</code>, validates issuer/audience/lifetime/signing key using parameters from <code>IJwtValidationParametersProvider</code>. The singleton provider builds the parameters and one OpenID Connect <code>ConfigurationManager</code> once; the manager caches Entra signing keys and refreshes them itself (no metadata download per request). A configuration failure is not cached, so a corrected setting takes effect on the next request. On success sets <code>ITokenClaims</code> on <code>context.Features</code> and sets <code>httpContext.User</code>. On failure returns <code>401</code>.</li>
+    <li><strong>Route bypass:</strong> paths containing <code>quote-email-detected</code> skip validation. No such route exists (the quote-email flow was retired); the bypass is dead code, left in place.</li>
   </ul>
 
   <h3>Token Validation Failure Responses</h3>
@@ -427,13 +434,17 @@ func start</pre>
   <div class="pre-label">csharp</div>
   <pre>var claims = functionContext.GetTokenClaims();
 // claims.Oid   — object ID from token
-// claims.Email — preferred_username or upn claim</pre>
+// claims.Email — preferred_username claim (the upn fallback never matches:
+//                the token handler renames upn; Email is unused by functions)</pre>
   <p>If the middleware did not run (timer/queue), <code>GetTokenClaims()</code> returns an empty <code>TokenClaims</code> instance rather than null.</p>
 
   <h3>OID Cross-Validation</h3>
-  <p><code>TabularReportFunction</code>, <code>LabelReportFunction</code>, and <code>OrderFormReportFunction</code> enforce an additional check — the <code>requested_by_oid</code> field in the request body must match the OID from the validated token. This prevents one authenticated user from generating a report scoped to another user's identity.</p>
+  <p>All four HTTP functions (<code>TabularReportFunction</code>, <code>LabelReportFunction</code>, <code>OrderFormReportFunction</code>, <code>AnalyzeInvoiceFunction</code>) return <code>401</code> when the token has no <code>oid</code>. The three report functions then enforce an additional check — the <code>requested_by_oid</code> field in the request body must match the OID from the validated token. This prevents one authenticated user from generating a report scoped to another user's identity.</p>
   <div class="pre-label">csharp</div>
-  <pre>if (!string.Equals(claims.Oid, request.RequestedByOid, StringComparison.OrdinalIgnoreCase))
+  <pre>if (string.IsNullOrEmpty(claims.Oid))
+    return new UnauthorizedResult();
+
+if (!string.Equals(claims.Oid, request.RequestedByOid, StringComparison.OrdinalIgnoreCase))
     return new ObjectResult(new { error = "FORBIDDEN", message = "OID mismatch." })
         { StatusCode = StatusCodes.Status403Forbidden };</pre>
 
@@ -443,7 +454,7 @@ func start</pre>
   </div>
 
   <h3>Timer and Queue → API Call-Through</h3>
-  <p>When timer and queue functions call the API for write-back operations, <code>ApiClient</code> acquires a token using <code>DefaultAzureCredential</code>. In production this resolves via the Function App's Managed Identity. Locally it falls through the credential chain (environment variables, Azure CLI, Visual Studio, etc.).</p>
+  <p>When timer and queue functions call the API for write-back operations, <code>ApiClient</code> acquires a token using <code>DefaultAzureCredential</code>. In Azure this resolves via the Function App's managed identity, which must hold the <code>PropertyChannelFailure.Write</code> app role on <code>ATC_InventoryAPI</code> (API policy <code>FunctionApp</code>). Locally it falls through the credential chain (environment variables, Azure CLI, Visual Studio, etc.). Known issue (backlog): a new credential and token request on every call, and the header is set on the shared <code>HttpClient</code>.</p>
   <div class="callout c-warn">
     <span class="icon">⚠️</span>
     <div class="body">This is <strong>not</strong> a user token — it is a service-to-service token scoped to the API's audience. The invoice analysis pipeline uses a different pattern: the user's own Bearer token is forwarded from the incoming HTTP request to the API calls within <code>InvoiceAnalysisService</code>.</div>
@@ -464,7 +475,7 @@ func start</pre>
       <tr><td class="t-accent">transactions</td><td>Transaction ledger filtered by warehouse, date range, reason, category</td></tr>
       <tr><td class="t-accent">part_trend</td><td>Consumption or quantity-on-hand trend for a single part across warehouses</td></tr>
       <tr><td class="t-accent">order_history</td><td>Order history filtered by warehouse, date range, status, category</td></tr>
-      <tr><td class="t-accent">on_order</td><td>Currently open orders (pending + ordered) filtered by warehouse</td></tr>
+      <tr><td class="t-accent">on_order</td><td>Open orders (<code>pending</code>, <code>cart_filled</code>, <code>ordered</code>) filtered by warehouse, in lifecycle order. PDF: separate Pending, Cart Filled and Ordered sections</td></tr>
       <tr><td class="t-accent">parts_catalog</td><td>Parts catalog with supply levels</td></tr>
       <tr><td class="t-accent">cross_reference</td><td>Cross-reference of parts to identifiers/barcodes</td></tr>
     </tbody>
@@ -509,6 +520,7 @@ func start</pre>
       <tr><td class="t-accent">DailyChannelFailuresFunction</td><td>0 30 6 * * *</td><td>6:30 AM UTC, every day</td></tr>
     </tbody>
   </table>
+  <p><strong>Content:</strong> Daily posts each warehouse's pending orders — <code>pending</code> and <code>cart_filled</code> together, shown as pending (reminder only; the app shows the exact status). Weekly posts below-minimum items, pending (same rule) and ordered items; a below-minimum part with any open order is not listed as below minimum. Which warehouses are posted for is set by <code>NotificationTargetResolver</code> (Section 9). Errors are caught and logged, so a failed run still reports Succeeded (backlog).</p>
 
   <h3>Queue Function</h3>
   <p><strong>NotificationQueueFunction</strong> — Queue: <code>inventory-notifications</code>, Connection: <code>AzureWebJobsStorage</code>. Triggered by messages enqueued by <code>inventory_api</code> on inventory write events. See Section 9 for the full notification pipeline.</p>
@@ -519,7 +531,10 @@ func start</pre>
   <div class="section-header"><span class="sn">08</span><h2>Report Generation Pipeline</h2></div>
 
   <h3>Data Access</h3>
-  <p><code>ReportDataService</code> reads the database directly using raw ADO.NET. Production connections use <code>DefaultAzureCredential</code> to acquire an access token for <code>https://database.windows.net/.default</code> and assign it to <code>SqlConnection.AccessToken</code>. The connection string itself contains no credentials.</p>
+  <p><code>ReportDataService</code> reads the database directly using raw ADO.NET over a plain <code>SqlConnection</code>; the connection string authenticates the managed identity (<code>Authentication=Active Directory Managed Identity</code>) and contains no secret. Reports include inactive warehouses so history stays reportable.</p>
+
+  <h3>Order Status Labels</h3>
+  <p>Status strings live in <code>Models/OrderStatuses</code> (<code>pending</code>, <code>cart_filled</code>, <code>ordered</code>, <code>received</code>, <code>cancelled</code>). <code>OrderStatuses.Label()</code> gives the display text (Pending, Cart Filled, Ordered, Received, Cancelled) used by On Order and Order History, PDF and Excel. On Order Excel shades Pending rows blue and Cart Filled rows pink.</p>
 
   <h3>Excel Generation</h3>
   <p><code>ExcelReportService</code> uses ClosedXML to build <code>.xlsx</code> workbooks in memory and return <code>byte[]</code>. Column definitions, date format strings, and header styles are applied per report type.</p>
@@ -561,11 +576,23 @@ func start</pre>
   <div class="pipeline">
     <div class="pipeline-step"><span class="pipeline-arrow">1 →</span><span><code>inventory_api</code> write event → enqueues <code>NotificationQueueMessage</code> to <code>inventory-notifications</code> Storage Queue</span></div>
     <div class="pipeline-step"><span class="pipeline-arrow">2 →</span><span><code>NotificationQueueFunction</code> (queue trigger) → deserializes message → calls <code>PowerAutomateService</code></span></div>
-    <div class="pipeline-step"><span class="pipeline-arrow">3 →</span><span><code>PowerAutomateService</code> → resolves routing (override or real channel) → resolves PA flow URL from <code>PA__{event_type}</code> config → POSTs <code>TeamNotificationPayload</code> to PA flow</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">3 →</span><span><code>PowerAutomateService</code> → resolves routing (override, real channel, or <strong>nothing</strong> when the override is on without both IDs) → resolves PA flow URL from <code>PA__{event_type}</code> config → POSTs <code>TeamNotificationPayload</code> to PA flow</span></div>
     <div class="pipeline-step"><span class="pipeline-arrow">4a →</span><span>On HTTP 2xx → calls <code>ApiClient.PostNotificationSuccessAsync</code> (fire-and-forget)</span></div>
     <div class="pipeline-step"><span class="pipeline-arrow">4b →</span><span>On non-2xx or exception → calls <code>ApiClient.PostNotificationFailureAsync</code> (fire-and-forget)</span></div>
-    <div class="pipeline-step"><span class="pipeline-arrow">5 →</span><span>API records outcome in <code>PropertyChannelFailureLogs</code> or delivery success log</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">5 →</span><span>API records the outcome: a failure adds a <code>PropertyChannelFailureLogs</code> row (<code>POST /notification-failures</code>); a success marks matching open failure rows recovered (<code>POST /notification-failures/delivery-successes</code>). Both use the real channel where one exists, also under the Test override</span></div>
   </div>
+
+  <h3>Timer Notification Targets</h3>
+  <p><code>NotificationTargetResolver.GetTimerTargetsAsync</code> decides which warehouses the daily and weekly timers post for. It reads <code>INotificationDataService.GetActiveWarehouseChannelsAsync</code>: every warehouse with <code>Is_active = 1</code>, joined to its active <code>PropertyChannels</code> row if any (<code>PropertyChannelId = 0</code> when none).</p>
+  <table>
+    <thead><tr><th>Mode</th><th>Warehouses posted for</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">Override on, both IDs set (Test)</td><td>Every active warehouse. Those without a channel use the test channel; others keep their real channel for reporting and are rerouted by <code>PowerAutomateService</code></td></tr>
+      <tr><td class="t-accent">Override on, an ID missing</td><td>None. Error logged (fail closed)</td></tr>
+      <tr><td class="t-accent">Override off (Live)</td><td>Active warehouses with an active channel. The rest are logged each run as a warning: <em>Warehouses skipped — no active Teams channel</em></td></tr>
+    </tbody>
+  </table>
+  <p>Inactive warehouses (for example, sold properties) are never posted for, even if a channel row is still active.</p>
 
   <h3>Power Automate Flow Registry</h3>
   <table>
@@ -674,6 +701,7 @@ func start</pre>
     <div class="check-item"><div class="check-box"></div><span>Log start and completion with <code>DateTime.UtcNow</code></span></div>
     <div class="check-item"><div class="check-box"></div><span>Log <code>myTimer.ScheduleStatus?.Next</code> on completion</span></div>
     <div class="check-item"><div class="check-box"></div><span>Catch exceptions per-item in loops; log and continue rather than aborting the entire run</span></div>
+    <div class="check-item"><div class="check-box"></div><span>For per-warehouse notifications, get the warehouses from <code>NotificationTargetResolver</code> (never query channels directly) so the override, fail-closed and inactive-warehouse rules apply</span></div>
     <div class="check-item"><div class="check-box"></div><span>Do not write to inventory, supply, order, transaction, or equipment tables directly</span></div>
   </div>
 
@@ -705,7 +733,7 @@ func start</pre>
         <tr><td class="t-accent">ASPNETCORE_ENVIRONMENT</td><td class="t-danger">Yes</td><td>Absence defaults to Azure SQL path</td></tr>
         <tr><td class="t-accent">AzureAd__Instance</td><td class="t-danger">Yes</td><td>JWT validation fails with 500</td></tr>
         <tr><td class="t-accent">AzureAd__TenantId</td><td class="t-danger">Yes</td><td>JWT validation fails with 500</td></tr>
-        <tr><td class="t-accent">AzureAd__ClientId</td><td class="t-danger">Yes</td><td>Required for token audience</td></tr>
+        <tr><td class="t-accent">AzureAd__ClientId</td><td class="t-danger">Yes</td><td>Not read by Functions code (validation and <code>ApiClient</code> use <code>AzureAd__Audience</code>); kept in the example for clarity</td></tr>
         <tr><td class="t-accent">AzureAd__Audience</td><td class="t-danger">Yes</td><td>JWT validation fails with 500; also used by ApiClient for token scope</td></tr>
         <tr><td class="t-accent">InventoryApi__BaseUrl</td><td class="t-danger">Yes</td><td>Invoice and notification API calls fail at runtime</td></tr>
         <tr><td class="t-accent">AzureDocIntelligence__Endpoint</td><td class="t-warn">Invoice</td><td>Invoice analysis returns 502</td></tr>
@@ -720,11 +748,13 @@ func start</pre>
         <tr><td class="t-accent">PA__daily_pending_orders</td><td class="t-muted">No</td><td>Startup warning; notification logged and skipped</td></tr>
         <tr><td class="t-accent">PA__weekly_warehouse_report</td><td class="t-muted">No</td><td>Startup warning; notification logged and skipped</td></tr>
         <tr><td class="t-accent">PA__daily_channel_failures</td><td class="t-muted">No</td><td>Startup warning; notification logged and skipped</td></tr>
-        <tr><td class="t-accent">NotificationOverride</td><td class="t-muted">No</td><td>All notifications go to real channels</td></tr>
-        <tr><td class="t-accent">NotificationOverride__TeamId</td><td class="t-muted">No</td><td>If override active but IDs missing, falls back to real channel with Warning</td></tr>
+        <tr><td class="t-accent">NotificationOverride</td><td class="t-muted">No</td><td>Off: notifications go to real channels; timers post only for active warehouses with a channel. <code>true</code> in Test, <code>false</code> in Live</td></tr>
+        <tr><td class="t-accent">NotificationOverride__TeamId</td><td class="t-muted">No</td><td>If override is on and this is missing, nothing is sent and an error is logged (fail closed)</td></tr>
         <tr><td class="t-accent">NotificationOverride__ChannelId</td><td class="t-muted">No</td><td>Same as above</td></tr>
         <tr><td class="t-accent">DM__TeamId</td><td class="t-muted">No</td><td>DM notifications skipped with Warning</td></tr>
         <tr><td class="t-accent">DM__ChannelId</td><td class="t-muted">No</td><td>DM notifications skipped with Warning</td></tr>
+        <tr><td class="t-accent">APPLICATIONINSIGHTS_CONNECTION_STRING</td><td class="t-muted">Azure</td><td>No telemetry in Application Insights</td></tr>
+        <tr><td class="t-accent">DEPLOYMENT_STORAGE_CONNECTION_STRING</td><td class="t-muted">Azure (Flex)</td><td>Deployment package storage for the Test app (storage account key). Live uses its managed identity instead</td></tr>
         <tr><td class="t-accent">KeyVaultUrl</td><td class="t-muted">No</td><td>Defaults to https://atc-inventory-keyvault.vault.azure.net/</td></tr>
         <tr><td class="t-accent">ConnectionStrings:InventoryDb</td><td class="t-warn">Dev only</td><td>Startup exception in Development/Testing</td></tr>
         <tr><td class="t-accent">ConnectionStrings:DefaultConnection</td><td class="t-warn">Prod only</td><td>Startup exception in Production</td></tr>
@@ -740,9 +770,11 @@ func start</pre>
   <h3>GitHub Actions Workflow</h3>
   <p><code>.github/workflows/deploy.yml</code> defines two jobs:</p>
   <div class="pipeline">
-    <div class="pipeline-step"><span class="pipeline-arrow">Job 1 →</span><span><strong>build-and-test:</strong> Checkout → Restore → Build (Release) → <code>dotnet test</code></span></div>
-    <div class="pipeline-step"><span class="pipeline-arrow">Job 2 →</span><span><strong>publish-and-deploy:</strong> Checkout → Publish to <code>./publish</code> → Azure Login (OIDC) → Deploy via <code>Azure/functions-action@v1</code> → Restart Function App</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">Job 1 →</span><span><strong>build-and-test:</strong> Checkout → .NET 10 → Restore, build (Release) and test <code>tests/InventoryFunctions.Tests/InventoryFunctions.Tests.csproj</code> (builds the app through the project reference). A failing test blocks deploy</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">Job 2 →</span><span><strong>publish-and-deploy:</strong> Checkout → Publish to <code>./publish</code> with <code>-p:SourceRevisionId=${{ github.sha }}</code> → Azure Login (OIDC, repo secrets) → Deploy via <code>Azure/functions-action@v1</code> → Restart Function App</span></div>
   </div>
+  <p>Trigger: push to <code>main</code>; deploys to the Test Function App. Version: <code>&lt;Version&gt;</code> in the csproj (bumped manually, semver); CI adds the commit ID, so Application Insights shows <code>1.0.0+&lt;commit&gt;</code>.</p>
+  <div class="callout c-info"><span class="icon">ℹ️</span><div class="body"><strong>Planned (Test/Live Phase 2):</strong> one build job whose package is deployed unchanged; <code>deploy-test</code> on push to <code>main</code>; <code>deploy-live</code> on a <code>v*</code> tag through the <code>live</code> GitHub environment (approval required); tag must equal the csproj version; GitHub Release with the package; redeploy-a-tag workflow for rollback.</div></div>
 
   <h3>Azure Resource Identifiers</h3>
   <table>
@@ -750,6 +782,9 @@ func start</pre>
     <tbody>
       <tr><td class="t-muted">Function App name</td><td class="t-accent">atc-inventory-functions</td></tr>
       <tr><td class="t-muted">Resource group</td><td class="t-accent">PAX8_ATC-InventoryApp</td></tr>
+      <tr><td class="t-muted">Plan</td><td class="t-accent">ASP-PAX8ATCInventoryApp-9282 (Flex Consumption, Linux)</td></tr>
+      <tr><td class="t-muted">Runtime stack</td><td class="t-accent">.NET 10 Isolated</td></tr>
+      <tr><td class="t-muted">Environment</td><td class="t-accent">Test (Live Function App to be created)</td></tr>
     </tbody>
   </table>
 
@@ -758,7 +793,7 @@ func start</pre>
     <thead><tr><th>Resource</th><th>Permission</th><th>Purpose</th></tr></thead>
     <tbody>
       <tr><td class="t-accent">Azure SQL</td><td>db_datareader role</td><td>NotificationDataService and ReportDataService</td></tr>
-      <tr><td class="t-accent">ATC_InventoryAPI Entra registration</td><td>Token acquisition for AzureAd__Audience scope</td><td>ApiClient — write-back calls to API</td></tr>
+      <tr><td class="t-accent">ATC_InventoryAPI Entra registration</td><td>App role <code>PropertyChannelFailure.Write</code> (assigned with Microsoft Graph PowerShell; not available in the portal for managed identities)</td><td>ApiClient — <code>/notification-failures</code> calls (API policy <code>FunctionApp</code>)</td></tr>
       <tr><td class="t-accent">Key Vault</td><td>Get permission on secrets</td><td>InvoiceAnalysisService.GetSecret()</td></tr>
     </tbody>
   </table>
@@ -773,17 +808,24 @@ func start</pre>
 <div class="section" id="s14">
   <div class="section-header"><span class="sn">14</span><h2>Testing</h2></div>
 
-  <div class="callout c-warn">
-    <span class="icon">⚠️</span>
-    <div class="body"><strong>Current coverage gap:</strong> The test project exists and is wired into the CI pipeline, but no test files were present in the snapshot at the time this guide was written. The CI step (<code>dotnet test</code>) runs against the empty project and passes. Meaningful test coverage does not currently exist for this repo.</div>
-  </div>
+  <p>xUnit suite in <code>tests/InventoryFunctions.Tests</code>, run by CI on every push; a failing test blocks deploy. <strong>Hand-written fakes, no mocking library.</strong> Test folders mirror <code>src</code>.</p>
 
-  <h3>Priority Areas for Initial Coverage</h3>
+  <h3>Structure</h3>
+  <table>
+    <thead><tr><th>Folder</th><th>Contents</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">Fakes/</td><td>Fakes for every external dependency: data services, Power Automate, API client, HTTP client factory and handler, function context, report builders, invoice service, JWT parameters provider</td></tr>
+      <tr><td class="t-accent">Helpers/</td><td><code>ResultAssert</code>, <code>TestRequests</code></td></tr>
+      <tr><td class="t-accent">Functions/</td><td>Invoice, Notifications (queue, channel failures) and Timers (daily, weekly, including override and cart-filled cases)</td></tr>
+      <tr><td class="t-accent">Services/</td><td>Auth (middleware, parameters provider), Notifications (<code>PowerAutomateService</code> routing, override, fail closed, reporting), Reports (HTTP report functions, order-form and status-label workbooks)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Not Covered (by design)</h3>
   <ul>
-    <li><code>NotificationSanitizer</code> — pure function, trivially testable</li>
-    <li><code>InvoiceAnalysisService</code> stage dispatch logic — alias vs. AI vs. unresolved branching</li>
-    <li><code>WeeklyOrderedItemsFunction</code> correlation logic (below-min vs. ordered correlation)</li>
-    <li><code>PowerAutomateService</code> routing logic (override vs. real channel resolution)</li>
+    <li>SQL in <code>ReportDataService</code> and <code>NotificationDataService</code> — verify with a report or timer run in Test</li>
+    <li>PDF content — verify by opening the generated PDF</li>
+    <li><code>ApiClient</code> payloads — blocked by the token handling noted in Section 6</li>
   </ul>
 
   <h3>Running Tests</h3>
@@ -794,9 +836,9 @@ func start</pre>
   <table>
     <thead><tr><th>Trigger</th><th>Approach</th></tr></thead>
     <tbody>
-      <tr><td class="t-accent">HTTP functions</td><td>Standard IActionResult type and value assertions. Middleware not active in unit tests — pass pre-populated ITokenClaims mock via FunctionContext.Features.</td></tr>
-      <tr><td class="t-accent">Timer functions</td><td>Business logic in private ProcessWarehouseAsync methods. Extract to testable service class for unit testing.</td></tr>
-      <tr><td class="t-accent">Queue function</td><td>Deserialization and dispatch logic testable by constructing NotificationQueueFunction with mock IPowerAutomateService.</td></tr>
+      <tr><td class="t-accent">HTTP functions</td><td>Assert on the <code>IActionResult</code> (<code>ResultAssert</code>). Middleware does not run in unit tests — set <code>ITokenClaims</code> on the fake <code>FunctionContext</code> features.</td></tr>
+      <tr><td class="t-accent">Timer functions</td><td>Construct the function with <code>FakeNotificationDataService</code>, <code>FakePowerAutomateService</code> and a real <code>NotificationTargetResolver</code> over in-memory configuration; assert on the recorded Power Automate calls and bodies.</td></tr>
+      <tr><td class="t-accent">Queue function</td><td>Construct <code>NotificationQueueFunction</code> with <code>FakePowerAutomateService</code>; assert on dispatch and on parse-failure handling.</td></tr>
     </tbody>
   </table>
 </div>
@@ -807,8 +849,8 @@ func start</pre>
 
   <h3>Log Stream vs. Application Insights</h3>
   <ul>
-    <li><strong>Log stream</strong> (Azure portal → Function App → Log stream): Near-real-time Information-level and above. Use for watching timer runs, notification dispatch, and startup warnings as they happen.</li>
-    <li><strong>Application Insights:</strong> Full exception detail including stack traces. Use <code>outerMessage</code> (not <code>innermostMessage</code>) in KQL queries. <code>parsedStack</code> array has <code>fileName</code> and <code>method</code> fields.</li>
+    <li><strong>Log stream</strong> (Azure portal → Function App → Log stream): Near-real-time Information-level and above (Flex Consumption scales to zero; the stream is empty until something runs). Use for watching timer runs, notification dispatch, and startup warnings as they happen.</li>
+    <li><strong>Application Insights:</strong> Information-level traces and full exception detail including stack traces. Every row carries <code>application_Version</code> (<code>1.0.0+&lt;commit&gt;</code>); find a deploy with <code>traces | where message has "starting on"</code>. Use <code>outerMessage</code> (not <code>innermostMessage</code>) in KQL queries. <code>parsedStack</code> array has <code>fileName</code> and <code>method</code> fields.</li>
   </ul>
 
   <h3>Common Failure Modes</h3>
@@ -820,6 +862,10 @@ func start</pre>
       <tr><td>POST /api/invoice/analyze returns 502 ANALYSIS_FAILED</td><td class="t-warn">ADI or OpenAI config missing</td><td>App Insights for InvalidOperationException from GetSecret; verify Key Vault secrets and Managed Identity Get permission</td></tr>
       <tr><td>403 FORBIDDEN with "OID mismatch."</td><td class="t-warn">PWA sending wrong requested_by_oid</td><td>Verify PWA sends OID from authenticated user's token claims</td></tr>
       <tr><td>PDF generation throws on cold start</td><td class="t-warn">CustomFontResolver not initialized</td><td>Verify Program.cs font resolver assignment runs before host.Run()</td></tr>
+      <tr><td>Error: <em>NotificationOverride=true but override TeamId/ChannelId not set</em></td><td class="t-warn">Override on with a missing test ID — nothing is sent (fail closed)</td><td>Function App settings <code>NotificationOverride__TeamId</code> / <code>__ChannelId</code></td></tr>
+      <tr><td>Warning: <em>Warehouses skipped — no active Teams channel</em></td><td class="t-warn">Active warehouse without an active <code>PropertyChannels</code> row (expected until a channel is assigned)</td><td>PWA channel setup; <code>PropertyChannels</code></td></tr>
+      <tr><td>Startup fails: <em>dotnet exited with code 150</em> after a runtime change</td><td class="t-warn">Function App stack and package target differ (.NET 9 vs 10)</td><td>Function App → Configuration → Stack settings; stop and start (not restart)</td></tr>
+      <tr><td>Local build: <em>NETSDK1045 … does not support targeting .NET 10.0</em></td><td class="t-warn">No .NET 10 SDK installed (<code>global.json</code> requires 10.0.100+)</td><td><code>dotnet --list-sdks</code></td></tr>
       <tr><td>Hard startup exception — connection string not configured</td><td class="t-warn">ConnectionStrings:InventoryDb (dev) or DefaultConnection (prod) missing</td><td>local.settings.json or Azure App Settings</td></tr>
     </tbody>
   </table>
@@ -846,7 +892,7 @@ func start</pre>
 
 <div class="doc-footer">
   <span>ATC Inventory Application</span>
-  <span>Functions Developer Guide · May 2026</span>
+  <span>Functions Developer Guide · Oct 2026</span>
   <span>inventory_functions · Internal Use Only</span>
 </div>
 

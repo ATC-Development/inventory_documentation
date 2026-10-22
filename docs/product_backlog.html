@@ -422,7 +422,7 @@
               Two tables deployed to production.<br><br>
               <strong>PropertyChannels:</strong> <code>Id</code>, <code>WarehouseId</code> (FK), <code>ChannelType</code> (nvarchar 50), <code>TeamId</code> (nvarchar 100), <code>ChannelId</code> (nvarchar 200), <code>IsActive</code> (bit), <code>LastFailedAt</code> (datetime2, nullable). Note: original <code>WebhookUrl</code> design replaced with <code>TeamId</code> + <code>ChannelId</code> — modern Teams uses team/channel routing, not incoming webhook URLs.<br><br>
               <strong>ManagedProperties:</strong> <code>Id</code>, <code>PropCode</code> (unique), <code>DisplayName</code>, <code>ManagedByWarehouseId</code> (FK), <code>Notes</code> (nullable), <code>CreatedDt</code>.<br><br>
-              Full CRUD API endpoints (DatabaseManager only). <code>PATCH /property-channels/{id}/failure</code> gated to <code>PropertyChannelFailure.Write</code> App Role assigned to <code>atc-inventory-functions</code> Managed Identity.<br><br>
+              Full CRUD API endpoints (DatabaseManager only). Delivery outcome endpoints (<code>POST /notification-failures</code>, <code>/delivery-successes</code>, <code>/mark-reported</code>; <code>GET /notification-failures</code>) gated to <code>PropertyChannelFailure.Write</code> App Role assigned to <code>atc-inventory-functions</code> Managed Identity.<br><br>
               PWA: Manage Warehouses page extended with expandable rows showing Managed Properties and Notification Channels sub-sections with add/edit/delete inline UI.
             </td>
           </tr>
