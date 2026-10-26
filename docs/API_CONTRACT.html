@@ -86,7 +86,7 @@
 <div class="title-block">
   <h1>ATC Inventory API</h1>
   <div class="subtitle">Developer Contract — Full Endpoint Reference</div>
-  <div class="meta">Version: <strong>1.1</strong> &nbsp;&nbsp; Date: <strong>May 17, 2026</strong> &nbsp;&nbsp; Related: <strong>API_DEVELOPER_GUIDE.md</strong> &nbsp;&nbsp; Source: <strong>inventory_api snapshot 2026-05-17</strong></div>
+  <div class="meta">Version: <strong>1.2</strong> &nbsp;&nbsp; Date: <strong>Oct 26, 2026</strong> &nbsp;&nbsp; Related: <strong>API_DEVELOPER_GUIDE.md</strong> &nbsp;&nbsp; Source: <strong>inventory_api snapshot 2026-05-17 (property min/max sections: 2026-10-26)</strong></div>
 </div>
 
 <div class="toc">
@@ -206,7 +206,7 @@ Content-Type: application/json</pre>
     <tr><td><code>INITIAL_STOCK</code></td><td></td></tr>
     <tr><td><code>ORDER_RECEIPT</code></td><td></td></tr>
     <tr><td><code>CORRECTION</code></td><td></td></tr>
-    <tr><td><code>New Part in Warehouse</code></td><td><strong>Reserved string.</strong> Triggers DatabaseManager alert + label print in Azure Functions. Do not use for manual adjustments.</td></tr>
+    <tr><td><code>New Part in Warehouse</code></td><td><strong>Reserved string.</strong> Transaction <code>Reason</code> whenever a supply row is created. The DatabaseManager alert is raised by the API (queued <code>new_part_in_warehouse</code> / <code>bulk_supplies_created</code>, delivered by Azure Functions), not by monitoring this string. Do not use for manual adjustments.</td></tr>
   </tbody>
 </table>
 
@@ -356,6 +356,8 @@ Content-Type: application/json</pre>
     <tr><td class="ep-method m-get">GET</td><td class="ep-path">/supplies/{warehouseId}</td><td>Supplies for one warehouse</td><td class="ep-auth a-auth">Authenticated</td></tr>
     <tr><td class="ep-method m-get">GET</td><td class="ep-path">/supplies/lookup</td><td>Read-only barcode+warehouse lookup</td><td class="ep-auth a-auth">Authenticated</td></tr>
     <tr><td class="ep-method m-get">GET</td><td class="ep-path">/supplies/part-trend</td><td>Per-warehouse series for one part (DatabaseManager)</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/supplies/level-changes</td><td>Property level change history (read-only)</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/supplies/levels</td><td>Set or clear property min/max for supplies in one warehouse (batch)</td><td class="ep-auth a-prop">DM or propCode_wh</td></tr>
     <tr><td class="ep-method m-post">POST</td><td class="ep-path">/supplies</td><td>Create supply record</td><td class="ep-auth a-auth">Authenticated</td></tr>
     <tr><td class="ep-method m-post">POST</td><td class="ep-path">/supplies/multiple</td><td>Bulk create supply records</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
     <tr><td class="ep-method m-put">PUT</td><td class="ep-path">/supplies/{supplyId}</td><td>Update supply quantity by supply ID</td><td class="ep-auth a-auth">Authenticated</td></tr>
@@ -504,12 +506,12 @@ Content-Type: application/json</pre>
   <div class="event-card">
     <div class="ev-name">supply.updated</div>
     <div class="ev-scope">&rarr; Clients.Group("warehouse_{id}")</div>
-    <p>Any supply write: create, adjust, consume, stock-in, bulk. Payload: <code>{ warehouseId, partId }</code></p>
+    <p>Any supply write: create, adjust, consume, stock-in, bulk. Payload: <code>{ warehouseId, partId }</code>. A property level save (<code>POST /supplies/levels</code>) sends one event per save with payload <code>{ warehouseId }</code> (no <code>partId</code>).</p>
   </div>
   <div class="event-card">
     <div class="ev-name">supply.low_stock</div>
     <div class="ev-scope">&rarr; Clients.Group("warehouse_{id}")</div>
-    <p>Fired when quantity is at or below <code>min_level</code> after any supply write. Payload: <code>{ warehouseId, partId, currentQty, minQty, partName, warehouseName }</code></p>
+    <p>Fired when quantity is at or below the <strong>effective</strong> <code>min_level</code> (property level, else part default) after any supply quantity write. Not fired by property level saves. Payload: <code>{ warehouseId, partId, currentQty, minQty, partName, warehouseName }</code></p>
   </div>
   <div class="event-card">
     <div class="ev-name">part.created</div>
@@ -576,7 +578,7 @@ Content-Type: application/json</pre>
 ]</pre>
 
 <h3>GET /warehouses/{id}/summary <span class="auth-label auth-auth">Authenticated</span></h3>
-<p><code>recent_transaction_count</code> covers the last 30 days. <code>below_minimum_items</code> sorted alphabetically by part name.</p>
+<p><code>recent_transaction_count</code> covers the last 30 days. <code>below_minimum_items</code> sorted alphabetically by part name. Below minimum means quantity at or below the <strong>effective</strong> minimum (property level, else part default); <code>min_level</code> in each item is that effective value.</p>
 <pre>// Response: 200 OK
 {
   "warehouse_id": 1,
@@ -720,7 +722,7 @@ Content-Type: application/json</pre>
     <tr><td class="f-name">excludeWarehouseId</td><td class="f-type">int?</td><td class="f-req-n">&mdash;</td><td>Exclude parts already stocked at this warehouse (used when adding to a new warehouse)</td></tr>
     <tr><td class="f-name">page</td><td class="f-type">int?</td><td class="f-req-n">1</td><td></td></tr>
     <tr><td class="f-name">limit</td><td class="f-type">int?</td><td class="f-req-n">50</td><td></td></tr>
-    <tr><td class="f-name">sort_by</td><td class="f-type">string?</td><td class="f-req-n">name</td><td><code>name</code> &middot; <code>primary_category_name</code> &middot; <code>min_level</code></td></tr>
+    <tr><td class="f-name">sort_by</td><td class="f-type">string?</td><td class="f-req-n">name</td><td><code>name</code> &middot; <code>primary_category_name</code> &middot; <code>min_level</code> (part default)</td></tr>
     <tr><td class="f-name">sort_dir</td><td class="f-type">string?</td><td class="f-req-n">asc</td><td><code>asc</code> &middot; <code>desc</code></td></tr>
   </tbody>
 </table>
@@ -791,8 +793,8 @@ Content-Type: application/json</pre>
     <tr><td class="f-name">description</td><td class="f-type">string?</td><td class="f-req-n">No</td><td></td></tr>
     <tr><td class="f-name">primary_category_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td></td></tr>
     <tr><td class="f-name">secondary_category_id</td><td class="f-type">int?</td><td class="f-req-n">No</td><td></td></tr>
-    <tr><td class="f-name">min_level</td><td class="f-type">int</td><td class="f-req-n">No</td><td>Defaults to 0.</td></tr>
-    <tr><td class="f-name">max_level</td><td class="f-type">int</td><td class="f-req-n">No</td><td>Defaults to 0.</td></tr>
+    <tr><td class="f-name">min_level</td><td class="f-type">int</td><td class="f-req-n">No</td><td>Part <strong>default</strong> minimum for every warehouse without its own level. Defaults to 0. Not negative.</td></tr>
+    <tr><td class="f-name">max_level</td><td class="f-type">int</td><td class="f-req-n">No</td><td>Part <strong>default</strong> reorder target. Defaults to 0. Not negative and not below <code>min_level</code>.</td></tr>
     <tr><td class="f-name">allow_similar_name</td><td class="f-type">bool?</td><td class="f-req-n">No</td><td>When <code>true</code>, bypasses the 85% similarity check. Does NOT bypass exact-name uniqueness. Set only after the user explicitly acknowledges the warning.</td></tr>
     <tr><td class="f-name">identifiers</td><td class="f-type">IdentifierAttachDto[]</td><td class="f-req-n">No</td><td>Identifiers to attach at creation. Must not include ATC_MASTER. See sub-table below.</td></tr>
     <tr><td class="f-name">vendorParts</td><td class="f-type">VendorPartCreateDto[]</td><td class="f-req-n">No</td><td>Vendor-part links to create. See sub-table below.</td></tr>
@@ -826,6 +828,7 @@ Content-Type: application/json</pre>
 // Errors:
 //   400 ATC_MASTER_NOT_ALLOWED &mdash; caller included ATC_MASTER in identifiers
 //   400 INVALID_ISSUE_UOM &middot; 400 INVALID_MULTIPLIER &middot; 400 INVALID_ID_VALUE
+//   400 INVALID_LEVEL_RANGE (negative level, or max_level below min_level)
 //   409 PART_ALREADY_EXISTS (name uniqueness)
 //   409 IDENTIFIER_ALREADY_EXISTS (supplied id_value already exists)
 //   409 ATC_MASTER_SEQUENCE_CONFLICT (concurrent creation race &mdash; safe to retry)</pre>
@@ -839,6 +842,7 @@ Content-Type: application/json</pre>
   "created": [ ...PartReadDto... ],
   "skipped": [ { "index": 1, "name": "Part Name", "error": "PART_ALREADY_EXISTS" } ]
 }
+// Items with invalid levels are skipped with error INVALID_LEVEL_RANGE
 // Side effects: SignalR part.created &rarr; all clients, payload { count }</pre>
 
 <h3>PUT /parts/{id} <span class="auth-label auth-auth">Authenticated</span></h3>
@@ -849,14 +853,24 @@ Content-Type: application/json</pre>
     <tr><td class="f-name">description</td><td class="f-type">string?</td><td class="f-req-n">No</td><td></td></tr>
     <tr><td class="f-name">primary_category_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td></td></tr>
     <tr><td class="f-name">secondary_category_id</td><td class="f-type">int?</td><td class="f-req-n">No</td><td></td></tr>
-    <tr><td class="f-name">min_level</td><td class="f-type">int</td><td class="f-req-n">No</td><td></td></tr>
-    <tr><td class="f-name">max_level</td><td class="f-type">int</td><td class="f-req-n">No</td><td></td></tr>
+    <tr><td class="f-name">min_level</td><td class="f-type">int</td><td class="f-req-n">No</td><td>Part <strong>default</strong> minimum. Not negative.</td></tr>
+    <tr><td class="f-name">max_level</td><td class="f-type">int</td><td class="f-req-n">No</td><td>Part <strong>default</strong> reorder target. Not negative and not below <code>min_level</code>.</td></tr>
     <tr><td class="f-name">force_name</td><td class="f-type">bool</td><td class="f-req-n">No</td><td>Bypasses similarity check. Defaults to <code>false</code>.</td></tr>
   </tbody>
 </table>
 <pre>// Response: 200 OK &mdash; PartReadDto
 // Side effects: SignalR part.updated &rarr; all clients, payload { partId }
-// Errors: 404 PART_NOT_FOUND &middot; 409 PART_ALREADY_EXISTS</pre>
+// Errors: 404 PART_NOT_FOUND &middot; 409 PART_ALREADY_EXISTS
+//         400 INVALID_LEVEL_RANGE &middot; 409 LEVEL_CONFLICT</pre>
+<div class="warn"><strong>Default changes are checked against every warehouse.</strong> Warehouses without their own level follow the part default. A change to <code>min_level</code> or <code>max_level</code> is rejected with <code>409 LEVEL_CONFLICT</code> if any warehouse would end up with an effective Max below its effective Min. Correct those warehouses' levels (<code>POST /supplies/levels</code>) first.</div>
+<pre>// 409 LEVEL_CONFLICT body
+{
+  "error": "LEVEL_CONFLICT",
+  "message": "The new default would leave 1 warehouse with Max below Min.",
+  "warehouses": [
+    { "warehouse_id": 3, "warehouse_name": "Barrington", "effective_min_level": 8, "effective_max_level": 5 }
+  ]
+}</pre>
 
 <h3>DELETE /parts/{partId} <span class="auth-label auth-dm">DatabaseManager</span></h3>
 <pre>// Response: 204
@@ -969,7 +983,7 @@ Content-Type: application/json</pre>
     <tr><td class="f-name">category_id</td><td class="f-type">int?</td><td class="f-req-n">&mdash;</td><td>Filter by primary category</td></tr>
     <tr><td class="f-name">part_id</td><td class="f-type">int?</td><td class="f-req-n">&mdash;</td><td></td></tr>
     <tr><td class="f-name">search</td><td class="f-type">string?</td><td class="f-req-n">&mdash;</td><td>Substring on part name or category name</td></tr>
-    <tr><td class="f-name">below_minimum</td><td class="f-type">bool?</td><td class="f-req-n">&mdash;</td><td>When <code>true</code>, returns only supplies at or below <code>min_level</code></td></tr>
+    <tr><td class="f-name">below_minimum</td><td class="f-type">bool?</td><td class="f-req-n">&mdash;</td><td>When <code>true</code>, returns only supplies at or below the <strong>effective</strong> minimum</td></tr>
     <tr><td class="f-name">page</td><td class="f-type">int?</td><td class="f-req-n">1</td><td></td></tr>
     <tr><td class="f-name">limit</td><td class="f-type">int?</td><td class="f-req-n">50</td><td></td></tr>
     <tr><td class="f-name">sort_by</td><td class="f-type">string?</td><td class="f-req-n">part_name</td><td><code>part_name</code> &middot; <code>warehouse_name</code> &middot; <code>quantity</code></td></tr>
@@ -993,6 +1007,10 @@ Content-Type: application/json</pre>
       "quantity": 8,
       "min_level": 3,
       "max_level": 10,
+      "default_min_level": 3,
+      "default_max_level": 12,
+      "property_min_level": null,
+      "property_max_level": 10,
       "below_minimum": false,
       "last_updated_by_oid": "aad-guid",
       "last_updated_by_email": "user@domain.com",
@@ -1001,6 +1019,7 @@ Content-Type: application/json</pre>
     }
   ]
 }</pre>
+<div class="note"><strong>Property levels (SuppliesEnrichedReadDto):</strong> <code>min_level</code> / <code>max_level</code> are the <strong>effective</strong> values: the property level when set, otherwise the part default. <code>property_min_level</code> / <code>property_max_level</code> are the stored property values (<code>null</code> = follows the default). <code>default_min_level</code> / <code>default_max_level</code> are the part defaults. <code>below_minimum</code> is true when <code>quantity</code> is at or below the effective <code>min_level</code>. Every endpoint returning this DTO uses the same rules.</div>
 <div class="note"><code>atc_master_value</code> is populated on list endpoints where Identifiers are loaded. It is <code>null</code> (not empty string) on write-endpoint responses &mdash; the caller already has the barcode in those cases.</div>
 
 <h3>GET /supplies/below-minimum <span class="auth-label auth-auth">Authenticated</span></h3>
@@ -1059,7 +1078,7 @@ Content-Type: application/json</pre>
   </tbody>
 </table>
 <pre>// Response: 201 Created &mdash; SuppliesEnrichedReadDto
-// Side effects: Transaction INITIAL_STOCK &middot; SignalR supply.updated &middot; supply.low_stock if qty &le; min_level
+// Side effects: Transaction INITIAL_STOCK &middot; SignalR supply.updated &middot; supply.low_stock if qty &le; effective min_level
 // Errors: 400 INVALID_QUANTITY &middot; 409 SUPPLY_ALREADY_EXISTS &middot; 422 PART_MISSING_ATC_MASTER</pre>
 
 <h3>POST /supplies/adjust <span class="auth-label auth-auth">Authenticated</span></h3>
@@ -1075,7 +1094,7 @@ Content-Type: application/json</pre>
   </tbody>
 </table>
 <pre>// Response: 200 OK &mdash; SuppliesEnrichedReadDto
-// Side effects: Transaction MANUAL_ADJUST &middot; SignalR supply.updated &middot; supply.low_stock if qty &le; min_level
+// Side effects: Transaction MANUAL_ADJUST &middot; SignalR supply.updated &middot; supply.low_stock if qty &le; effective min_level
 // Errors: 404 SUPPLY_NOT_FOUND &middot; 422 NEGATIVE_INVENTORY</pre>
 
 <h3>POST /supplies/scan/consume <span class="auth-label auth-auth">Authenticated</span></h3>
@@ -1090,7 +1109,7 @@ Content-Type: application/json</pre>
   </tbody>
 </table>
 <pre>// Response: 200 OK &mdash; SuppliesEnrichedReadDto
-// Side effects: Transaction SCAN_CONSUME &middot; SignalR supply.updated &middot; supply.low_stock if qty &le; min_level
+// Side effects: Transaction SCAN_CONSUME &middot; SignalR supply.updated &middot; supply.low_stock if qty &le; effective min_level
 // Errors: 404 IDENTIFIER_NOT_FOUND &middot; 404 SUPPLY_NOT_FOUND &middot; 422 NEGATIVE_INVENTORY</pre>
 
 <h3>POST /supplies/scan/stockin <span class="auth-label auth-auth">Authenticated</span></h3>
@@ -1105,10 +1124,10 @@ Content-Type: application/json</pre>
     <tr><td class="f-name">force</td><td class="f-type">bool</td><td class="f-req-n">No</td><td>Defaults to <code>false</code>.</td></tr>
   </tbody>
 </table>
-<div class="warn">When the supply row is auto-created (part not previously stocked at this warehouse), the transaction reason is set to the reserved string <code>"New Part in Warehouse"</code>. This triggers the DatabaseManager alert and label-print workflow in Azure Functions. Do not use this reason string manually for other adjustments.</div>
+<div class="warn">When the supply row is auto-created (part not previously stocked at this warehouse), the transaction reason is set to the reserved string <code>"New Part in Warehouse"</code> and the API queues a <code>new_part_in_warehouse</code> DatabaseManager alert (delivered by Azure Functions). The alert is raised by the API, not by monitoring the reason string. Do not use this reason string manually for other adjustments.</div>
 <pre>// Response: 200 OK &mdash; SuppliesEnrichedReadDto
 // Side effects: Transaction SCAN_IN (or "New Part in Warehouse" if auto-created)
-//              SignalR supply.updated &middot; supply.low_stock if qty &le; min_level
+//              SignalR supply.updated &middot; supply.low_stock if qty &le; effective min_level
 //              Azure Functions notification queue message if supply was auto-created
 // Errors: 404 IDENTIFIER_NOT_FOUND &middot; 422 PART_MISSING_ATC_MASTER</pre>
 
@@ -1155,6 +1174,70 @@ Content-Type: application/json</pre>
     ]
   }
 ]</pre>
+
+<h3>POST /supplies/levels <span class="auth-label auth-prop">DM or propCode_wh</span></h3>
+<p>Sets or clears property min/max for one or more supply rows in <strong>one</strong> warehouse. Each item states the desired property values; <code>null</code> means the row follows the part default. Saved as <strong>one transaction</strong>: all items are applied or none.</p>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">warehouse_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td>Caller needs DatabaseManager or this warehouse's <code>propCode_wh</code> role.</td></tr>
+    <tr><td class="f-name">items</td><td class="f-type">object[]</td><td class="f-req-y">Yes</td><td>1 to 100 items. Each <code>supply_id</code> at most once.</td></tr>
+    <tr><td class="f-name">items[].supply_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td>Must belong to <code>warehouse_id</code>.</td></tr>
+    <tr><td class="f-name">items[].min_level</td><td class="f-type">int?</td><td class="f-req-y">Yes</td><td>Property minimum, at least 1. <code>null</code> = follow the part default.</td></tr>
+    <tr><td class="f-name">items[].max_level</td><td class="f-type">int?</td><td class="f-req-y">Yes</td><td>Property reorder target. <code>null</code> = follow the part default. Effective Max must not be below effective Min.</td></tr>
+  </tbody>
+</table>
+<pre>// Request
+{
+  "warehouse_id": 3,
+  "items": [
+    { "supply_id": 41, "min_level": 6, "max_level": 12 },
+    { "supply_id": 57, "min_level": null, "max_level": null }
+  ]
+}
+// Response: 200 OK &mdash; Array of SuppliesEnrichedReadDto for the submitted rows, as saved
+// Side effects: one SupplyLevelChanges row per changed item (unchanged items skipped)
+//              SignalR supply.updated once per save, payload { warehouseId }
+//              No supply.low_stock, no Transactions row; Supply.Last_updated_* unchanged
+// Errors: 403 &middot; 404 WAREHOUSE_NOT_FOUND &middot; 404 SUPPLY_NOT_FOUND
+//         400 TOO_MANY_ITEMS (none, or more than 100) &middot; 400 DUPLICATE_IN_REQUEST
+//         400 INVALID_LEVEL_RANGE (includes item index) &middot; 422 SUPPLY_NOT_IN_WAREHOUSE (includes item index)</pre>
+
+<h3>GET /supplies/level-changes <span class="auth-label auth-dm">DatabaseManager</span></h3>
+<p>Property level change history, newest first. Powers the Manage &rarr; Level Changes page.</p>
+<table class="field-table">
+  <thead><tr><th>Query Param</th><th>Type</th><th>Default</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">warehouse_id</td><td class="f-type">int?</td><td class="f-req-n">&mdash;</td><td></td></tr>
+    <tr><td class="f-name">part_id</td><td class="f-type">int?</td><td class="f-req-n">&mdash;</td><td></td></tr>
+    <tr><td class="f-name">date_from</td><td class="f-type">DateOnly?</td><td class="f-req-n">30 days ago</td><td>Inclusive.</td></tr>
+    <tr><td class="f-name">date_to</td><td class="f-type">DateOnly?</td><td class="f-req-n">today</td><td>Inclusive.</td></tr>
+    <tr><td class="f-name">page</td><td class="f-type">int?</td><td class="f-req-n">1</td><td></td></tr>
+    <tr><td class="f-name">limit</td><td class="f-type">int?</td><td class="f-req-n">50</td><td></td></tr>
+  </tbody>
+</table>
+<pre>// Response: 200 OK
+{
+  "total": 12,
+  "page": 1,
+  "limit": 50,
+  "data": [
+    {
+      "id": 7,
+      "part_id": 5,
+      "part_name": "HVAC Filter 16x20",
+      "warehouse_id": 3,
+      "warehouse_name": "Barrington",
+      "old_min_level": null,
+      "new_min_level": 6,
+      "old_max_level": null,
+      "new_max_level": 12,
+      "changed_by_email": "user@domain.com",
+      "changed_dt": "2026-10-26T14:05:00Z"
+    }
+  ]
+}
+// null in old_* / new_* = following the part default</pre>
 
 <h2 id="transactions">13. Transactions</h2>
 <div class="note">Transactions are an append-only immutable ledger. There are no write endpoints. Rows are created automatically as side effects of supply-changing operations.</div>
@@ -1912,6 +1995,8 @@ Content-Type: application/json</pre>
     <tr><td class="err-code">PART_NOT_FOUND</td><td class="err-http http-404">404 / 422</td><td>Part ID does not exist. 422 when used as a foreign key reference (e.g. order create).</td></tr>
     <tr><td class="err-code">PART_ALREADY_EXISTS</td><td class="err-http http-409">409</td><td>Part name uniqueness violation</td></tr>
     <tr><td class="err-code">ATC_MASTER_SEQUENCE_CONFLICT</td><td class="err-http http-409">409</td><td>Concurrent part creation race condition &mdash; safe to retry immediately</td></tr>
+    <tr><td class="err-code">INVALID_LEVEL_RANGE</td><td class="err-http http-400">400</td><td>Default min or max is negative, or max is below min</td></tr>
+    <tr><td class="err-code">LEVEL_CONFLICT</td><td class="err-http http-409">409</td><td>Default change would leave at least one warehouse with effective Max below effective Min. Body lists the warehouses.</td></tr>
   </tbody>
 </table>
 
@@ -1940,6 +2025,9 @@ Content-Type: application/json</pre>
     <tr><td class="err-code">NEGATIVE_INVENTORY</td><td class="err-http http-422">422</td><td>Requested quantity change would result in negative stock; blocked unconditionally</td></tr>
     <tr><td class="err-code">INVALID_QUANTITY</td><td class="err-http http-400">400</td><td>Quantity is zero or negative where a positive value is required</td></tr>
     <tr><td class="err-code">WAREHOUSE_ID_REQUIRED</td><td class="err-http http-400">400</td><td>warehouse_id missing from supply lookup request</td></tr>
+    <tr><td class="err-code">INVALID_LEVEL_RANGE</td><td class="err-http http-400">400</td><td>Property min below 1, a negative level, or effective Max below effective Min. Includes the item index.</td></tr>
+    <tr><td class="err-code">SUPPLY_NOT_IN_WAREHOUSE</td><td class="err-http http-422">422</td><td>A level item's supply belongs to a different warehouse than <code>warehouse_id</code>. Includes the item index.</td></tr>
+    <tr><td class="err-code">TOO_MANY_ITEMS</td><td class="err-http http-400">400</td><td>Level save with no items or more than 100</td></tr>
   </tbody>
 </table>
 

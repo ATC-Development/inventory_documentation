@@ -140,7 +140,7 @@
     <div class="meta-cell"><span class="lbl">Source of Truth</span><span class="val">InventoryDbModelSnapshot</span></div>
     <div class="meta-cell"><span class="lbl">Dev DB</span><span class="val">SQLite</span></div>
     <div class="meta-cell"><span class="lbl">Production DB</span><span class="val">Azure SQL</span></div>
-    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">June 2026</span></div>
+    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">October 2026</span></div>
     <div class="meta-cell"><span class="lbl">ORM</span><span class="val green">EF Core + Migrations</span></div>
   </div>
 </div>
@@ -156,6 +156,7 @@
   <a href="#s7">07 VendorAliases</a>
   <a href="#s8">08 Supplies</a>
   <a href="#s9">09 Transactions</a>
+  <a href="#s25">25 SupplyLevelChanges</a>
   <a href="#s10">10 InventoryOrders</a>
   <a href="#s11">11 IdentifierLookups</a>
   <a href="#s12">12 ManagedProperties</a>
@@ -223,12 +224,13 @@
     <div class="col-row"><div class="col-name">Description</div><div class="col-type">nvarchar, nullable</div><div class="col-notes"></div></div>
     <div class="col-row fk"><div class="col-name">Primary_category_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Categories.Id</div></div>
     <div class="col-row fk"><div class="col-name">Secondary_category_id</div><div class="col-type">int, nullable</div><div class="col-notes">FK → Categories.Id</div></div>
-    <div class="col-row"><div class="col-name">Min_level</div><div class="col-type">int</div><div class="col-notes">Low-stock threshold; triggers supply.low_stock SignalR event</div></div>
-    <div class="col-row"><div class="col-name">Max_level</div><div class="col-type">int</div><div class="col-notes">Reorder target level</div></div>
+    <div class="col-row"><div class="col-name">Min_level</div><div class="col-type">int</div><div class="col-notes"><strong>Default</strong> low-stock threshold for every warehouse whose <code>Supplies.Min_level</code> is null. Low stock = <code>Quantity &lt;= effective Min</code> (triggers the <code>supply.low_stock</code> SignalR event). Not negative (API-validated)</div></div>
+    <div class="col-row"><div class="col-name">Max_level</div><div class="col-type">int</div><div class="col-notes"><strong>Default</strong> reorder target for every warehouse whose <code>Supplies.Max_level</code> is null. Not below <code>Min_level</code> (API-validated)</div></div>
     <div class="col-row"><div class="col-name">Created_by_oid</div><div class="col-type">nvarchar, required</div><div class="col-notes">Entra OID of creator</div></div>
     <div class="col-row"><div class="col-name">Created_by_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Email snapshot at creation time</div></div>
     <div class="col-row"><div class="col-name">Created_dt</div><div class="col-type">datetime2</div><div class="col-notes"></div></div>
   </div>
+  <div class="callout c-warn"><span class="icon">⚠️</span><div class="body"><strong>Default changes are checked against every warehouse:</strong> warehouses without their own level follow the part default. A change to <code>Min_level</code> or <code>Max_level</code> is rejected if it would leave any warehouse with an effective Max below its effective Min (for example, a warehouse with its own Min 8 that inherits the default Max). The error names the affected warehouses so their levels can be corrected first.</div></div>
 </div>
 
 <!-- §04 IDENTIFIERS -->
@@ -320,11 +322,14 @@
     <div class="col-row fk"><div class="col-name">Part_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Parts.Id, cascade delete</div></div>
     <div class="col-row fk"><div class="col-name">Warehouse_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Warehouses.Id, cascade delete</div></div>
     <div class="col-row"><div class="col-name">Quantity</div><div class="col-type">int</div><div class="col-notes">Always EA (base unit). Negative values blocked by API.</div></div>
-    <div class="col-row"><div class="col-name">Last_updated_by_oid</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Entra OID of last editor</div></div>
-    <div class="col-row"><div class="col-name">Last_updated_by_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Email snapshot at update time</div></div>
-    <div class="col-row"><div class="col-name">Last_updated_dt</div><div class="col-type">datetime2</div><div class="col-notes"></div></div>
+    <div class="col-row"><div class="col-name">Min_level</div><div class="col-type">int, nullable</div><div class="col-notes">Property minimum. Null = <code>Parts.Min_level</code> (follows default changes). When set, at least 1</div></div>
+    <div class="col-row"><div class="col-name">Max_level</div><div class="col-type">int, nullable</div><div class="col-notes">Property reorder target. Null = <code>Parts.Max_level</code> (follows default changes). Effective Max is not below effective Min</div></div>
+    <div class="col-row"><div class="col-name">Last_updated_by_oid</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Entra OID of last editor. Quantity changes only; level changes are recorded in <code>SupplyLevelChanges</code></div></div>
+    <div class="col-row"><div class="col-name">Last_updated_by_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Email snapshot at update time (quantity changes only)</div></div>
+    <div class="col-row"><div class="col-name">Last_updated_dt</div><div class="col-type">datetime2</div><div class="col-notes">Quantity changes only</div></div>
   </div>
   <div class="callout c-info"><span class="icon">ℹ️</span><div class="body"><strong>Unique constraint:</strong> UNIQUE <code>(Part_id, Warehouse_id)</code> — one supply row per part per warehouse.</div></div>
+  <div class="callout c-info"><span class="icon">ℹ️</span><div class="body"><strong>Effective levels:</strong> effective Min = <code>COALESCE(Supplies.Min_level, Parts.Min_level)</code>; effective Max = <code>COALESCE(Supplies.Max_level, Parts.Max_level)</code>. Every low-stock check (real-time alert, Below Minimum, weekly Teams section, dashboard, warehouse summary, <code>below_minimum</code> flag) uses <code>Quantity &lt;= effective Min</code>. Property levels are set with <code>POST /supplies/levels</code> (DatabaseManager or the warehouse's <code>{propCode}_wh</code> role).</div></div>
 </div>
 
 <!-- §09 TRANSACTIONS -->
@@ -339,7 +344,7 @@
     <div class="col-row"><div class="col-name">Quantity_before</div><div class="col-type">int</div><div class="col-notes">Quantity before this change</div></div>
     <div class="col-row"><div class="col-name">Quantity_after</div><div class="col-type">int</div><div class="col-notes">Quantity after this change</div></div>
     <div class="col-row"><div class="col-name">Reason</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Human-readable description</div></div>
-    <div class="col-row"><div class="col-name">ReasonType</div><div class="col-type">nvarchar(60), nullable</div><div class="col-notes">Structured type code — null on older records predating this column</div></div>
+    <div class="col-row"><div class="col-name">ReasonType</div><div class="col-type">nvarchar(30), nullable</div><div class="col-notes">Structured type code — null on older records predating this column</div></div>
     <div class="col-row"><div class="col-name">ReferenceId</div><div class="col-type">int, nullable</div><div class="col-notes">FK to source record (e.g. InventoryOrders.Id for ORDER_RECEIPT)</div></div>
     <div class="col-row"><div class="col-name">Edited_by_oid</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Entra OID of editor</div></div>
     <div class="col-row"><div class="col-name">Edited_by_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Email snapshot at write time</div></div>
@@ -364,8 +369,27 @@
   </table>
 
   <div class="callout c-warn"><span class="icon">⚠️</span><div class="body">
-    <strong>Reserved reason string:</strong> <code>"New Part in Warehouse"</code> is written by <code>POST /supplies/scan/stockin</code> when stock-in auto-creates a supply row. Azure Functions monitors for this value to trigger a DatabaseManager alert. Do not use this string for manual adjustments.
+    <strong>Reserved reason string:</strong> <code>"New Part in Warehouse"</code> is the Transactions <code>Reason</code> whenever a supply row is created: <code>POST /supplies</code>, <code>POST /supplies/multiple</code>, and <code>POST /supplies/adjust</code> or <code>POST /supplies/scan/stockin</code> when they auto-create the row. The DatabaseManager alert is raised by the API, which queues <code>new_part_in_warehouse</code> (<code>bulk_supplies_created</code> for <code>/supplies/multiple</code>) for Azure Functions to deliver. It is not triggered by monitoring this string. Do not use this string for manual adjustments.
   </div></div>
+</div>
+
+<!-- §25 SUPPLYLEVELCHANGES -->
+<div class="section" id="s25">
+  <div class="section-header"><span class="sn">25</span><h2>SupplyLevelChanges</h2></div>
+  <p>Append-only history of property level changes (<code>Supplies.Min_level</code> / <code>Max_level</code>). One row per changed supply, written in the <strong>same transaction</strong> as the change, so a level never changes without its history row. Shown to DatabaseManagers on the Manage → Level Changes page.</p>
+  <div class="col-list">
+    <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
+    <div class="col-row fk"><div class="col-name">Part_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Parts.Id, cascade delete (same as Transactions)</div></div>
+    <div class="col-row fk"><div class="col-name">Warehouse_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Warehouses.Id, cascade delete (same as Transactions)</div></div>
+    <div class="col-row"><div class="col-name">Old_min_level</div><div class="col-type">int, nullable</div><div class="col-notes">Property minimum before the change. Null = was following the part default</div></div>
+    <div class="col-row"><div class="col-name">New_min_level</div><div class="col-type">int, nullable</div><div class="col-notes">Property minimum after the change. Null = cleared, now follows the part default</div></div>
+    <div class="col-row"><div class="col-name">Old_max_level</div><div class="col-type">int, nullable</div><div class="col-notes">Property reorder target before the change. Null = was following the part default</div></div>
+    <div class="col-row"><div class="col-name">New_max_level</div><div class="col-type">int, nullable</div><div class="col-notes">Property reorder target after the change. Null = cleared, now follows the part default</div></div>
+    <div class="col-row"><div class="col-name">Changed_by_oid</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Entra OID of the user who made the change</div></div>
+    <div class="col-row"><div class="col-name">Changed_by_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Email snapshot at change time</div></div>
+    <div class="col-row"><div class="col-name">Changed_dt</div><div class="col-type">datetime2</div><div class="col-notes">Timestamp of the change (UTC)</div></div>
+  </div>
+  <div class="callout c-info"><span class="icon">ℹ️</span><div class="body"><strong>No FK to Supplies:</strong> like Transactions, history is keyed by part and warehouse, so it survives deletion of the supply row. Part default changes are not recorded here.</div></div>
 </div>
 
 <!-- §10 INVENTORYORDERS -->
@@ -742,6 +766,7 @@
     <div class="guarantee-item"><div class="guarantee-dot"></div><span>Every Equipment item has exactly one TOOL_MASTER identifier, auto-generated at creation</span></div>
     <div class="guarantee-item"><div class="guarantee-dot"></div><span>Name similarity checks run in the service layer before UNIQUE constraints</span></div>
     <div class="guarantee-item"><div class="guarantee-dot"></div><span>Transactions provide an immutable audit trail for stock changes; negative inventory is blocked in the API</span></div>
+    <div class="guarantee-item"><div class="guarantee-dot"></div><span>Property levels override part defaults per warehouse; null follows the default. Every property level change is recorded in SupplyLevelChanges in the same transaction</span></div>
     <div class="guarantee-item"><div class="guarantee-dot"></div><span>Supplies always represent EA-level quantities; multiplier conversion is a stock-in operation only and is never stored</span></div>
     <div class="guarantee-item"><div class="guarantee-dot"></div><span>IdentifierLookup rows are never hard-deleted; soft delete + retention window governs cleanup</span></div>
     <div class="guarantee-item"><div class="guarantee-dot"></div><span>Orders are workflow artifacts and are never the write authority for inventory — all supply changes route through Transactions</span></div>
@@ -756,7 +781,7 @@
 <!-- ── FOOTER ── -->
 <div class="doc-footer">
   <span>ATC Inventory Application</span>
-  <span>Database Schema · June 2026</span>
+  <span>Database Schema · October 2026</span>
   <span>inventory_api · Internal Use Only</span>
 </div>
 
