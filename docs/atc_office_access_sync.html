@@ -445,7 +445,7 @@
     </div>
     <div class="meta-cell">
       <span class="lbl">Status</span>
-      <span class="val warn">Documented — Setup Pending</span>
+      <span class="val">Active — Test (Live: see section 09)</span>
     </div>
     <div class="meta-cell">
       <span class="lbl">Author</span>
@@ -536,8 +536,11 @@
       <tr><td>App Role</td><td class="t-accent">901_wh</td><td class="t-muted">On the <code>ATC_InventoryAPI</code> app registration (shared by Test and Live)</td></tr>
       <tr><td>Security group</td><td class="t-accent">InvApp_ATC_Office</td><td class="t-muted">Assigned membership. Assigned to <code>901_wh</code>. Membership is owned by the runbook: do not edit by hand</td></tr>
       <tr><td>Administrative unit</td><td class="t-accent">AU-InvApp-ATC-Office</td><td class="t-muted">Standard (not restricted management). Contains only <code>InvApp_ATC_Office</code></td></tr>
-      <tr><td>Managed identity</td><td class="t-accent">mi-invapp-901-sync</td><td class="t-muted">User-assigned. Used only by this runbook, so the Automation account's other runbook does not share its rights</td></tr>
-      <tr><td>Runbook</td><td class="t-accent">Sync-901ChannelToInvAppGroup</td><td class="t-muted">PowerShell 7.4 runtime environment, existing Automation account, hourly schedule</td></tr>
+      <tr><td>Automation account</td><td class="t-accent">aa-atc-it-automation</td><td class="t-muted">Dedicated account for IT automation. Resource group <code>PAX8_ATC-Automation</code>, East US. System-assigned identity <strong>Off</strong>; each runbook gets its own user-assigned identity</td></tr>
+      <tr><td>Managed identity</td><td class="t-accent">mi-invapp-901-sync</td><td class="t-muted">User-assigned, same resource group and region. Used only by this runbook</td></tr>
+      <tr><td>Runtime environment</td><td class="t-accent">ps74-graph</td><td class="t-muted">PowerShell 7.4 with <code>Microsoft.Graph.Authentication</code> 2.41.2. The default packages Az 12.3.0 and Azure CLI 2.64.0 are included and cannot be removed; the runbook does not use them</td></tr>
+      <tr><td>Runbook</td><td class="t-accent">Sync-901ChannelToInvAppGroup</td><td class="t-muted">Published; runs on <code>ps74-graph</code></td></tr>
+      <tr><td>Schedule</td><td class="t-accent">Hourly-901-Sync</td><td class="t-muted">Recurring every hour, no expiration, <code>DryRun = false</code>, runs on Azure</td></tr>
       <tr><td>Source channel</td><td class="t-accent">901</td><td class="t-muted">Private channel in the ATC Development team</td></tr>
       <tr><td>Training gate</td><td class="t-accent">InvApp_Users</td><td class="t-muted">Existing group (<code>inventoryApp</code>). Still managed by hand after training; the runbook never touches it</td></tr>
     </tbody>
@@ -588,11 +591,18 @@
     <li>Open the unit → Groups → Add → <code>InvApp_ATC_Office</code>.</li>
   </ol>
 
-  <h3>Step 4 — Create the managed identity and attach it to the Automation account</h3>
+  <h3>Step 4 — Create the managed identity and the Automation account</h3>
   <ol>
-    <li>Azure portal → Managed Identities → Create: name <code>mi-invapp-901-sync</code>, same subscription and region as the Automation account. Record its <strong>Client ID</strong>.</li>
-    <li>Automation account → Identity → User assigned → Add → <code>mi-invapp-901-sync</code>.</li>
+    <li>Azure portal → Managed Identities → Create: resource group <code>PAX8_ATC-Automation</code>, region East US, name <code>mi-invapp-901-sync</code>. Record its <strong>Client ID</strong>.</li>
+    <li>Azure portal → Automation Accounts → Create: same resource group and region, name <code>aa-atc-it-automation</code>. On the <strong>Advanced</strong> tab add <code>mi-invapp-901-sync</code> as a user-assigned identity. Networking: default.</li>
+    <li>After creation: account → Account Settings → Identity → System assigned → <strong>Off</strong> → Save. The system identity is never used; leaving it on adds an unused principal.</li>
   </ol>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      <strong>Why a new account:</strong> Automation account names cannot be changed. The existing account <code>ATC-Leadership-Rocks</code> was built for an unrelated job, so this runbook was not placed there. <code>aa-atc-it-automation</code> is the home for future IT automation runbooks.
+    </div>
+  </div>
 
   <h3>Step 5 — Grant read-only Graph permissions to the identity</h3>
   <p>Managed identities have no consent screen; app permissions are granted by script. Run once from an admin workstation (needs the <code>Microsoft.Graph.Applications</code> module and an account that can grant app role assignments):</p>
@@ -630,7 +640,7 @@ foreach ($perm in 'ChannelMember.Read.All', 'GroupMember.Read.All') {
 
   <h3>Step 7 — Runtime environment and Automation variables</h3>
   <ol>
-    <li>Automation account → Runtime Environments → Create: language PowerShell, version <strong>7.4</strong>, package <code>Microsoft.Graph.Authentication</code> (the only module the runbook uses).</li>
+    <li>Automation account → Process Automation → Runtime Environments → Create: name <code>ps74-graph</code>, language PowerShell, version <strong>7.4</strong>. Packages tab → add from gallery <code>Microsoft.Graph.Authentication</code> (2.41.2 at setup), the only module the runbook uses. Az and Azure CLI are listed by default and cannot be removed. Create, then wait until the package shows <strong>Available</strong>. (The built-in environments PowerShell 5.1, 7.1, 7.2 and Python are not used.)</li>
     <li>Automation account → Variables → add these (plain, not encrypted; none is a secret):</li>
   </ol>
   <table>
@@ -649,7 +659,8 @@ foreach ($perm in 'ChannelMember.Read.All', 'GroupMember.Read.All') {
   <h3>Step 8 — Import the runbook and schedule it</h3>
   <ol>
     <li>Automation account → Runbooks → Create: name <code>Sync-901ChannelToInvAppGroup</code>, type PowerShell, runtime environment from step 7. Paste the script from section 05. Save, then <strong>Test pane</strong> with <code>DryRun = true</code> and review the output.</li>
-    <li>Publish. Schedules → Add: recurring, every <strong>1 hour</strong>. Link it to the runbook with <code>DryRun = false</code>.</li>
+    <li>Test pane with <code>DryRun = false</code> for the first real run; confirm the group membership in Entra. Then <strong>Publish</strong> (schedules run only the published version).</li>
+    <li>Runbook → Resources → Schedules → Add a schedule → new schedule <code>Hourly-901-Sync</code>: recurring every <strong>1 hour</strong>, no expiration. Parameters: <code>DryRun = false</code>, <code>MaxRemovalPercent</code> blank; run on <strong>Azure</strong>.</li>
   </ol>
 
   <h3>Step 9 — Inventory App data</h3>
@@ -775,7 +786,7 @@ if ($failures.Count -gt 0) {
   <div class="callout c-info">
     <span class="icon">ℹ️</span>
     <div class="body">
-      Store the script in source control as well (the IT automation repository, not the inventory application repositories). This page and the stored copy must match.
+      This page holds the reference copy of the script. If the script is also kept in source control, record the location here and keep both copies in step. Do not store it in the inventory application repositories.
     </div>
   </div>
 </div>
@@ -786,13 +797,31 @@ if ($failures.Count -gt 0) {
     <span class="sn">06</span>
     <h2>Verification</h2>
   </div>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>Count members in the Teams admin center, not the Teams client.</strong> The Teams client hides disabled accounts; Graph (and therefore the runbook) still returns them. Teams admin center → Teams → Manage teams → ATC Development → Channels → 901 → Members.
+    </div>
+  </div>
   <ol>
-    <li><strong>Dry run</strong> (step 8): the output lists the current channel members as adds; nothing changes.</li>
+    <li><strong>Dry run</strong> (step 8): the output lists the current channel members as adds; nothing changes. The count must match the Teams admin center.</li>
     <li><strong>First real run</strong>: every eligible channel member appears in <code>InvApp_ATC_Office</code>.</li>
     <li><strong>Add test:</strong> add a test user to the 901 channel, start the runbook, confirm the user is in the group. The user signs out and back in to the PWA, opens ATC Office and sees write actions (in Test, without <code>InvApp_Users</code>).</li>
     <li><strong>Remove test:</strong> remove the test user from the channel, run again, confirm removal from the group. After the next sign-in the write actions are gone.</li>
     <li><strong>Scope test</strong> (optional): confirm the identity cannot change a group outside the unit. Expect HTTP 403.</li>
   </ol>
+  <h3>Setup record (2026-10-27)</h3>
+  <table>
+    <thead>
+      <tr><th>Check</th><th>Result</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>First dry run</td><td class="t-muted">25 eligible. Two were disabled accounts of former employees still in the channel (hidden in the Teams client). Removed from the channel in the Teams admin center</td></tr>
+      <tr><td>Second dry run</td><td class="t-muted">23 eligible, matching the channel</td></tr>
+      <tr><td>First real run</td><td class="t-muted">23 added to <code>InvApp_ATC_Office</code></td></tr>
+      <tr><td>First scheduled run</td><td class="t-muted">Completed as expected</td></tr>
+    </tbody>
+  </table>
 </div>
 
 <!-- §07 OPERATIONS -->
@@ -809,6 +838,7 @@ if ($failures.Count -gt 0) {
       <tr><td>Grant ATC Office scope</td><td class="t-muted">Add the person to the 901 channel. Effective after the next run and their next sign-in</td></tr>
       <tr><td>Grant write (after training)</td><td class="t-muted">Add the person to <code>InvApp_Users</code> (manual, as for every property)</td></tr>
       <tr><td>Revoke ATC Office scope</td><td class="t-muted">Remove the person from the 901 channel. Do not edit <code>InvApp_ATC_Office</code> directly: the next run reverts manual changes</td></tr>
+      <tr><td>Offboarding</td><td class="t-muted">Remove departed users from the 901 channel (Teams admin center). A disabled account left in the channel stays in the group; it cannot sign in, but it would regain ATC Office scope if re-enabled. Add this to the IT offboarding checklist</td></tr>
       <tr><td>Check runs</td><td class="t-muted">Automation account → Runbooks → <code>Sync-901ChannelToInvAppGroup</code> → Jobs (status and output)</td></tr>
       <tr><td>Pause the sync</td><td class="t-muted">Automation account → Schedules → disable the schedule. The group keeps its current members</td></tr>
       <tr><td>Channel recreated or moved</td><td class="t-muted">Update <code>InvApp901_TeamId</code> / <code>InvApp901_ChannelId</code>. Until then runs fail with no change</td></tr>
@@ -839,7 +869,7 @@ if ($failures.Count -gt 0) {
   </table>
   <ul>
     <li>No secrets: the managed identity authenticates through Azure; the Automation variables hold IDs only.</li>
-    <li>Separate identity from the Automation account's other runbook, so neither runbook carries the other's rights.</li>
+    <li>Dedicated IT automation account with its system identity off; each runbook has its own user-assigned identity, so runbooks never share rights.</li>
     <li>Guests and members from other tenants are never added.</li>
     <li>The training gate (<code>InvApp_Users</code>) stays a deliberate manual step.</li>
   </ul>
@@ -858,14 +888,14 @@ if ($failures.Count -gt 0) {
     </thead>
     <tbody>
       <tr><td>Warehouse row</td><td class="t-muted">PropCode exactly <code>901</code>, Is_active = Yes, address and coordinates filled in (distance and Go button)</td><td class="t-muted">PWA → Manage → Warehouses</td></tr>
-      <tr><td>Notification channel</td><td class="t-muted">Active PropertyChannels row with the ATC Development team ID and the 901 channel ID. Without it, daily and weekly timers skip ATC Office</td><td class="t-muted">PWA → Manage → Warehouses → Notification Channels</td></tr>
+      <tr><td>Notification channel</td><td class="t-muted">Active PropertyChannels row for the <strong>ATC Office alerts channel</strong>: a separate channel for the building manager and a few others, <strong>not</strong> the 901 channel (not everyone in 901 wants the alerts). Channel not yet chosen. Without the row, daily and weekly timers skip ATC Office. Channel type <code>Teams</code>; Team ID and decoded Channel ID (<code>19:…@thread.tacv2</code>), in the same format as the other properties' rows</td><td class="t-muted">PWA → Manage → Warehouses → Notification Channels</td></tr>
       <tr><td>Managed properties</td><td class="t-muted">901 must not be listed as a satellite of another warehouse</td><td class="t-muted">PWA → Manage → Warehouses → Managed Properties</td></tr>
     </tbody>
   </table>
   <div class="callout c-warn">
     <span class="icon">⚠️</span>
     <div class="body">
-      <strong>Private channel delivery is unverified.</strong> Power Automate may not be able to post to a private channel as the flow bot. In Test, <code>NotificationOverride</code> sends every notification to the IT test channel, so delivery to the 901 channel can only be confirmed in Live. Confirm it during Live setup.
+      <strong>Alerts delivery is confirmed in Live only.</strong> In Test, <code>NotificationOverride</code> sends every notification to the IT test channel. If the alerts channel is private, Power Automate may not be able to post to it as the flow bot; confirm delivery during Live setup. Status 2026-10-27: Test warehouse row checked; alerts channel and its row pending.
     </div>
   </div>
 </div>
