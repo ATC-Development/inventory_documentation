@@ -229,7 +229,7 @@
     </div>
     <div class="meta-cell">
       <span class="lbl">Updated</span>
-      <span class="val">May 2026</span>
+      <span class="val">October 2026</span>
     </div>
     <div class="meta-cell">
       <span class="lbl">Code Changes Required</span>
@@ -390,7 +390,7 @@
       <tr><td class="t-accent">ham_wh</td><td>Hamilton Park</td><td class="t-muted">ham</td></tr>
       <tr><td class="t-accent">sa_wh</td><td>Sanctuary Apartments</td><td class="t-muted">sa</td></tr>
       <tr><td class="t-accent">ba_wh</td><td>Barrington</td><td class="t-muted">ba</td></tr>
-      <tr><td class="t-muted">(none)</td><td>901 / ATC Office</td><td class="t-muted">901 — DatabaseManager only</td></tr>
+      <tr><td class="t-accent">901_wh</td><td>ATC Office</td><td class="t-muted">901 — group synced from the 901 Teams channel (see below)</td></tr>
     </tbody>
   </table>
   <div class="callout c-info">
@@ -583,7 +583,7 @@
   <div class="callout c-warn">
     <span class="icon">⚠️</span>
     <div class="body">
-      The <strong>901 / ATC Office</strong> warehouse has no corresponding App Role by design. Only DatabaseManager users can perform write operations there.
+      <strong>901 / ATC Office</strong> uses a different group pattern. Its staff are members of a private channel, not a team, and a channel cannot hold an App Role. <code>901_wh</code> is assigned to the security group <code>InvApp_ATC_Office</code>, which an hourly Azure Automation runbook keeps in step with the 901 channel. Grant or revoke ATC Office access through the channel, not the group. See <a href="atc_office_access_sync.html" style="color:var(--accent);text-decoration:none;">ATC Office (901) Access Sync</a>.
     </div>
   </div>
 </div>
@@ -662,7 +662,7 @@ Microsoft Teams → Team membership</pre>
 <!-- ── FOOTER ── -->
 <div class="doc-footer">
   <span>ATC Inventory Application</span>
-  <span>Entra Property Access Management · May 2026</span>
+  <span>Entra Property Access Management · October 2026</span>
   <span>Access Management · Internal Use Only</span>
 </div>
 

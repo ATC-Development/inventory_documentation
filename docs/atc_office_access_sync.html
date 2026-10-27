@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATC Inventory — ATC Office (901) Access Sync</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2230;
+    --border: #2a3444;
+    --accent: #4fa3e0;
+    --accent2: #3ddc97;
+    --warn: #e6a817;
+    --danger: #e05c5c;
+    --text: #cdd9e5;
+    --muted: #768a9e;
+    --code: #a8d1f0;
+    --white: #f0f6fc;
+  }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.65;
+  }
+
+  /* ── Nav Bar ── */
+  .nav-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 56px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-bar a {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-decoration: none;
+    letter-spacing: 1px;
+    transition: color 0.15s;
+  }
+  .nav-bar a:hover { color: var(--accent); }
+  .nav-sep {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--border);
+  }
+  .nav-current {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+  }
+
+  .page {
+    max-width: 1060px;
+    margin: 0 auto;
+    padding: 0 0 80px;
+  }
+
+  /* ── Header ── */
+  .doc-header {
+    padding: 52px 56px 44px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .doc-header::before {
+    content: "";
+    position: absolute;
+    top: 0; right: 0;
+    width: 420px; height: 100%;
+    background: radial-gradient(ellipse at 80% 40%, rgba(79,163,224,0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .doc-header .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .doc-header h1 {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--white);
+    line-height: 1.1;
+    margin-bottom: 8px;
+  }
+  .doc-header .subtitle {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 32px;
+  }
+  .meta-strip {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    width: fit-content;
+  }
+  .meta-cell {
+    padding: 10px 20px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .meta-cell:last-child { border-right: none; }
+  .meta-cell .lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .meta-cell .val {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--white);
+  }
+  .meta-cell .val.green  { color: var(--accent2); }
+  .meta-cell .val.warn   { color: var(--warn); }
+  .meta-cell .val.accent { color: var(--accent); }
+
+  /* ── TOC ── */
+  .toc {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 20px 56px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .toc a {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    transition: all 0.15s;
+  }
+  .toc a:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ── Content ── */
+  .content { padding: 0 56px; }
+
+  .section {
+    padding: 44px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .section:last-child { border-bottom: none; }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .sn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 2px;
+    background: rgba(79,163,224,0.08);
+    border: 1px solid rgba(79,163,224,0.2);
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .section-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--white);
+  }
+
+  h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--white);
+    margin: 28px 0 12px;
+  }
+
+  p {
+    color: var(--text);
+    margin-bottom: 14px;
+    max-width: 800px;
+  }
+
+  ul {
+    margin: 12px 0 16px 20px;
+    max-width: 800px;
+  }
+  ul li {
+    color: var(--text);
+    font-size: 13px;
+    margin-bottom: 6px;
+    line-height: 1.6;
+  }
+  ul li strong { color: var(--white); }
+
+  /* ── Steps ── */
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 24px 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .step {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    border-bottom: 1px solid var(--border);
+  }
+  .step:last-child { border-bottom: none; }
+  .step-num {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+  }
+  .step-body {
+    padding: 18px 22px;
+    background: var(--surface2);
+  }
+  .step-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 6px;
+  }
+  .step-desc {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    max-width: 680px;
+    line-height: 1.6;
+  }
+  .step-desc:last-child { margin-bottom: 0; }
+  .step-desc strong { color: var(--white); }
+
+  /* ── Auth flow ── */
+  .flow {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin: 16px 0;
+    max-width: 800px;
+  }
+  .flow-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .flow-step:last-child { border-bottom: none; }
+  .flow-arrow {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .flow-step code { font-size: 11px; }
+
+  /* ── Code blocks ── */
+  pre {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--code);
+    overflow-x: auto;
+    margin: 10px 0 16px;
+    line-height: 1.7;
+  }
+  .pre-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 16px;
+    margin-bottom: 4px;
+  }
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--code);
+    background: rgba(79,163,224,0.08);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+
+  /* ── Callouts ── */
+  .callout {
+    display: flex;
+    gap: 14px;
+    padding: 14px 18px;
+    border-radius: 8px;
+    margin: 16px 0;
+    max-width: 800px;
+  }
+  .callout.c-info  { background: rgba(79,163,224,0.07);  border: 1px solid rgba(79,163,224,0.2);  }
+  .callout.c-warn  { background: rgba(230,168,23,0.07);  border: 1px solid rgba(230,168,23,0.2);  }
+  .callout.c-ok    { background: rgba(61,220,151,0.07);  border: 1px solid rgba(61,220,151,0.2);  }
+  .callout .icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .callout .body { font-size: 13px; color: var(--text); line-height: 1.6; }
+  .callout .body strong { color: var(--white); }
+
+  /* ── Tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+  thead tr {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    padding: 10px 16px;
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+  }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface); }
+  .t-accent  { color: var(--accent); }
+  .t-accent2 { color: var(--accent2); }
+  .t-warn    { color: var(--warn); }
+  .t-muted   { color: var(--muted); }
+
+  /* ── Gap items ── */
+  .gap-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 16px 0;
+    max-width: 800px;
+  }
+  .gap-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .gap-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--warn);
+    flex-shrink: 0;
+    margin-top: 5px;
+  }
+
+  /* ── Footer ── */
+  .doc-footer {
+    margin-top: 60px;
+    padding: 20px 56px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+  ol { margin: 12px 0 16px 22px; max-width: 800px; }
+  ol li { color: var(--text); font-size: 13px; margin-bottom: 6px; line-height: 1.6; }
+  ol li strong { color: var(--white); }
+</style>
+</head>
+<body>
+
+<!-- ── NAV BAR ── -->
+<div class="nav-bar">
+  <a href="../index.html">← Home</a>
+  <span class="nav-sep">/</span>
+  <span class="nav-current">ATC Office (901) Access Sync</span>
+</div>
+
+<div class="page">
+
+<!-- ── HEADER ── -->
+<div class="doc-header">
+  <div class="eyebrow">ATC Inventory Application — Access</div>
+  <h1>ATC Office (901) Access Sync</h1>
+  <p class="subtitle">How ATC Office becomes a full inventory property: the <code>901_wh</code> App Role, the <code>InvApp_ATC_Office</code> group, and the Azure Automation runbook that keeps the group in step with the 901 Teams channel.</p>
+  <div class="meta-strip">
+    <div class="meta-cell">
+      <span class="lbl">Property</span>
+      <span class="val">901 — ATC Office</span>
+    </div>
+    <div class="meta-cell">
+      <span class="lbl">Status</span>
+      <span class="val warn">Documented — Setup Pending</span>
+    </div>
+    <div class="meta-cell">
+      <span class="lbl">Author</span>
+      <span class="val">Jamie Latiolais</span>
+    </div>
+    <div class="meta-cell">
+      <span class="lbl">Updated</span>
+      <span class="val">October 2026</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOC ── -->
+<div class="toc">
+  <a href="#s1">01 Overview</a>
+  <a href="#s2">02 Access Model</a>
+  <a href="#s3">03 Components</a>
+  <a href="#s4">04 One-Time Setup</a>
+  <a href="#s5">05 Runbook</a>
+  <a href="#s6">06 Verification</a>
+  <a href="#s7">07 Operations</a>
+  <a href="#s8">08 Security</a>
+  <a href="#s9">09 Inventory App Data</a>
+  <a href="#s10">10 Related Pages</a>
+</div>
+
+<div class="content">
+
+<!-- §01 OVERVIEW -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <span class="sn">01</span>
+    <h2>Overview</h2>
+  </div>
+  <p>ATC Office (PropCode <code>901</code>) is a real inventory property, so corporate can track and request what it needs. Before this change it had no App Role, and only DatabaseManager users could write there.</p>
+  <p><strong style="color:var(--white)">Rule:</strong> anyone in the private <strong style="color:var(--white)">901</strong> channel of the ATC Development team may use every inventory function at ATC Office once they complete training.</p>
+  <p>A Teams channel cannot be assigned an App Role (only users and Entra groups can), and a dynamic group cannot follow channel membership (dynamic rules evaluate user attributes only). An hourly Azure Automation runbook therefore copies the channel's members into a security group that holds the <code>901_wh</code> role.</p>
+  <div class="flow">
+    <div class="flow-step"><span class="flow-arrow">1 →</span><span>A person is added to (or removed from) the private <strong>901</strong> channel, by IT or a channel owner</span></div>
+    <div class="flow-step"><span class="flow-arrow">2 →</span><span>Within the hour, runbook <code>Sync-901ChannelToInvAppGroup</code> adds them to (or removes them from) <code>InvApp_ATC_Office</code></span></div>
+    <div class="flow-step"><span class="flow-arrow">3 →</span><span><code>InvApp_ATC_Office</code> is assigned to App Role <code>901_wh</code> on <code>ATC_InventoryAPI</code></span></div>
+    <div class="flow-step"><span class="flow-arrow">4 →</span><span>At their next sign-in the token carries <code>901_wh</code>: write scope at ATC Office</span></div>
+    <div class="flow-step"><span class="flow-arrow">5 →</span><span>After training, IT adds them to <code>InvApp_Users</code> (manual, unchanged): required to write in Live</span></div>
+  </div>
+</div>
+
+<!-- §02 ACCESS MODEL -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <span class="sn">02</span>
+    <h2>Access Model</h2>
+  </div>
+  <p>Read access needs no setup: any ATC account can sign in and read (<code>ATC_InventoryAPI</code> has <em>Assignment required = No</em>). The runbook grants only <code>901_wh</code>.</p>
+  <table>
+    <thead>
+      <tr><th>Environment</th><th>In the 901 channel, not yet trained</th><th>In the 901 channel and in <code>InvApp_Users</code></th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="t-accent">Live</td><td>Reads everything. Cannot write at ATC Office: the PWA requires <code>inventoryApp</code></td><td>Every function at ATC Office</td></tr>
+      <tr><td class="t-accent">Test</td><td><strong>Can write at ATC Office</strong>: Test ignores <code>inventoryApp</code> (same as every property)</td><td>Every function at ATC Office</td></tr>
+    </tbody>
+  </table>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>The training gate is PWA-enforced.</strong> The API does not check <code>inventoryApp</code> (accepted risk, see <a href="entra_property_access_management.html" style="color:var(--accent);text-decoration:none;">Entra Property Access Management</a>). The API does enforce <code>901_wh</code> on the writes that require a property role.
+    </div>
+  </div>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      <strong>First run:</strong> everyone already in the 901 channel is added to <code>InvApp_ATC_Office</code>. This is expected.
+    </div>
+  </div>
+</div>
+
+<!-- §03 COMPONENTS -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <span class="sn">03</span>
+    <h2>Components</h2>
+  </div>
+  <table>
+    <thead>
+      <tr><th>Component</th><th>Name</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>App Role</td><td class="t-accent">901_wh</td><td class="t-muted">On the <code>ATC_InventoryAPI</code> app registration (shared by Test and Live)</td></tr>
+      <tr><td>Security group</td><td class="t-accent">InvApp_ATC_Office</td><td class="t-muted">Assigned membership. Assigned to <code>901_wh</code>. Membership is owned by the runbook: do not edit by hand</td></tr>
+      <tr><td>Administrative unit</td><td class="t-accent">AU-InvApp-ATC-Office</td><td class="t-muted">Standard (not restricted management). Contains only <code>InvApp_ATC_Office</code></td></tr>
+      <tr><td>Managed identity</td><td class="t-accent">mi-invapp-901-sync</td><td class="t-muted">User-assigned. Used only by this runbook, so the Automation account's other runbook does not share its rights</td></tr>
+      <tr><td>Runbook</td><td class="t-accent">Sync-901ChannelToInvAppGroup</td><td class="t-muted">PowerShell 7.4 runtime environment, existing Automation account, hourly schedule</td></tr>
+      <tr><td>Source channel</td><td class="t-accent">901</td><td class="t-muted">Private channel in the ATC Development team</td></tr>
+      <tr><td>Training gate</td><td class="t-accent">InvApp_Users</td><td class="t-muted">Existing group (<code>inventoryApp</code>). Still managed by hand after training; the runbook never touches it</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §04 ONE-TIME SETUP -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <span class="sn">04</span>
+    <h2>One-Time Setup</h2>
+  </div>
+  <p>Complete in order. Entra changes apply to Test and Live at once (one shared app registration). Database rows are per environment (section 09).</p>
+
+  <h3>Step 1 — Create the App Role</h3>
+  <p>Entra admin center → App registrations → <code>ATC_InventoryAPI</code> → App roles → Create app role.</p>
+  <table>
+    <tbody>
+      <tr><td>Display name</td><td>ATC Office</td></tr>
+      <tr><td>Allowed member types</td><td>Users/Groups</td></tr>
+      <tr><td>Value</td><td class="t-accent">901_wh</td></tr>
+      <tr><td>Description</td><td>Property staff access for ATC Office</td></tr>
+      <tr><td>Enabled</td><td>Yes</td></tr>
+    </tbody>
+  </table>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      Role values may contain digits, letters and <code>_</code>, so <code>901_wh</code> is valid. The value must be exactly <code>901_wh</code>: the API (<code>IsInRole</code>) and the PWA (<code>canWriteToWarehouse</code>) both compare <code>{PropCode}_wh</code> case-sensitively.
+    </div>
+  </div>
+
+  <h3>Step 2 — Create the security group and assign it to the role</h3>
+  <ol>
+    <li>Entra admin center → Groups → New group: type <strong>Security</strong>, name <code>InvApp_ATC_Office</code>, membership type <strong>Assigned</strong>, <em>Microsoft Entra roles can be assigned to the group</em> = <strong>No</strong>. No members yet.</li>
+    <li>Enterprise applications → <code>ATC_InventoryAPI</code> → Users and groups → Add user/group → select <code>InvApp_ATC_Office</code> → role <code>901_wh</code> → Assign.</li>
+  </ol>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      App Role assignments do not pass through nested groups. The runbook adds users directly, so this does not apply.
+    </div>
+  </div>
+
+  <h3>Step 3 — Create the administrative unit</h3>
+  <ol>
+    <li>Entra admin center → Roles &amp; admins → Admin units → Add: name <code>AU-InvApp-ATC-Office</code>, <strong>Restricted management = No</strong>.</li>
+    <li>Open the unit → Groups → Add → <code>InvApp_ATC_Office</code>.</li>
+  </ol>
+
+  <h3>Step 4 — Create the managed identity and attach it to the Automation account</h3>
+  <ol>
+    <li>Azure portal → Managed Identities → Create: name <code>mi-invapp-901-sync</code>, same subscription and region as the Automation account. Record its <strong>Client ID</strong>.</li>
+    <li>Automation account → Identity → User assigned → Add → <code>mi-invapp-901-sync</code>.</li>
+  </ol>
+
+  <h3>Step 5 — Grant read-only Graph permissions to the identity</h3>
+  <p>Managed identities have no consent screen; app permissions are granted by script. Run once from an admin workstation (needs the <code>Microsoft.Graph.Applications</code> module and an account that can grant app role assignments):</p>
+<pre><code>Connect-MgGraph -Scopes 'AppRoleAssignment.ReadWrite.All','Application.Read.All'
+
+$mi    = Get-MgServicePrincipal -Filter "displayName eq 'mi-invapp-901-sync'"
+$graph = Get-MgServicePrincipal -Filter "appId eq '00000003-0000-0000-c000-000000000000'"
+
+foreach ($perm in 'ChannelMember.Read.All', 'GroupMember.Read.All') {
+    $role = $graph.AppRoles | Where-Object {
+        $_.Value -eq $perm -and $_.AllowedMemberTypes -contains 'Application'
+    }
+    New-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $mi.Id `
+        -PrincipalId $mi.Id -ResourceId $graph.Id -AppRoleId $role.Id
+}</code></pre>
+  <table>
+    <thead>
+      <tr><th>Permission</th><th>Why</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="t-accent">ChannelMember.Read.All</td><td class="t-muted">Read the 901 channel's members. Read-only. The narrower <code>ChannelMember.Read.Group</code> is a resource-specific consent permission that requires a Teams app installed in the team, so it does not fit a managed identity</td></tr>
+      <tr><td class="t-accent">GroupMember.Read.All</td><td class="t-muted">Read the current members of <code>InvApp_ATC_Office</code> to compare. Read-only</td></tr>
+    </tbody>
+  </table>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>Never grant <code>Group.ReadWrite.All</code> or <code>GroupMember.ReadWrite.All</code> to this identity.</strong> Either would let it change every group in the tenant and would override the administrative unit scoping in step 6.
+    </div>
+  </div>
+
+  <h3>Step 6 — Scope write rights to the administrative unit</h3>
+  <p>Entra admin center → Roles &amp; admins → Admin units → <code>AU-InvApp-ATC-Office</code> → Roles and administrators → <strong>Groups Administrator</strong> → Add assignments → select <code>mi-invapp-901-sync</code>.</p>
+  <p>Assigned from the unit, the role is scoped to the unit: the identity can change membership of <code>InvApp_ATC_Office</code> and of nothing else. If Privileged Identity Management is in use, the assignment must be <strong>Active</strong>, not Eligible, because the runbook cannot activate a role.</p>
+
+  <h3>Step 7 — Runtime environment and Automation variables</h3>
+  <ol>
+    <li>Automation account → Runtime Environments → Create: language PowerShell, version <strong>7.4</strong>, package <code>Microsoft.Graph.Authentication</code> (the only module the runbook uses).</li>
+    <li>Automation account → Variables → add these (plain, not encrypted; none is a secret):</li>
+  </ol>
+  <table>
+    <thead>
+      <tr><th>Variable</th><th>Value and where to find it</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="t-accent">InvApp901_TeamId</td><td class="t-muted">ATC Development team ID: in Teams, 901 channel → ⋯ → Get link to channel; the <code>groupId=</code> value</td></tr>
+      <tr><td class="t-accent">InvApp901_ChannelId</td><td class="t-muted">From the same link: the <code>19:…@thread.tacv2</code> value (URL-decoded)</td></tr>
+      <tr><td class="t-accent">InvApp901_GroupId</td><td class="t-muted">Object ID of <code>InvApp_ATC_Office</code></td></tr>
+      <tr><td class="t-accent">InvApp901_TenantId</td><td class="t-muted">ATC tenant ID</td></tr>
+      <tr><td class="t-accent">InvApp901_UamiClientId</td><td class="t-muted">Client ID of <code>mi-invapp-901-sync</code> (step 4)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Step 8 — Import the runbook and schedule it</h3>
+  <ol>
+    <li>Automation account → Runbooks → Create: name <code>Sync-901ChannelToInvAppGroup</code>, type PowerShell, runtime environment from step 7. Paste the script from section 05. Save, then <strong>Test pane</strong> with <code>DryRun = true</code> and review the output.</li>
+    <li>Publish. Schedules → Add: recurring, every <strong>1 hour</strong>. Link it to the runbook with <code>DryRun = false</code>.</li>
+  </ol>
+
+  <h3>Step 9 — Inventory App data</h3>
+  <p>Check the warehouse row and add the notification channel (section 09).</p>
+</div>
+
+<!-- §05 RUNBOOK -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <span class="sn">05</span>
+    <h2>Runbook</h2>
+  </div>
+  <h3>Behavior</h3>
+  <div class="flow">
+    <div class="flow-step"><span class="flow-arrow">1 →</span><span>Connect to Graph as <code>mi-invapp-901-sync</code></span></div>
+    <div class="flow-step"><span class="flow-arrow">2 →</span><span>Read all channel members (paged). Keep only Entra user members from the ATC tenant whose roles do not include <code>guest</code></span></div>
+    <div class="flow-step"><span class="flow-arrow">3 →</span><span>Read all user members of <code>InvApp_ATC_Office</code> (paged)</span></div>
+    <div class="flow-step"><span class="flow-arrow">4 →</span><span>Add users in the channel but not the group; remove users in the group but not the channel</span></div>
+    <div class="flow-step"><span class="flow-arrow">5 →</span><span>Write each change and a summary to the job output</span></div>
+  </div>
+  <h3>Safety rules</h3>
+  <table>
+    <thead>
+      <tr><th>Situation</th><th>Result</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Graph call fails (channel or group read)</td><td class="t-muted">Job fails before any change. Nothing is added or removed</td></tr>
+      <tr><td>Channel returns no eligible members</td><td class="t-muted">Job fails with no change, so an outage or a wrong ID cannot empty the group</td></tr>
+      <tr><td>More than <code>MaxRemovalPercent</code> (default 50) of the group would be removed in one run, and more than one person</td><td class="t-muted">Job fails with no change. Confirm the channel is correct, then run once with a higher value</td></tr>
+      <tr><td>One add or remove fails</td><td class="t-muted">The others still apply; the job ends as failed and lists the failures</td></tr>
+      <tr><td><code>DryRun = true</code></td><td class="t-muted">Reports what would change; changes nothing</td></tr>
+    </tbody>
+  </table>
+  <h3>Script</h3>
+<pre><code>&lt;#
+  Sync-901ChannelToInvAppGroup
+  One-way sync: members of the private 901 Teams channel -&gt; InvApp_ATC_Office
+  (assigned to App Role 901_wh on ATC_InventoryAPI).
+  Runs as user-assigned managed identity mi-invapp-901-sync.
+  Documentation: atc_office_access_sync.html
+#&gt;
+param(
+    [bool]$DryRun = $false,
+    [int]$MaxRemovalPercent = 50
+)
+
+$ErrorActionPreference = 'Stop'
+
+$teamId       = Get-AutomationVariable -Name 'InvApp901_TeamId'
+$channelId    = Get-AutomationVariable -Name 'InvApp901_ChannelId'
+$groupId      = Get-AutomationVariable -Name 'InvApp901_GroupId'
+$tenantId     = Get-AutomationVariable -Name 'InvApp901_TenantId'
+$uamiClientId = Get-AutomationVariable -Name 'InvApp901_UamiClientId'
+
+Connect-MgGraph -Identity -ClientId $uamiClientId -NoWelcome
+
+function Get-AllPages([string]$Uri) {
+    $items = @()
+    while ($Uri) {
+        $page   = Invoke-MgGraphRequest -Method GET -Uri $Uri -OutputType PSObject
+        $items += $page.value
+        $Uri    = $page.'@odata.nextLink'
+    }
+    return $items
+}
+
+$graph = 'https://graph.microsoft.com/v1.0'
+
+# 1. Channel members: Entra users from this tenant, not guests
+$channelUri = "$graph/teams/$teamId/channels/$([uri]::EscapeDataString($channelId))/members"
+$wanted = @{}
+foreach ($m in (Get-AllPages $channelUri)) {
+    if ($m.'@odata.type' -ne '#microsoft.graph.aadUserConversationMember') { continue }
+    if ($m.tenantId -ne $tenantId) { continue }
+    if ($m.roles -contains 'guest') { continue }
+    if ($m.userId) { $wanted[$m.userId] = $m.displayName }
+}
+if ($wanted.Count -eq 0) {
+    throw 'Channel returned no eligible members. No changes made.'
+}
+
+# 2. Current group members (users only)
+$current = @{}
+foreach ($g in (Get-AllPages "$graph/groups/$groupId/members?`$select=id,displayName&amp;`$top=999")) {
+    if ($g.'@odata.type' -eq '#microsoft.graph.user') { $current[$g.id] = $g.displayName }
+    else { Write-Warning "Ignoring non-user group member $($g.id)" }
+}
+
+# 3. Differences
+$toAdd    = @($wanted.Keys  | Where-Object { -not $current.ContainsKey($_) })
+$toRemove = @($current.Keys | Where-Object { -not $wanted.ContainsKey($_) })
+
+if ($current.Count -gt 0 -and $toRemove.Count -gt 1) {
+    $pct = [math]::Round(100 * $toRemove.Count / $current.Count)
+    if ($pct -gt $MaxRemovalPercent) {
+        throw "Would remove $($toRemove.Count) of $($current.Count) members ($pct%). Limit is $MaxRemovalPercent%. No changes made."
+    }
+}
+
+# 4. Apply
+$failures = @()
+foreach ($id in $toAdd) {
+    if ($DryRun) { Write-Output "DRY RUN add: $($wanted[$id]) ($id)"; continue }
+    try {
+        $body = @{ '@odata.id' = "$graph/directoryObjects/$id" } | ConvertTo-Json
+        Invoke-MgGraphRequest -Method POST -Uri "$graph/groups/$groupId/members/`$ref" `
+            -Body $body -ContentType 'application/json'
+        Write-Output "Added: $($wanted[$id]) ($id)"
+    } catch { $failures += "Add $id : $($_.Exception.Message)" }
+}
+foreach ($id in $toRemove) {
+    if ($DryRun) { Write-Output "DRY RUN remove: $($current[$id]) ($id)"; continue }
+    try {
+        Invoke-MgGraphRequest -Method DELETE -Uri "$graph/groups/$groupId/members/$id/`$ref"
+        Write-Output "Removed: $($current[$id]) ($id)"
+    } catch { $failures += "Remove $id : $($_.Exception.Message)" }
+}
+
+Write-Output "Channel: $($wanted.Count) eligible. Group before: $($current.Count). Added: $($toAdd.Count). Removed: $($toRemove.Count). DryRun: $DryRun"
+if ($failures.Count -gt 0) {
+    throw "Some changes failed:`n$($failures -join "`n")"
+}</code></pre>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      Store the script in source control as well (the IT automation repository, not the inventory application repositories). This page and the stored copy must match.
+    </div>
+  </div>
+</div>
+
+<!-- §06 VERIFICATION -->
+<div class="section" id="s6">
+  <div class="section-header">
+    <span class="sn">06</span>
+    <h2>Verification</h2>
+  </div>
+  <ol>
+    <li><strong>Dry run</strong> (step 8): the output lists the current channel members as adds; nothing changes.</li>
+    <li><strong>First real run</strong>: every eligible channel member appears in <code>InvApp_ATC_Office</code>.</li>
+    <li><strong>Add test:</strong> add a test user to the 901 channel, start the runbook, confirm the user is in the group. The user signs out and back in to the PWA, opens ATC Office and sees write actions (in Test, without <code>InvApp_Users</code>).</li>
+    <li><strong>Remove test:</strong> remove the test user from the channel, run again, confirm removal from the group. After the next sign-in the write actions are gone.</li>
+    <li><strong>Scope test</strong> (optional): confirm the identity cannot change a group outside the unit. Expect HTTP 403.</li>
+  </ol>
+</div>
+
+<!-- §07 OPERATIONS -->
+<div class="section" id="s7">
+  <div class="section-header">
+    <span class="sn">07</span>
+    <h2>Operations</h2>
+  </div>
+  <table>
+    <thead>
+      <tr><th>Task</th><th>How</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Grant ATC Office scope</td><td class="t-muted">Add the person to the 901 channel. Effective after the next run and their next sign-in</td></tr>
+      <tr><td>Grant write (after training)</td><td class="t-muted">Add the person to <code>InvApp_Users</code> (manual, as for every property)</td></tr>
+      <tr><td>Revoke ATC Office scope</td><td class="t-muted">Remove the person from the 901 channel. Do not edit <code>InvApp_ATC_Office</code> directly: the next run reverts manual changes</td></tr>
+      <tr><td>Check runs</td><td class="t-muted">Automation account → Runbooks → <code>Sync-901ChannelToInvAppGroup</code> → Jobs (status and output)</td></tr>
+      <tr><td>Pause the sync</td><td class="t-muted">Automation account → Schedules → disable the schedule. The group keeps its current members</td></tr>
+      <tr><td>Channel recreated or moved</td><td class="t-muted">Update <code>InvApp901_TeamId</code> / <code>InvApp901_ChannelId</code>. Until then runs fail with no change</td></tr>
+    </tbody>
+  </table>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      Changes reach the app at the user's next sign-in (roles are read from the token). Total delay: up to one hour for the sync, plus the next sign-in.
+    </div>
+  </div>
+</div>
+
+<!-- §08 SECURITY -->
+<div class="section" id="s8">
+  <div class="section-header">
+    <span class="sn">08</span>
+    <h2>Security</h2>
+  </div>
+  <table>
+    <thead>
+      <tr><th>The identity can</th><th>The identity cannot</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="t-muted">Read members of any Teams channel and any group (read-only)</td><td class="t-muted">Change any group outside <code>AU-InvApp-ATC-Office</code></td></tr>
+      <tr><td class="t-muted">Add and remove members of <code>InvApp_ATC_Office</code></td><td class="t-muted">Assign App Roles, change <code>InvApp_Users</code>, or touch the inventory database</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li>No secrets: the managed identity authenticates through Azure; the Automation variables hold IDs only.</li>
+    <li>Separate identity from the Automation account's other runbook, so neither runbook carries the other's rights.</li>
+    <li>Guests and members from other tenants are never added.</li>
+    <li>The training gate (<code>InvApp_Users</code>) stays a deliberate manual step.</li>
+  </ul>
+</div>
+
+<!-- §09 INVENTORY APP DATA -->
+<div class="section" id="s9">
+  <div class="section-header">
+    <span class="sn">09</span>
+    <h2>Inventory App Data</h2>
+  </div>
+  <p>These rows live in each environment's database. Test is set up now; Live starts with a fresh database, so repeat them there.</p>
+  <table>
+    <thead>
+      <tr><th>Item</th><th>Required</th><th>Where</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Warehouse row</td><td class="t-muted">PropCode exactly <code>901</code>, Is_active = Yes, address and coordinates filled in (distance and Go button)</td><td class="t-muted">PWA → Manage → Warehouses</td></tr>
+      <tr><td>Notification channel</td><td class="t-muted">Active PropertyChannels row with the ATC Development team ID and the 901 channel ID. Without it, daily and weekly timers skip ATC Office</td><td class="t-muted">PWA → Manage → Warehouses → Notification Channels</td></tr>
+      <tr><td>Managed properties</td><td class="t-muted">901 must not be listed as a satellite of another warehouse</td><td class="t-muted">PWA → Manage → Warehouses → Managed Properties</td></tr>
+    </tbody>
+  </table>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>Private channel delivery is unverified.</strong> Power Automate may not be able to post to a private channel as the flow bot. In Test, <code>NotificationOverride</code> sends every notification to the IT test channel, so delivery to the 901 channel can only be confirmed in Live. Confirm it during Live setup.
+    </div>
+  </div>
+</div>
+
+<!-- §10 RELATED PAGES -->
+<div class="section" id="s10">
+  <div class="section-header">
+    <span class="sn">10</span>
+    <h2>Related Pages</h2>
+  </div>
+  <table>
+    <thead>
+      <tr><th>Page</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="t-accent"><a href="entra_property_access_management.html" style="color:var(--accent);text-decoration:none;">entra_property_access_management.html</a></td><td class="t-muted">Access tiers, property role mapping, <code>InvApp_Users</code></td></tr>
+      <tr><td class="t-accent"><a href="schema.html" style="color:var(--accent);text-decoration:none;">schema.html</a></td><td class="t-muted">Warehouses, PropertyChannels, ManagedProperties</td></tr>
+      <tr><td class="t-accent"><a href="azure_functions_side_effects.html" style="color:var(--accent);text-decoration:none;">azure_functions_side_effects.html</a></td><td class="t-muted">Notification routing and channel failures</td></tr>
+    </tbody>
+  </table>
+</div>
+
+</div><!-- /content -->
+
+<!-- ── FOOTER ── -->
+<div class="doc-footer">
+  <span>ATC Inventory Application</span>
+  <span>ATC Office (901) Access Sync · October 2026</span>
+  <span>Access · Internal Use Only</span>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>
