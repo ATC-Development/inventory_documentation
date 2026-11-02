@@ -140,12 +140,12 @@ Content-Type: application/json</pre>
   <thead><tr><th>Tier</th><th>Access</th><th>How Assigned</th></tr></thead>
   <tbody>
     <tr><td><strong>DatabaseManager</strong></td><td>Full access — all warehouses, all bulk/destructive/administrative operations. Overrides all property checks. Auto-joined to all warehouse SignalR groups.</td><td>M365 group <code>Inventory-DatabaseManagers</code> → App Role in Azure Portal. No code change required.</td></tr>
-    <tr><td><code>{propCode}_wh</code></td><td>Read all. Write access scoped to matching warehouse only.</td><td>App Role per property on <code>ATC_InventoryAPI</code>. See <code>Entra_Property_Access_Management.md</code>.</td></tr>
-    <tr><td>Baseline Authenticated</td><td>Read all. Single-record creates. Scan and adjustment workflows. Part updates.</td><td>Any valid Entra user with a token. No role assignment required.</td></tr>
+    <tr><td><code>{propCode}_wh</code></td><td>Read all. Write access scoped to matching warehouse only (for example supply creates, single and bulk; adjustments; scan in).</td><td>App Role per property on <code>ATC_InventoryAPI</code>. See <code>Entra_Property_Access_Management.md</code>.</td></tr>
+    <tr><td>Baseline Authenticated</td><td>Read all. Creates parts, identifiers, vendor-parts and vendor aliases. Part updates. Scan out (<code>/supplies/scan/consume</code>), <code>PUT /supplies/{supplyId}</code> and equipment scans.</td><td>Any valid Entra user with a token. No role assignment required.</td></tr>
     <tr><td>FunctionApp</td><td>Notification failure endpoints only.</td><td>Managed Identity App Role on <code>ATC_InventoryAPI</code>.</td></tr>
   </tbody>
 </table>
-<div class="warn"><strong>Single-create vs bulk:</strong> Single creates (parts, supplies, identifiers, vendor-parts) are open to any authenticated user. Bulk and destructive operations require DatabaseManager. <code>PUT /parts/{id}</code> follows the single-create rule.</div>
+<div class="warn"><strong>Single-create vs bulk:</strong> Single creates of parts, identifiers and vendor-parts are open to any authenticated user. <code>PUT /parts/{id}</code> follows the single-create rule. Supply creates, single and bulk, require DatabaseManager or the <code>{propCode}_wh</code> role of every warehouse in the request. Other bulk and destructive operations require DatabaseManager.</div>
 <div class="note">The PWA uses role claims for UI show/hide only. The API always enforces independently. A <code>403</code> is always possible regardless of frontend state.</div>
 
 <h2 id="enums">2. Enums &amp; Constants</h2>
@@ -358,13 +358,13 @@ Content-Type: application/json</pre>
     <tr><td class="ep-method m-get">GET</td><td class="ep-path">/supplies/part-trend</td><td>Per-warehouse series for one part (DatabaseManager)</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
     <tr><td class="ep-method m-get">GET</td><td class="ep-path">/supplies/level-changes</td><td>Property level change history (read-only)</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
     <tr><td class="ep-method m-post">POST</td><td class="ep-path">/supplies/levels</td><td>Set or clear property min/max for supplies in one warehouse (batch)</td><td class="ep-auth a-prop">DM or propCode_wh</td></tr>
-    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/supplies</td><td>Create supply record</td><td class="ep-auth a-auth">Authenticated</td></tr>
-    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/supplies/multiple</td><td>Bulk create supply records</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/supplies</td><td>Create supply record</td><td class="ep-auth a-prop">DM or propCode_wh</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/supplies/multiple</td><td>Bulk create supply records (role checked for every warehouse)</td><td class="ep-auth a-prop">DM or propCode_wh</td></tr>
     <tr><td class="ep-method m-put">PUT</td><td class="ep-path">/supplies/{supplyId}</td><td>Update supply quantity by supply ID</td><td class="ep-auth a-auth">Authenticated</td></tr>
     <tr><td class="ep-method m-delete">DELETE</td><td class="ep-path">/supplies/{supplyId}</td><td>Delete supply record</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
-    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/supplies/adjust</td><td>Adjust quantity by part+warehouse (natural key)</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/supplies/adjust</td><td>Adjust quantity by part+warehouse (natural key)</td><td class="ep-auth a-prop">DM or propCode_wh</td></tr>
     <tr><td class="ep-method m-post">POST</td><td class="ep-path">/supplies/scan/consume</td><td>Scan out / consume stock</td><td class="ep-auth a-auth">Authenticated</td></tr>
-    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/supplies/scan/stockin</td><td>Scan in / receive stock (auto-creates supply row)</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/supplies/scan/stockin</td><td>Scan in / receive stock (auto-creates supply row)</td><td class="ep-auth a-prop">DM or propCode_wh</td></tr>
   </tbody>
 </table>
 
@@ -1068,7 +1068,7 @@ Content-Type: application/json</pre>
 { "found": true, "part_id": 1, "part_name": "Air Filter 16x25", "warehouse_id": 1 }
 // Errors: 400 IDENTIFIER_NOT_FOUND &middot; 400 WAREHOUSE_ID_REQUIRED &middot; 404 SUPPLY_NOT_FOUND</pre>
 
-<h3>POST /supplies <span class="auth-label auth-auth">Authenticated</span></h3>
+<h3>POST /supplies <span class="auth-label auth-prop">DM or propCode_wh</span></h3>
 <table class="field-table">
   <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
   <tbody>
@@ -1081,7 +1081,7 @@ Content-Type: application/json</pre>
 // Side effects: Transaction INITIAL_STOCK &middot; SignalR supply.updated &middot; supply.low_stock if qty &le; effective min_level
 // Errors: 400 INVALID_QUANTITY &middot; 409 SUPPLY_ALREADY_EXISTS &middot; 422 PART_MISSING_ATC_MASTER</pre>
 
-<h3>POST /supplies/adjust <span class="auth-label auth-auth">Authenticated</span></h3>
+<h3>POST /supplies/adjust <span class="auth-label auth-prop">DM or propCode_wh</span></h3>
 <p>Adjust quantity by natural key (part_id + warehouse_id). Positive delta adds; negative removes.</p>
 <table class="field-table">
   <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
@@ -1112,7 +1112,7 @@ Content-Type: application/json</pre>
 // Side effects: Transaction SCAN_CONSUME &middot; SignalR supply.updated &middot; supply.low_stock if qty &le; effective min_level
 // Errors: 404 IDENTIFIER_NOT_FOUND &middot; 404 SUPPLY_NOT_FOUND &middot; 422 NEGATIVE_INVENTORY</pre>
 
-<h3>POST /supplies/scan/stockin <span class="auth-label auth-auth">Authenticated</span></h3>
+<h3>POST /supplies/scan/stockin <span class="auth-label auth-prop">DM or propCode_wh</span></h3>
 <p>Scan in &mdash; increases stock. Applies <code>unit_multiplier_to_base</code>: <code>qty_change = qty_packages &times; multiplier</code>. Auto-creates the supply row if the part is not yet stocked at this warehouse.</p>
 <table class="field-table">
   <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
@@ -1146,10 +1146,12 @@ Content-Type: application/json</pre>
 <h3>DELETE /supplies/{supplyId} <span class="auth-label auth-dm">DatabaseManager</span></h3>
 <pre>// Response: 204 &middot; Errors: 404</pre>
 
-<h3>POST /supplies/multiple <span class="auth-label auth-dm">DatabaseManager</span></h3>
-<p>Array of objects with <code>part_id</code>, <code>warehouse_id</code>, <code>quantity</code>.</p>
-<pre>// Side effects: Transaction per supply &middot; SignalR supply.updated per warehouse group
-// Errors: 400 empty list &middot; 409 SUPPLY_ALREADY_EXISTS per item</pre>
+<h3>POST /supplies/multiple <span class="auth-label auth-prop">DM or propCode_wh</span></h3>
+<p>Array of objects with <code>part_id</code>, <code>warehouse_id</code>, <code>quantity</code>. Items may target different warehouses. Unless the caller is DatabaseManager, every warehouse in the request must match one of the caller's <code>{propCode}_wh</code> roles; otherwise the whole request returns <code>403</code> and nothing is written. A <code>warehouse_id</code> that does not exist is skipped per item (<code>WAREHOUSE_NOT_FOUND</code>).</p>
+<pre>// Response 200: { created_count, skipped_count, created[], skipped[{ index, error, message }] }
+// Skipped per item: INVALID_PART_ID &middot; INVALID_WAREHOUSE_ID &middot; NEGATIVE_INVENTORY_NOT_ALLOWED &middot; PART_NOT_FOUND &middot; PART_MISSING_ATC_MASTER &middot; WAREHOUSE_NOT_FOUND
+// Side effects: Transaction per supply &middot; SignalR supply.updated per warehouse group &middot; DM notification bulk_supplies_created
+// Errors: 400 EMPTY_LIST &middot; 403 any warehouse not permitted &middot; 409 INVENTORY_CONFLICT (a row already exists; nothing written)</pre>
 
 <h3>GET /supplies/part-trend <span class="auth-label auth-dm">DatabaseManager</span></h3>
 <p>Per-warehouse daily transaction series for a single part. Includes baseline quantity from before the window start. Used by the Part Trend report.</p>
