@@ -62,6 +62,8 @@
   .auth-prop { background: #E8F4FD; color: #1F4E79; }
   .auth-func { background: #EDE7F6; color: #4B0082; }
   .auth-anon { background: #F0F0F0; color: #595959; }
+  .auth-token { background: #FDECEA; color: #9B1C1C; }
+  .a-token  { background: #FDECEA !important; color: #9B1C1C; }
   .toc { background: #F0F5FA; border: 1px solid #2E75B6; border-radius: 4px; padding: 20px 24px; margin: 24px 0 40px; }
   .toc h3 { margin: 0 0 12px; color: #1F4E79; font-size: 15px; }
   .toc ol { padding-left: 20px; }
@@ -86,7 +88,7 @@
 <div class="title-block">
   <h1>ATC Inventory API</h1>
   <div class="subtitle">Developer Contract — Full Endpoint Reference</div>
-  <div class="meta">Version: <strong>1.1</strong> &nbsp;&nbsp; Date: <strong>May 17, 2026</strong> &nbsp;&nbsp; Related: <strong>API_DEVELOPER_GUIDE.md</strong> &nbsp;&nbsp; Source: <strong>inventory_api snapshot 2026-05-17</strong></div>
+  <div class="meta">Version: <strong>1.2</strong> &nbsp;&nbsp; Date: <strong>November 5, 2026</strong> &nbsp;&nbsp; Related: <strong>API_DEVELOPER_GUIDE.md</strong> &nbsp;&nbsp; Source: <strong>inventory_api snapshot 2026-05-17; vendor order methods, vendor cart and orders sections 2026-11-05</strong></div>
 </div>
 
 <div class="toc">
@@ -100,7 +102,12 @@
     <li><a href="#signalr">SignalR Events</a></li>
     <li><a href="#warehouses">Warehouses</a></li>
     <li><a href="#categories">Categories</a></li>
-    <li><a href="#vendors">Vendors</a></li>
+    <li><a href="#vendors">Vendors</a>
+      <ol type="a">
+        <li><a href="#vendor-order-methods">Vendor Order Methods</a></li>
+        <li><a href="#vendor-cart">Vendor Cart (web cart fill)</a></li>
+      </ol>
+    </li>
     <li><a href="#parts">Parts</a></li>
     <li><a href="#identifiers">Identifiers</a></li>
     <li><a href="#supplies">Supplies</a></li>
@@ -123,7 +130,7 @@
 <pre>Authorization: Bearer &lt;access_token&gt;
 Content-Type: application/json</pre>
 
-<h3>Five Canonical Auth Labels</h3>
+<h3>Auth Labels</h3>
 <table>
   <thead><tr><th style="width:160px">Label</th><th>Required Access</th><th>Code Pattern</th></tr></thead>
   <tbody>
@@ -131,6 +138,7 @@ Content-Type: application/json</pre>
     <tr><td><span class="auth-label auth-auth">Authenticated</span></td><td>Any valid Entra token</td><td><code>.RequireAuthorization()</code></td></tr>
     <tr><td><span class="auth-label auth-prop">PropertyWrite</span></td><td>Valid token + matching <code>{propCode}_wh</code> role or DatabaseManager</td><td><code>.RequireAuthorization()</code> + inline property check</td></tr>
     <tr><td><span class="auth-label auth-dm">DatabaseManager</span></td><td>Valid token + <code>DatabaseManager</code> role</td><td><code>.RequireAuthorization("DatabaseManager")</code></td></tr>
+    <tr><td><span class="auth-label auth-token">CallbackToken</span></td><td>No Entra token. The vendor cart session's <code>callback_token</code> in the request body. Browser extension calls only. Five failed attempts for a session &rarr; <code>429</code></td><td>No <code>.RequireAuthorization()</code>; token checked in the endpoint</td></tr>
     <tr><td><span class="auth-label auth-func">FunctionApp</span></td><td>Valid token + <code>PropertyChannelFailure.Write</code> role — Azure Functions only</td><td><code>.RequireAuthorization("FunctionApp")</code></td></tr>
   </tbody>
 </table>
@@ -168,7 +176,8 @@ Content-Type: application/json</pre>
 <table style="width:auto">
   <thead><tr><th>Value</th><th>Meaning</th><th>Allowed Next States</th></tr></thead>
   <tbody>
-    <tr><td><code>pending</code></td><td>Created, not yet placed</td><td>ordered, received, cancelled</td></tr>
+    <tr><td><code>pending</code></td><td>Created, not yet placed</td><td>cart_filled, ordered, received, cancelled</td></tr>
+    <tr><td><code>cart_filled</code></td><td>In a vendor web cart; not yet ordered</td><td>ordered, received, cancelled, pending (DatabaseManager only; reason required)</td></tr>
     <tr><td><code>ordered</code></td><td>Placed with vendor</td><td>received, cancelled, pending</td></tr>
     <tr><td><code>received</code></td><td>Physically received</td><td>— terminal</td></tr>
     <tr><td><code>cancelled</code></td><td>Cancelled</td><td>— terminal</td></tr>
@@ -317,6 +326,35 @@ Content-Type: application/json</pre>
   </tbody>
 </table>
 
+<h3>Vendor Order Methods &nbsp;<code>/vendors/{vendorId}/order-methods</code></h3>
+<table class="ep-table">
+  <thead><tr><th style="width:80px">Method</th><th>Endpoint</th><th>Description</th><th style="width:170px">Auth</th></tr></thead>
+  <tbody>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/vendors/{vendorId}/order-methods</td><td>List a vendor's order methods</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/vendors/{vendorId}/order-methods</td><td>Add an order method</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-put">PUT</td><td class="ep-path">/vendors/{vendorId}/order-methods/{id}</td><td>Update an order method</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-delete">DELETE</td><td class="ep-path">/vendors/{vendorId}/order-methods/{id}</td><td>Deactivate an order method</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+  </tbody>
+</table>
+
+<h3>Vendor Cart &nbsp;<code>/vendors/&hellip;/cart</code></h3>
+<table class="ep-table">
+  <thead><tr><th style="width:80px">Method</th><th>Endpoint</th><th>Description</th><th style="width:170px">Auth</th></tr></thead>
+  <tbody>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/vendors/{vendorId}/cart/preflight</td><td>Validate orders, take the cart lock, start a session</td><td class="ep-auth a-prop">DM or propCode_wh</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/vendors/cart/reconcile</td><td>Match session orders to the vendor cart</td><td class="ep-auth a-token">CallbackToken</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/vendors/cart/mark-ordered</td><td>Order submitted: cart-filled orders &rarr; ordered; session completed</td><td class="ep-auth a-token">CallbackToken</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/vendors/cart/release</td><td>Release the cart without ordering</td><td class="ep-auth a-token">CallbackToken</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/vendors/cart/leftovers</td><td>Are the cart's lines an ended session's leftovers?</td><td class="ep-auth a-token">CallbackToken</td></tr>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/vendors/cart/sessions/mine</td><td>Caller's open and unresolved ended sessions</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/vendors/cart/sessions/{sessionId}/resolve</td><td>Owner: were the ended session's orders ordered?</td><td class="ep-auth a-auth">Session owner</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/vendors/cart/sessions/{sessionId}/add-unmatched</td><td>Add an extra cart line as an order</td><td class="ep-auth a-prop">Session owner or DM</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/vendors/cart/override-session/{sessionId}</td><td>Force-release an open session</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/vendors/cart/abandon-session/{sessionId}</td><td>PWA: end a session without ordering</td><td class="ep-auth a-prop">Session owner or DM</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/vendors/cart/confirm</td><td><strong>Deprecated</strong> &mdash; pre-v4 confirm; removed once the PWA stops calling it</td><td class="ep-auth a-token">CallbackToken</td></tr>
+  </tbody>
+</table>
+
 <h3>Parts &nbsp;<code>/parts</code></h3>
 <table class="ep-table">
   <thead><tr><th style="width:80px">Method</th><th>Endpoint</th><th>Description</th><th style="width:170px">Auth</th></tr></thead>
@@ -414,7 +452,7 @@ Content-Type: application/json</pre>
   <tbody>
     <tr><td class="ep-method m-post">POST</td><td class="ep-path">/orders</td><td>Create order items (one row per item)</td><td class="ep-auth a-auth">Authenticated</td></tr>
     <tr><td class="ep-method m-get">GET</td><td class="ep-path">/orders</td><td>List/filter orders</td><td class="ep-auth a-auth">Authenticated</td></tr>
-    <tr><td class="ep-method m-patch">PATCH</td><td class="ep-path">/orders/{id}/status</td><td>Change order status (validated transition)</td><td class="ep-auth a-auth">Authenticated</td></tr>
+    <tr><td class="ep-method m-patch">PATCH</td><td class="ep-path">/orders/{id}/status</td><td>Change order status (validated transition)</td><td class="ep-auth a-prop">DM or propCode_wh</td></tr>
     <tr><td class="ep-method m-post">POST</td><td class="ep-path">/orders/{id}/stock-in-receive</td><td>Atomic stock-in + order receipt</td><td class="ep-auth a-prop">DM or propCode_wh</td></tr>
   </tbody>
 </table>
@@ -544,7 +582,7 @@ Content-Type: application/json</pre>
   <div class="event-card">
     <div class="ev-name">orders.updated</div>
     <div class="ev-scope">&rarr; Clients.All</div>
-    <p>Order created or status changed. No payload.</p>
+    <p>Order created or status changed, including vendor cart reconcile, mark-ordered, resolve, leftovers and add-as-order (each only when an order changed), and a DatabaseManager session override. No payload.</p>
   </div>
 </div>
 
@@ -707,6 +745,234 @@ Content-Type: application/json</pre>
 <pre>// Response: 204
 // Side effects: SignalR vendors.changed
 // Errors: 404</pre>
+
+<h2 id="vendor-order-methods">9a. Vendor Order Methods</h2>
+<p>How orders are placed with each vendor: <code>email</code>, <code>web_cart</code> (browser extension cart fill) or <code>sms</code> (deferred). One row per vendor and method. Rows are never deleted; <code>DELETE</code> deactivates. No SignalR broadcast.</p>
+
+<h3>GET /vendors/{vendorId}/order-methods <span class="auth-label auth-auth">Authenticated</span></h3>
+<pre>// Response: 200 OK &mdash; Array of VendorOrderMethodReadDto, by sort_order then method
+[
+  {
+    "id": 4,
+    "vendor_id": 3,
+    "method": "web_cart",
+    "is_active": true,
+    "display_label": null,
+    "config_json": "{\"base_url\":\"https://www.foxparts.com\",\"cart_endpoint\":\"/api/user/cart/item/bulk\",\"cart_page\":\"/spcu/cart\",\"cart_scope\":\"company\"}",
+    "sort_order": 0,
+    "created_dt": "2026-06-01T14:00:00Z",
+    "vendor_key": "fox"
+  }
+]
+// Errors: 404 (vendor not found)</pre>
+<div class="note"><code>vendor_key</code> is the vendor's key (for example <code>fox</code>), returned on every order-method response. The extension selects its vendor adapter by it.</div>
+
+<h3>POST /vendors/{vendorId}/order-methods <span class="auth-label auth-dm">DatabaseManager</span></h3>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">method</td><td class="f-type">string</td><td class="f-req-y">Yes</td><td><code>email</code> | <code>web_cart</code> | <code>sms</code></td></tr>
+    <tr><td class="f-name">is_active</td><td class="f-type">bool</td><td class="f-req-n">No</td><td>Default <code>true</code>. <code>sms</code> cannot be activated.</td></tr>
+    <tr><td class="f-name">display_label</td><td class="f-type">string?</td><td class="f-req-n">No</td><td>Overrides the default button label</td></tr>
+    <tr><td class="f-name">config_json</td><td class="f-type">string?</td><td class="f-req-n">No</td><td>JSON object as a string. Required for an active <code>web_cart</code> (see below)</td></tr>
+    <tr><td class="f-name">sort_order</td><td class="f-type">int</td><td class="f-req-n">No</td><td>Default 0</td></tr>
+  </tbody>
+</table>
+<h4>web_cart config_json</h4>
+<table class="field-table">
+  <thead><tr><th>Key</th><th>Required</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">base_url</td><td class="f-req-y">Yes</td><td>Vendor site, e.g. <code>https://www.foxparts.com</code></td></tr>
+    <tr><td class="f-name">cart_endpoint</td><td class="f-req-y">Yes</td><td>Vendor cart API path</td></tr>
+    <tr><td class="f-name">cart_page</td><td class="f-req-y">Yes</td><td>Vendor cart page path</td></tr>
+    <tr><td class="f-name">cart_scope</td><td class="f-req-n">No</td><td><code>company</code> (one shared vendor login, one cart lock for the company) or <code>property</code> (default; one lock per property code)</td></tr>
+  </tbody>
+</table>
+<p>Config keys are checked only when the method is active. The vendor must have a <code>vendor_key</code> before its <code>web_cart</code> method can be active.</p>
+<pre>// Response: 201 Created &mdash; VendorOrderMethodReadDto
+// Errors, in order of checks:
+//   404 VENDOR_NOT_FOUND
+//   400 VENDOR_INACTIVE
+//   400 INVALID_METHOD (includes valid)
+//   400 METHOD_NOT_ACTIVATABLE &mdash; sms with is_active true
+//   400 CONFIG_REQUIRED (includes required_keys) &middot; 400 CONFIG_INVALID_JSON &mdash; not valid JSON, or not a JSON object
+//   400 CONFIG_MISSING_KEYS (includes missing_keys, required_keys) &middot; 400 CONFIG_INVALID_CART_SCOPE
+//   400 VENDOR_KEY_REQUIRED &mdash; active web_cart, vendor has no key
+//   409 METHOD_ALREADY_EXISTS &mdash; vendor already has this method</pre>
+
+<h3>PUT /vendors/{vendorId}/order-methods/{id} <span class="auth-label auth-dm">DatabaseManager</span></h3>
+<p>Same body as POST. The method type cannot be changed.</p>
+<pre>// Response: 200 OK &mdash; VendorOrderMethodReadDto
+// Errors: 404 (method not found for this vendor) &middot; 400 INVALID_METHOD &middot; 400 METHOD_TYPE_IMMUTABLE
+//         400 METHOD_NOT_ACTIVATABLE &middot; config errors as POST &middot; 400 VENDOR_KEY_REQUIRED</pre>
+
+<h3>DELETE /vendors/{vendorId}/order-methods/{id} <span class="auth-label auth-dm">DatabaseManager</span></h3>
+<pre>// Sets is_active = false; the row is kept
+// Response: 204
+// Errors: 404</pre>
+
+<h2 id="vendor-cart">9b. Vendor Cart (web cart fill)</h2>
+<p>Fills a vendor's web cart through the browser extension. The PWA starts a session (preflight) and hands the session's <code>callback_token</code> to the extension. The extension reports the cart's contents (reconcile) and ends the session (mark-ordered or release). The PWA lists the caller's sessions, asks the owner whether an ended session's orders were ordered (resolve), and adds extra cart lines as orders.</p>
+<div class="warn"><strong>Transition:</strong> the API is on the v4 flow below. Until the v4 extension and PWA ship, they still use the pre-v4 sequence: <code>confirm</code> (deprecated) followed by <code>mark-ordered</code>. Because <code>mark-ordered</code> now requires an open session and <code>confirm</code> completes the session, that sequence can no longer mark orders ordered.</div>
+
+<h3>Sessions</h3>
+<table>
+  <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>open</code></td><td>From preflight until the session ends. Holds the cart lock while not expired. Lasts 2 hours; a <code>checkout</code> reconcile resets the 2 hours.</td></tr>
+    <tr><td><code>completed</code></td><td>Order submitted (<code>mark-ordered</code>)</td></tr>
+    <tr><td><code>abandoned</code></td><td>Released (extension <code>release</code> or PWA <code>abandon-session</code>), or expired. An expired open session is closed by the 15-minute cleanup service, by the next preflight for the same lock, or by <code>resolve</code>.</td></tr>
+    <tr><td><code>overridden</code></td><td>Force-released by a DatabaseManager</td></tr>
+  </tbody>
+</table>
+<ul>
+  <li><strong>Cart lock:</strong> one <code>open</code> session per vendor and lock key. The key is <code>company</code> or the warehouse's property code, from the <code>web_cart</code> <code>cart_scope</code>. Enforced by a unique filtered index; an expired holder does not block a new session.</li>
+  <li><strong>Unresolved sessions:</strong> an <code>abandoned</code> or <code>overridden</code> session with orders still <code>cart_filled</code> waits for the owner to answer through <code>resolve</code>. A session that ends through release, <code>abandon-session</code>, the cleanup service or an override with no order in <code>cart_filled</code> is marked resolved at once.</li>
+  <li><strong>Callback token:</strong> a GUID returned only by preflight, sent only in request bodies, never returned by <code>sessions/mine</code>, and cleared when the session ends (except by the deprecated <code>confirm</code>). Failed attempts are counted per session in memory; five return <code>429</code>.</li>
+</ul>
+
+<h3>POST /vendors/{vendorId}/cart/preflight <span class="auth-label auth-prop">DM or propCode_wh</span></h3>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">warehouse_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td>Active warehouse; caller needs its <code>{propCode}_wh</code> role or DatabaseManager</td></tr>
+    <tr><td class="f-name">order_ids</td><td class="f-type">int[]</td><td class="f-req-y">Yes</td><td><code>pending</code> orders in that warehouse, each with a vendor code for this vendor</td></tr>
+  </tbody>
+</table>
+<pre>// Response: 200 OK
+{
+  "valid": true,
+  "session_id": 42,
+  "callback_token": "guid",
+  "vendor_key": "fox",
+  "expires_in_seconds": 7200,
+  "items": [ { "order_id": 101, "part_name": "Bake Element", "vendor_code": "C-GEOWR12X31686", "quantity": 2 } ]
+}
+// items are in order-ID order
+// Side effect: an expired session holding the same lock is closed first (abandoned, token cleared)
+// Errors, in order of checks:
+//   404 VENDOR_NOT_FOUND (missing or inactive) &middot; 400 VENDOR_METHOD_NOT_CONFIGURED &middot; 400 VENDOR_METHOD_MISCONFIGURED (invalid cart_scope)
+//   404 WAREHOUSE_NOT_FOUND &middot; 403 &middot; 400 WAREHOUSE_PROP_CODE_REQUIRED (property scope, no property code)
+//   400 NO_ORDERS &middot; 404 ORDERS_NOT_FOUND (missing_ids) &middot; 409 INVALID_ORDER_STATUS (invalid_orders)
+//   400 ORDERS_MISSING_VENDOR_CODES (missing_orders) &middot; 409 ORDERS_IN_OPEN_SESSION (order_ids)
+//   409 CART_IN_USE (owner_name, started_dt, expires_in_seconds) &mdash; also returned for the caller's own open session</pre>
+
+<h3>POST /vendors/cart/reconcile <span class="auth-label auth-token">CallbackToken</span></h3>
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">session_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td></td></tr>
+    <tr><td class="f-name">callback_token</td><td class="f-type">string</td><td class="f-req-y">Yes</td><td></td></tr>
+    <tr><td class="f-name">trigger</td><td class="f-type">string</td><td class="f-req-y">Yes</td><td><code>fill</code> (after filling) or <code>checkout</code> (user entered checkout; resets the 2-hour expiry)</td></tr>
+    <tr><td class="f-name">vendor_order_id</td><td class="f-type">string?</td><td class="f-req-n">No</td><td>Vendor's cart number. Saved on the session and on matched orders (<code>vendor_order_ref</code>)</td></tr>
+    <tr><td class="f-name">cart_lines</td><td class="f-type">array</td><td class="f-req-y">Yes</td><td>Every line in the vendor cart: <code>{ code, quantity, line_id? }</code>. Quantities must be whole numbers &ge; 1 (<code>4.0</code> accepted); duplicate codes are summed</td></tr>
+  </tbody>
+</table>
+<p>Each session order whose code is in the cart becomes <code>cart_filled</code> at the cart quantity (a code shared by several orders is split in order-ID order; any extra goes to the last). An order whose code is missing becomes, or stays, <code>pending</code> at its original quantity; an order leaving <code>cart_filled</code> this way is recorded as a return by <code>system</code>. Only <code>pending</code> and <code>cart_filled</code> orders change; others are reported <code>skipped</code>. Lines matching no session order are returned as <code>unmatched_lines</code> and saved on the session.</p>
+<pre>// Response: 200 OK
+{
+  "items": [
+    { "order_id": 101, "vendor_code": "C-GEOWR12X31686", "result": "matched", "order_status": "cart_filled",
+      "cart_quantity": 3, "quantity_before": 2, "quantity_after": 3 }
+  ],
+  "unmatched_lines": [ { "code": "WR57X10032", "quantity": 1 } ],
+  "expires_in_seconds": 7140
+}
+// result: matched | missing | skipped (skipped items carry only order_id, vendor_code, result, order_status)
+// Side effects: SignalR orders.updated when an order changed
+// Errors: 429 &middot; 400 INVALID_TOKEN &middot; 400 SESSION_EXPIRED &middot; 400 INVALID_TRIGGER &middot; 400 INVALID_CART_LINE (nothing changed)</pre>
+
+<h3>POST /vendors/cart/mark-ordered <span class="auth-label auth-token">CallbackToken</span></h3>
+<p>Request: <code>{ session_id, callback_token }</code>. Open, unexpired session only. Orders still <code>cart_filled</code> become <code>ordered</code> (recorded as the session owner); <code>pending</code> orders are left unchanged and listed. The session becomes <code>completed</code> and its token is cleared, releasing the cart lock.</p>
+<pre>// Response: 200 OK
+{ "success": true, "orders_marked": 2, "ordered_order_ids": [101, 102],
+  "not_ordered": [ { "order_id": 103, "part_name": "Door Gasket" } ] }
+// Side effects: SignalR orders.updated when an order was marked ordered
+// Errors: 429 &middot; 400 INVALID_TOKEN &middot; 400 SESSION_EXPIRED</pre>
+
+<h3>POST /vendors/cart/release <span class="auth-label auth-token">CallbackToken</span></h3>
+<p>Request: <code>{ session_id, callback_token }</code>. Open session only; allowed after expiry, since it only frees the lock. The session becomes <code>abandoned</code> and its token is cleared; orders are unchanged. If no order is <code>cart_filled</code>, the session is marked resolved.</p>
+<pre>// Response: 200 OK
+{ "success": true, "orders_in_cart": [ { "order_id": 101, "part_name": "Bake Element" } ] }
+// orders_in_cart: orders still cart_filled; the owner answers for them through resolve
+// Errors: 429 &middot; 400 INVALID_TOKEN</pre>
+
+<h3>POST /vendors/cart/leftovers <span class="auth-label auth-token">CallbackToken</span></h3>
+<p>Called with the <strong>new</strong> session's token when a fill finds the vendor cart not empty. Request: <code>{ session_id, callback_token, cart_lines }</code>; every line needs <code>code</code>, <code>line_id</code> and a whole-number <code>quantity</code>. The lines match only if every cart code equals the summed last-reconciled quantity of <code>cart_filled</code> orders in ended, unresolved sessions (<code>abandoned</code>, <code>overridden</code>, or open past expiry) for the same vendor and lock key.</p>
+<pre>// Response: 200 OK
+{ "all_lines_matched": true, "deletable_line_ids": ["8812", "8813"], "returned_to_pending_order_ids": [101] }
+// Match: those orders return to pending at their original quantity (recorded as system);
+//        a session is resolved (and closed if still open) once none of its orders is cart_filled;
+//        the extension then deletes exactly deletable_line_ids
+// No match (or no lines): all_lines_matched false, empty lists, nothing changed
+// Side effects: SignalR orders.updated on a match
+// Errors: 429 &middot; 400 INVALID_TOKEN &middot; 400 SESSION_EXPIRED &middot; 400 INVALID_CART_LINE</pre>
+
+<h3>GET /vendors/cart/sessions/mine <span class="auth-label auth-auth">Authenticated</span></h3>
+<p>The caller's own sessions only, filtered by the token's <code>oid</code>. Returns open sessions not yet expired, and ended sessions (<code>abandoned</code>, <code>overridden</code>, or open past expiry) that are unresolved <strong>and</strong> still have an order in <code>cart_filled</code>. Read-only. Never returns the callback token.</p>
+<pre>// Response: 200 OK &mdash; Array
+[
+  {
+    "session_id": 42,
+    "vendor_id": 3, "vendor_name": "Fox Appliance Parts", "vendor_key": "fox",
+    "warehouse_id": 1, "warehouse_name": "McHenry Square",
+    "status": "open",
+    "started_dt": "2026-11-05T14:00:00Z",
+    "expires_in_seconds": 6900,
+    "last_reconciled_dt": "2026-11-05T14:02:00Z",
+    "last_reconcile_trigger": "fill",
+    "unmatched_lines": [ { "code": "WR57X10032", "quantity": 1, "part_name": "Door Switch" } ],
+    "items": [
+      { "order_id": 101, "part_name": "Bake Element", "vendor_code": "C-GEOWR12X31686",
+        "quantity_requested": 2, "cart_quantity": 3, "result": "matched", "order_status": "cart_filled" }
+    ]
+  }
+]
+// An open session past its expiry is reported as "abandoned" with expires_in_seconds 0 (the row is not changed)
+// unmatched_lines.part_name: set only when the code matches exactly one part for the vendor; otherwise null
+// unmatched_lines is [] and cart_quantity / result are null before the first reconcile</pre>
+
+<h3>POST /vendors/cart/sessions/{sessionId}/resolve <span class="auth-label auth-auth">Session owner</span></h3>
+<p>The owner answers &ldquo;was this ordered?&rdquo; for an ended session. Request: <code>{ ordered_order_ids: int[] }</code>. An open session past its expiry is closed first. Listed orders become <code>ordered</code> (by the owner); the session's other <code>cart_filled</code> orders return to <code>pending</code> at their original quantity, recorded with the owner's email. The session is marked resolved.</p>
+<pre>// Response: 200 OK
+{ "success": true, "ordered_order_ids": [101], "returned_to_pending_order_ids": [102] }
+// Side effects: SignalR orders.updated when the session had cart_filled orders
+// Errors: 404 &middot; 403 (not the owner)
+//         409 SESSION_NOT_RESOLVABLE &mdash; not abandoned/overridden, or already resolved
+//         400 INVALID_ORDER_IDS (order_ids) &mdash; listed IDs must be this session's orders still cart_filled; nothing changed</pre>
+
+<h3>POST /vendors/cart/sessions/{sessionId}/add-unmatched <span class="auth-label auth-prop">Session owner or DM</span></h3>
+<p>&ldquo;Add as order&rdquo; for an extra cart line. Request: <code>{ code, order_id? }</code>. The code must be one of the session's current <code>unmatched_lines</code> and match exactly one part for the vendor (exact, case-sensitive). Candidates are <code>pending</code> orders for that part at the session's warehouse that are in no open, unexpired session. One candidate is attached; several need <code>order_id</code>; none creates a new order (property code and warehouse name from the warehouse row, the caller as requester). The order becomes <code>cart_filled</code> at the cart quantity (recorded as the caller), takes the session's vendor order number, joins the session, and the line leaves <code>unmatched_lines</code>.</p>
+<pre>// Response: 200 OK
+{ "success": true, "order_id": 204, "created": true }
+// Side effects: SignalR orders.updated
+// Errors, in order of checks:
+//   404 &middot; 403 &middot; 409 SESSION_NOT_OPEN (not open, or expired)
+//   400 CODE_NOT_UNMATCHED &middot; 400 CODE_NOT_MAPPED (no part, or more than one)
+//   409 MULTIPLE_PENDING_ORDERS &mdash; includes orders[]: order_id, quantity_ordered, report_dt, requested_by_email; resend with order_id
+//   400 INVALID_ORDER_ID &mdash; order_id is not one of the candidates</pre>
+
+<h3>POST /vendors/cart/override-session/{sessionId} <span class="auth-label auth-dm">DatabaseManager</span></h3>
+<p>Request: <code>{ reason }</code> (required). Open sessions only. The session becomes <code>overridden</code>, its token is cleared and the cart lock is released. Orders are unchanged; the owner answers for orders still <code>cart_filled</code> through <code>resolve</code>. With none, the session is marked resolved.</p>
+<pre>// Response: 200 OK
+{ "success": true, "session_id": 42, "overridden_by_email": "dm@atcdevelopment.com", "reason": "Needed the cart" }
+// Side effects: SignalR orders.updated
+// Errors: 400 REASON_REQUIRED &middot; 404 &middot; 409 SESSION_NOT_OPEN</pre>
+
+<h3>POST /vendors/cart/abandon-session/{sessionId} <span class="auth-label auth-prop">Session owner or DM</span></h3>
+<p>Called by the PWA when a fill is cancelled or fails, or the panel is closed. No body. The session becomes <code>abandoned</code> and its token is cleared; orders are unchanged. If no order is <code>cart_filled</code>, the session is marked resolved. An already abandoned session returns 200 without changes.</p>
+<pre>// Response: 200 OK
+{ "success": true, "session_id": 42, "orders_in_cart": [ { "order_id": 101, "part_name": "Bake Element" } ] }
+// Already abandoned: { "success": true, "session_id": 42 }
+// Errors (status checks run before the owner check):
+//   404 &middot; 409 SESSION_COMPLETED &middot; 409 SESSION_OVERRIDDEN (keeps the DatabaseManager release on record) &middot; 403</pre>
+<div class="note">A <code>409 SESSION_COMPLETED</code> or <code>SESSION_OVERRIDDEN</code> means the session has already ended. The PWA closes its panel; for an override, the owner's resolution popup takes over.</div>
+
+<h3>POST /vendors/cart/confirm <span class="auth-label auth-token">CallbackToken</span> &nbsp;<em>Deprecated</em></h3>
+<p>Pre-v4 confirm, still served for the current extension and PWA; removed once the PWA no longer calls it. Request: <code>{ session_id, callback_token, vendor_order_id?, items_added, items_failed? }</code>. Moves the session's orders to <code>cart_filled</code> except those whose codes are in <code>items_failed</code>, and completes the session. Does not clear the token.</p>
+<pre>// Response: 200 OK &mdash; { "success": true, "orders_filled": 2, "orders_skipped": 0 }
+// Side effects: SignalR orders.updated
+// Errors: 429 &middot; 400 INVALID_TOKEN &middot; 400 SESSION_EXPIRED</pre>
 
 <h2 id="parts">10. Parts</h2>
 <div class="danger">ATC_MASTER identifiers are server-generated. Any request supplying <code>id_type: "ATC_MASTER"</code> is rejected with <code>400 ATC_MASTER_NOT_ALLOWED</code>.</div>
@@ -1502,7 +1768,7 @@ Content-Type: application/json</pre>
 <table class="field-table">
   <thead><tr><th>Query Param</th><th>Type</th><th>Description</th></tr></thead>
   <tbody>
-    <tr><td class="f-name">status</td><td class="f-type">string?</td><td><code>active</code> returns pending + ordered; omit for all</td></tr>
+    <tr><td class="f-name">status</td><td class="f-type">string?</td><td><code>active</code> returns pending + cart_filled + ordered; omit for all</td></tr>
     <tr><td class="f-name">warehouse_id</td><td class="f-type">int?</td><td></td></tr>
     <tr><td class="f-name">part_id</td><td class="f-type">int?</td><td></td></tr>
     <tr><td class="f-name">category_id</td><td class="f-type">int?</td><td></td></tr>
@@ -1537,22 +1803,32 @@ Content-Type: application/json</pre>
     "received_by_oid": null,
     "received_by_email": null,
     "cancelled_by_oid": null,
-    "cancelled_by_email": null
+    "cancelled_by_email": null,
+    "cart_filled_dt": null,
+    "cart_filled_by_oid": null,
+    "cart_filled_by_email": null,
+    "vendor_order_ref": null,
+    "returned_to_pending_dt": null,
+    "returned_to_pending_by": null,
+    "returned_to_pending_reason": null
   }
 ]</pre>
+<div class="note"><code>returned_to_pending_*</code> record the order's last return to <code>pending</code>: when, by whom (a user's email, or <code>system</code> for vendor cart reconcile and leftovers), and why.</div>
 
-<h3>PATCH /orders/{id}/status <span class="auth-label auth-auth">Authenticated</span></h3>
+<h3>PATCH /orders/{id}/status <span class="auth-label auth-prop">DM or propCode_wh</span></h3>
 <table class="field-table">
   <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
   <tbody>
     <tr><td class="f-name">status</td><td class="f-type">string</td><td class="f-req-y">Yes</td><td>Target status value. See InventoryOrderStatus enum.</td></tr>
-    <tr><td class="f-name">reason</td><td class="f-type">string?</td><td class="f-req-n">No</td><td>Required when transitioning to <code>cancelled</code>.</td></tr>
+    <tr><td class="f-name">reason</td><td class="f-type">string?</td><td class="f-req-n">No</td><td>Required for <code>cancelled</code> and for <code>cart_filled &rarr; pending</code>. Optional for <code>ordered &rarr; pending</code>; saved as the return reason when given.</td></tr>
   </tbody>
 </table>
+<p>Allowed transitions are listed under <a href="#enums">InventoryOrderStatus</a>. <code>cart_filled &rarr; received</code> is allowed (parts arrived before the order was marked ordered). Returning to <code>pending</code> clears the ordered and cart-filled fields and the vendor order reference, and records the return (<code>returned_to_pending_dt</code>, <code>_by</code> = caller's email, <code>_reason</code>).</p>
 <pre>// Response: 200 OK &mdash; InventoryOrderReadDto (updated audit fields reflect new transition)
 // Side effects: Audit timestamps set per transition &middot; SignalR orders.updated
-// Errors: 404 &middot; 400 INVALID_STATUS &middot; 409 INVALID_TRANSITION (includes current_status and allowed_transitions)
-//         400 REASON_REQUIRED (cancellation without a reason)</pre>
+// Errors: 404 &middot; 403 (not DM or the warehouse's propCode_wh; cart_filled &rarr; pending by a non-DM)
+//         400 INVALID_STATUS &middot; 409 INVALID_TRANSITION (includes current_status and allowed_transitions)
+//         400 REASON_REQUIRED (cancellation, or cart_filled &rarr; pending, without a reason)</pre>
 
 <h3>POST /orders/{id}/stock-in-receive <span class="auth-label auth-prop">DM or propCode_wh</span></h3>
 <p>Atomic operation: adds received quantity to the supply row, writes a Transaction ledger row (<code>ReasonType = ORDER_RECEIPT</code>, <code>ReferenceId = order.Id</code>), and marks the order <code>received</code> — all in a single database commit. Used exclusively by the On Order &ldquo;Stock In &amp; Receive&rdquo; desktop workflow.</p>
@@ -1974,7 +2250,7 @@ Content-Type: application/json</pre>
     <tr><td class="err-code">INVALID_STATUS</td><td class="err-http http-400">400</td><td>Unrecognized order status value</td></tr>
     <tr><td class="err-code">INVALID_STATUS_TRANSITION</td><td class="err-http http-409">409</td><td>Target status is not permitted from the current status. Use error code <code>INVALID_TRANSITION</code> in programmatic handling — response includes <code>current_status</code> and <code>allowed_transitions</code>.</td></tr>
     <tr><td class="err-code">INVALID_TRANSITION</td><td class="err-http http-409">409</td><td>Canonical code returned by the API for invalid status transitions. Includes <code>current_status</code> and <code>allowed_transitions</code> in response body.</td></tr>
-    <tr><td class="err-code">REASON_REQUIRED</td><td class="err-http http-400">400</td><td>Transitioning to <code>cancelled</code> without providing a reason string.</td></tr>
+    <tr><td class="err-code">REASON_REQUIRED</td><td class="err-http http-400">400</td><td>Transitioning to <code>cancelled</code>, or <code>cart_filled &rarr; pending</code>, without a reason. Also <code>override-session</code> without a reason.</td></tr>
   </tbody>
 </table>
 
@@ -2000,6 +2276,53 @@ Content-Type: application/json</pre>
   <tbody>
     <tr><td class="err-code">RECEIPT_CONFLICT</td><td class="err-http http-409">409</td><td>Concurrent write conflict on stock-in-receive &mdash; safe to retry</td></tr>
     <tr><td class="err-code">SUPPLY_NOT_FOUND</td><td class="err-http http-409">409</td><td>Supply row does not exist for the part+warehouse on a stock-in-receive attempt</td></tr>
+  </tbody>
+</table>
+
+<h3>Vendor Order Methods</h3>
+<table class="err-table">
+  <thead><tr><th>Code</th><th style="width:60px">HTTP</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td class="err-code">VENDOR_INACTIVE</td><td class="err-http http-400">400</td><td>Method added to an inactive vendor</td></tr>
+    <tr><td class="err-code">INVALID_METHOD</td><td class="err-http http-400">400</td><td>Method is not <code>email</code>, <code>web_cart</code> or <code>sms</code>. Includes <code>valid</code></td></tr>
+    <tr><td class="err-code">METHOD_NOT_ACTIVATABLE</td><td class="err-http http-400">400</td><td><code>sms</code> cannot be active</td></tr>
+    <tr><td class="err-code">METHOD_TYPE_IMMUTABLE</td><td class="err-http http-400">400</td><td>PUT tried to change the method type</td></tr>
+    <tr><td class="err-code">CONFIG_REQUIRED</td><td class="err-http http-400">400</td><td>Active <code>web_cart</code> without <code>config_json</code>. Includes <code>required_keys</code></td></tr>
+    <tr><td class="err-code">CONFIG_INVALID_JSON</td><td class="err-http http-400">400</td><td><code>config_json</code> is not valid JSON, or not a JSON object</td></tr>
+    <tr><td class="err-code">CONFIG_MISSING_KEYS</td><td class="err-http http-400">400</td><td>Required keys missing. Includes <code>missing_keys</code>, <code>required_keys</code></td></tr>
+    <tr><td class="err-code">CONFIG_INVALID_CART_SCOPE</td><td class="err-http http-400">400</td><td><code>cart_scope</code> is not <code>company</code> or <code>property</code></td></tr>
+    <tr><td class="err-code">VENDOR_KEY_REQUIRED</td><td class="err-http http-400">400</td><td>Active <code>web_cart</code> for a vendor with no <code>vendor_key</code></td></tr>
+    <tr><td class="err-code">METHOD_ALREADY_EXISTS</td><td class="err-http http-409">409</td><td>Vendor already has this method</td></tr>
+  </tbody>
+</table>
+
+<h3>Vendor Cart</h3>
+<table class="err-table">
+  <thead><tr><th>Code</th><th style="width:60px">HTTP</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td class="err-code">VENDOR_METHOD_NOT_CONFIGURED</td><td class="err-http http-400">400</td><td>Vendor has no active <code>web_cart</code> method</td></tr>
+    <tr><td class="err-code">VENDOR_METHOD_MISCONFIGURED</td><td class="err-http http-400">400</td><td>Stored <code>cart_scope</code> is invalid</td></tr>
+    <tr><td class="err-code">WAREHOUSE_PROP_CODE_REQUIRED</td><td class="err-http http-400">400</td><td>Property-scoped cart lock and the warehouse has no property code</td></tr>
+    <tr><td class="err-code">NO_ORDERS</td><td class="err-http http-400">400</td><td>Preflight with no order IDs</td></tr>
+    <tr><td class="err-code">ORDERS_NOT_FOUND</td><td class="err-http http-404">404</td><td>Order IDs not in the warehouse. Includes <code>missing_ids</code></td></tr>
+    <tr><td class="err-code">INVALID_ORDER_STATUS</td><td class="err-http http-409">409</td><td>Preflight orders must be <code>pending</code>. Includes <code>invalid_orders</code></td></tr>
+    <tr><td class="err-code">ORDERS_MISSING_VENDOR_CODES</td><td class="err-http http-400">400</td><td>Orders without a vendor code for this vendor. Includes <code>missing_orders</code></td></tr>
+    <tr><td class="err-code">ORDERS_IN_OPEN_SESSION</td><td class="err-http http-409">409</td><td>Orders already in another open, unexpired session. Includes <code>order_ids</code></td></tr>
+    <tr><td class="err-code">CART_IN_USE</td><td class="err-http http-409">409</td><td>Another open session holds the cart lock (or the caller's own). Includes <code>owner_name</code>, <code>started_dt</code>, <code>expires_in_seconds</code></td></tr>
+    <tr><td class="err-code">INVALID_TOKEN</td><td class="err-http http-400">400</td><td>Session missing, wrong token, or session not open. Counts toward the 429 limit</td></tr>
+    <tr><td class="err-code">SESSION_EXPIRED</td><td class="err-http http-400">400</td><td>Token call on an open session past its expiry. Counts toward the 429 limit</td></tr>
+    <tr><td class="err-code">&mdash;</td><td class="err-http http-400">429</td><td>Five failed token attempts for the session</td></tr>
+    <tr><td class="err-code">INVALID_TRIGGER</td><td class="err-http http-400">400</td><td>Reconcile <code>trigger</code> is not <code>fill</code> or <code>checkout</code></td></tr>
+    <tr><td class="err-code">INVALID_CART_LINE</td><td class="err-http http-400">400</td><td>Cart line without a code (or, for leftovers, a line ID), or a quantity that is not a whole number &ge; 1. Nothing changed</td></tr>
+    <tr><td class="err-code">SESSION_NOT_RESOLVABLE</td><td class="err-http http-409">409</td><td>Resolve on a session that is not ended or is already resolved</td></tr>
+    <tr><td class="err-code">INVALID_ORDER_IDS</td><td class="err-http http-400">400</td><td>Resolve listed orders that are not this session's <code>cart_filled</code> orders. Includes <code>order_ids</code></td></tr>
+    <tr><td class="err-code">SESSION_NOT_OPEN</td><td class="err-http http-409">409</td><td>Add-as-order or override on a session that is not open (add-as-order also when expired)</td></tr>
+    <tr><td class="err-code">CODE_NOT_UNMATCHED</td><td class="err-http http-400">400</td><td>Code is not one of the session's extra cart lines</td></tr>
+    <tr><td class="err-code">CODE_NOT_MAPPED</td><td class="err-http http-400">400</td><td>Code matches no part, or more than one, for the vendor</td></tr>
+    <tr><td class="err-code">MULTIPLE_PENDING_ORDERS</td><td class="err-http http-409">409</td><td>Several pending orders for the part; resend with <code>order_id</code>. Includes <code>orders</code></td></tr>
+    <tr><td class="err-code">INVALID_ORDER_ID</td><td class="err-http http-400">400</td><td>Chosen <code>order_id</code> is not one of the candidates</td></tr>
+    <tr><td class="err-code">SESSION_COMPLETED</td><td class="err-http http-409">409</td><td>Abandon-session on a completed session</td></tr>
+    <tr><td class="err-code">SESSION_OVERRIDDEN</td><td class="err-http http-409">409</td><td>Abandon-session on a session a DatabaseManager already released</td></tr>
   </tbody>
 </table>
 

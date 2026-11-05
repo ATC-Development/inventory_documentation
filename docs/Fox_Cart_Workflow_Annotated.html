@@ -364,6 +364,11 @@
   </div>
 </div>
 
+<!-- ── v4 transition notice (Nov 2026) ─────────────────────────────────── -->
+<div class="callout callout-amber" style="margin:16px 24px;">
+  <strong>Out of date &mdash; pre-v4 flow (November 5, 2026).</strong> The API has moved to vendor cart v4: preflight takes a cart lock and starts a 2-hour session; the extension reports the cart through <code>reconcile</code> and ends the session with <code>mark-ordered</code> or <code>release</code>; <code>confirm</code> is deprecated. This page still shows the pre-v4 extension and PWA code, which can no longer mark orders ordered, because <code>mark-ordered</code> now requires an open session. The current API behavior is in <a href="API_CONTRACT.html#vendor-cart" style="color:inherit;text-decoration:underline;">API_CONTRACT &sect;9b</a>. This page will be rewritten against the v4 extension and PWA after end-to-end testing.
+</div>
+
 <!-- ── Legend ───────────────────────────────────────────────────────────── -->
 <div class="legend">
   <div class="legend-title">Layer key</div>

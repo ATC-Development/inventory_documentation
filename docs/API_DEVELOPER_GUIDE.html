@@ -845,7 +845,15 @@ VALUES ('20260407140513_YourMigrationName', '10.0.5');
 <div class="section" id="s17">
   <div class="section-header"><span class="sn">17</span><h2>Testing</h2></div>
 
-  <p>Integration tests use <code>WebApplicationFactory&lt;Program&gt;</code> from <code>Microsoft.AspNetCore.Mvc.Testing</code> with a test SQLite database. Auth is injected using test-specific claim principals. As of the last snapshot: <strong>116 integration tests, all passing.</strong></p>
+  <p>Integration tests use <code>WebApplicationFactory&lt;Program&gt;</code> from <code>Microsoft.AspNetCore.Mvc.Testing</code> with a test SQLite database. Auth is injected using test-specific claim principals. As of November 5, 2026: <strong>331 tests, all passing.</strong></p>
+
+  <h3>Test Database (<code>ApiFactory</code>)</h3>
+  <ul>
+    <li>Each test class (<code>IClassFixture&lt;ApiFactory&gt;</code>) gets its own temporary SQLite <strong>file</strong> in the system temp folder, deleted when the factory is disposed. Tests in a class share it; assert on the rows a test created, not on totals.</li>
+    <li>Every database context opens its own connection (pooling off). Background work, such as identifier enrichment, never shares a connection with the next test. This replaced one shared in-memory connection, which caused intermittent <code>SQLite Error 5</code> (database locked) failures in CI (Nov 3, 2026).</li>
+    <li>The file uses WAL journal mode, so a reader and a writer on separate connections do not block each other.</li>
+    <li>Foreign keys are switched on in the connection string, so every connection enforces them.</li>
+  </ul>
 
   <h3>Required Tests for New Endpoints</h3>
   <div class="checklist">
@@ -865,7 +873,7 @@ VALUES ('20260407140513_YourMigrationName', '10.0.5');
   <ul>
     <li>Keep test data deterministic; avoid test-order dependencies</li>
     <li>Never depend on local developer database state</li>
-    <li>SQLite requires <code>PRAGMA foreign_keys = ON</code> to enforce FK constraints — test setup must enable this explicitly or FK violations will silently pass</li>
+    <li>SQLite enforces foreign keys only when switched on per connection. <code>ApiFactory</code> does this in its connection string; any other test database setup must do the same, or FK violations will silently pass</li>
   </ul>
 
   <h3>Running Tests</h3>
