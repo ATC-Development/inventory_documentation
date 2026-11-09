@@ -446,7 +446,7 @@
     </div>
     <div class="meta-cell">
       <span class="lbl">Status</span>
-      <span class="val green">Active — v1.0.0</span>
+      <span class="val green">Active — v1.0</span>
     </div>
     <div class="meta-cell">
       <span class="lbl">Vendor</span>
@@ -454,7 +454,7 @@
     </div>
     <div class="meta-cell">
       <span class="lbl">Updated</span>
-      <span class="val">June 2026</span>
+      <span class="val">November 2026</span>
     </div>
   </div>
 </div>
@@ -704,6 +704,37 @@ npm run build</pre>
 
   <p>This produces <code>dist/fox/</code> containing the built extension ready to load.</p>
 
+  <h3>Exclude Your Device from the Intune Policy First</h3>
+  <div class="callout c-danger">
+    <span class="icon">⛔</span>
+    <div class="body">
+      <strong>Every managed device already has the extension.</strong> The Intune policy <em>Edge - ATC Inventory Extension</em> force-installs it on <strong>All devices</strong>, in every Edge profile (§11). An unpacked copy loaded on the same device runs <strong>beside</strong> the managed copy. The PWA sends its messages with <code>window.postMessage</code>, so <strong>both</strong> copies answer: one Fill cart becomes two fills against the shared Fox cart. Exclude the device before loading an unpacked copy.
+    </div>
+  </div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Put the device in an exclusion group</div>
+        <div class="step-desc">In Intune, add the development device to a device group. Open <strong style="color:var(--white)">Devices → Configuration → Policies → Edge - ATC Inventory Extension → Properties → Assignments → Edit</strong> and add that group under <strong style="color:var(--white)">Excluded groups</strong>. No exclusion group exists today; create one when needed</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Confirm the managed copy is gone</div>
+        <div class="step-desc">After the device syncs, <code>edge://policy</code> (Reload policies) no longer lists the extension under <code>ExtensionInstallForcelist</code>, and <code>edge://extensions</code> no longer shows the managed copy. Do not continue until both are true</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">When finished</div>
+        <div class="step-desc">Remove the unpacked copy, then take the device out of the exclusion group. The managed copy reinstalls at the next policy refresh</div>
+      </div>
+    </div>
+  </div>
+
   <h3>Load in Edge (Developer Mode)</h3>
   <div class="steps">
     <div class="step">
@@ -731,7 +762,7 @@ npm run build</pre>
       <div class="step-num">4</div>
       <div class="step-body">
         <div class="step-title">Note the Extension ID</div>
-        <div class="step-desc">Copy the extension ID shown on the card. This is needed for <code>VITE_CART_EXTENSION_ID</code> in the PWA's <code>.env.local</code> if direct messaging is required.</div>
+        <div class="step-desc">Copy the extension ID shown on the card. An unpacked copy has a different ID from the managed copy. The PWA does not address messages by ID (it uses <code>window.postMessage</code>); it only requires <code>VITE_CART_EXTENSION_ID</code> to be set in its <code>.env.local</code> (§08).</div>
       </div>
     </div>
     <div class="step">
@@ -835,8 +866,8 @@ npm run build</pre>
     <tbody>
       <tr>
         <td class="t-accent">VITE_CART_EXTENSION_ID</td>
-        <td>Extension ID used for the availability ping. If empty, Fill Web Cart is hidden in the method selection UI.</td>
-        <td><code>.env.local</code> for dev; Azure Static Web Apps environment variable for production</td>
+        <td>Presence check only. If it is empty, <code>startCartFill</code> logs an error and does nothing. Messages are not addressed by this ID: the PWA uses <code>window.postMessage</code>, and any installed copy of the extension answers. Deployed value: <code>mkkkjimbaeioecfkippbplnegmaebdel</code> (§11)</td>
+        <td><code>.env.local</code> for dev. Deployed PWA: GitHub Actions secret <code>VITE_CART_EXTENSION_ID</code>, passed to <code>npm run build</code> (build-time; a Static Web Apps environment variable has no effect)</td>
       </tr>
     </tbody>
   </table>
@@ -993,44 +1024,74 @@ const VENDOR_CONFIG = {
     <span class="sn">11</span>
     <h2>Deployment</h2>
   </div>
-  <p>The extension is deployed to all managed Edge browsers via Microsoft Intune using Edge ADMX policy. Users do not install it manually.</p>
+  <p>A push to <code>main</code> builds, signs and publishes the extension to Azure Storage. An Intune device configuration policy force-installs it on every managed device, and Edge picks up new versions from the hosted update manifest. Users do not install it.</p>
 
-  <h3>Build for Deployment</h3>
-  <div class="pre-label">bash — build and package</div>
-  <pre>npm run build
-# Zip the dist/fox/ directory contents (not the folder itself)
-# The zip must contain manifest.json at the root level</pre>
+  <h3>Release Pipeline — <code>.github/workflows/deploy.yml</code></h3>
+  <p>Runs on every push to <code>main</code>, and on demand (<strong style="color:var(--white)">Run workflow</strong>). No approval step.</p>
+  <table>
+    <thead><tr><th>Step</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">Build</td><td>Node 20; <code>npm ci</code>; <code>npm run build:combined</code> → <code>dist/combined/</code> (all vendors, one merged manifest)</td></tr>
+      <tr><td class="t-accent">Signing key</td><td>Secret <code>EXTENSION_SIGNING_KEY</code> (PKCS#1) converted to PKCS#8 in <code>/tmp</code>; deleted at the end of the job, also on failure</td></tr>
+      <tr><td class="t-accent">Pack</td><td><code>npx crx3</code> → <code>atc-inventory-extension.crx</code> and <code>update_manifest.xml</code>. Version from <code>manifests/manifest.json</code>; package URL fixed (below)</td></tr>
+      <tr><td class="t-accent">Version alignment</td><td>Compares the manifest version with the version written into <code>update_manifest.xml</code>. Both come from the same value, so this step does not detect a missing version bump</td></tr>
+      <tr><td class="t-accent">Azure login</td><td>OIDC with secrets <code>AZURE_CLIENT_ID</code>, <code>AZURE_TENANT_ID</code>, <code>AZURE_SUBSCRIPTION_ID</code>: app registration <code>ATC-Github-Actions-Deployer</code>, federated credential <code>inventory-extension-main</code> (subject <code>ref:refs/heads/main</code>; no GitHub environment)</td></tr>
+      <tr><td class="t-accent">Upload</td><td><code>az storage blob upload --overwrite</code> to storage account <code>atcextensionhost</code>, container <code>$web</code>: the CRX (<code>application/x-chrome-extension</code>) and <code>update_manifest.xml</code> (<code>application/xml</code>)</td></tr>
+    </tbody>
+  </table>
 
+  <h3>Versioning</h3>
   <div class="callout c-warn">
     <span class="icon">⚠️</span>
     <div class="body">
-      <strong>Update the version in manifest.json</strong> before each deployment. Intune and Edge use the version number to detect updates. Increment following semver: patch for bug fixes, minor for new vendor support, major for breaking changes to the message protocol.
+      <strong>Edge installs an update only when the hosted version is higher than the installed one.</strong> The version comes from <code>manifests/manifest.json</code> (currently <code>1.0</code>); the <code>package.json</code> version (<code>1.0.0</code>) is not used for packaging. Every push to <code>main</code> publishes. If the manifest version did not change, the hosted package is replaced but devices that already have the extension keep their copy, while a device installing it for the first time gets the new upload, so devices can run different builds under the same version number. To release to existing devices, raise the manifest version in the same push.
     </div>
   </div>
 
-  <h3>Hosting the Extension Package</h3>
-  <p>The packaged extension (<code>.crx</code> or <code>.zip</code>) must be hosted at a stable URL accessible to managed devices. GitHub Releases on the <code>inventory_extension</code> repo is the recommended approach — tag each release and use the release asset URL in the Intune policy.</p>
-
-  <h3>Intune Deployment via Edge Policy</h3>
-  <p>See the companion document <strong style="color:var(--white)">Extension Intune Deployment</strong> for the step-by-step ADMX policy configuration. The key policy setting is <code>ExtensionInstallForcelist</code> which takes a value in the format:</p>
-  <pre>extensionid;https://path/to/update_manifest.xml</pre>
-  <p>An update manifest XML file must be hosted alongside the extension package to support automatic updates.</p>
-
-  <h3>Update Manifest Format</h3>
-  <pre>&lt;?xml version='1.0' encoding='UTF-8'?&gt;
-&lt;gupdate xmlns='http://www.google.com/update2/response' protocol='2.0'&gt;
-  &lt;app appid='YOUR_EXTENSION_ID'&gt;
-    &lt;updatecheck
-      codebase='https://your-host/atc-inventory-extension-1.0.0.crx'
-      version='1.0.0' /&gt;
+  <h3>Hosting</h3>
+  <table>
+    <thead><tr><th>Item</th><th>Value</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">Package</td><td><code>https://atcextensionhost.z13.web.core.windows.net/atc-inventory-extension.crx</code></td></tr>
+      <tr><td class="t-accent">Update manifest</td><td><code>https://atcextensionhost.z13.web.core.windows.net/update_manifest.xml</code></td></tr>
+    </tbody>
+  </table>
+  <div class="pre-label">update_manifest.xml — as hosted (checked 2026-11-09)</div>
+  <pre>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;gupdate xmlns="http://www.google.com/update2/response" protocol="2.0"&gt;
+  &lt;app appid="mkkkjimbaeioecfkippbplnegmaebdel"&gt;
+    &lt;updatecheck codebase="https://atcextensionhost.z13.web.core.windows.net/atc-inventory-extension.crx" version="1.0" prodversionmin="64.0.3242" /&gt;
   &lt;/app&gt;
 &lt;/gupdate&gt;</pre>
+
+  <h3>Intune Policy</h3>
+  <table>
+    <thead><tr><th>Item</th><th>Value</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">Location</td><td>Intune admin center → Devices → Configuration → Policies → <strong style="color:var(--white)">Edge - ATC Inventory Extension</strong></td></tr>
+      <tr><td class="t-accent">Setting</td><td><em>Extension/App IDs and update URLs to be silently installed (Device)</em> — Edge policy <code>ExtensionInstallForcelist</code></td></tr>
+      <tr><td class="t-accent">Value</td><td><code>mkkkjimbaeioecfkippbplnegmaebdel;https://atcextensionhost.z13.web.core.windows.net/update_manifest.xml</code></td></tr>
+      <tr><td class="t-accent">Scope</td><td>Device: applies to every Edge profile on the device</td></tr>
+      <tr><td class="t-accent">Assignment</td><td>Included: <strong style="color:var(--white)">All devices</strong>, no filter. Excluded: none. Local development needs an exclusion (§06)</td></tr>
+    </tbody>
+  </table>
+  <div class="callout c-danger">
+    <span class="icon">⛔</span>
+    <div class="body">
+      <strong>The extension ID comes from the signing key.</strong> A package signed with a different key has a different ID, which matches neither the Intune policy value nor the PWA's <code>VITE_CART_EXTENSION_ID</code>. Keep <code>EXTENSION_SIGNING_KEY</code> unchanged.
+    </div>
+  </div>
+
+  <h3>Rollback</h3>
+  <p>Edge never installs a lower version. To undo a release, revert the change and publish it with a <strong style="color:var(--white)">higher</strong> version.</p>
 
   <h3>After Deployment — Verify</h3>
   <table>
     <thead><tr><th>Check</th><th>How</th></tr></thead>
     <tbody>
-      <tr><td class="t-accent2">Extension installed</td><td>Navigate to <code>edge://extensions</code> on a managed device — extension should appear without developer mode</td></tr>
+      <tr><td class="t-accent2">Hosted version</td><td>Open the update manifest URL; <code>version</code> matches <code>manifests/manifest.json</code></td></tr>
+      <tr><td class="t-accent2">Policy applied</td><td><code>edge://policy</code> lists <code>ExtensionInstallForcelist</code> with the value above</td></tr>
+      <tr><td class="t-accent2">Installed version</td><td><code>edge://extensions</code> on a managed device shows the extension (managed, no developer mode) at the new version. Edge checks for updates periodically, so a new version can take time to appear</td></tr>
       <tr><td class="t-accent2">PWA detects extension</td><td>On Order page → select orders → Fill Web Cart button should be enabled when extension is active</td></tr>
       <tr><td class="t-accent2">APPROVED_PWA_ORIGINS</td><td>Confirm the production PWA URL is in the allowlist before deploying a production build</td></tr>
       <tr><td class="t-accent2">vendor_key matches DB</td><td>Confirm <code>Vendors.Vendor_key = 'fox'</code> for the Fox vendor record in production</td></tr>
@@ -1043,7 +1104,7 @@ const VENDOR_CONFIG = {
 <!-- ── FOOTER ── -->
 <div class="doc-footer">
   <span>ATC Inventory Application</span>
-  <span>Extension Developer Guide · June 2026</span>
+  <span>Extension Developer Guide · November 2026</span>
   <span>inventory_extension · Internal Use Only</span>
 </div>
 
