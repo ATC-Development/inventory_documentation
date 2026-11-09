@@ -710,7 +710,7 @@
     <div class="col-row"><div class="col-name">Unmatched_lines_json</div><div class="col-type">nvarchar(max), nullable</div><div class="col-notes">Cart lines from the last reconcile that match no session order: <code>[{ "code", "quantity" }]</code>. A line added as an order is removed</div></div>
     <div class="col-row"><div class="col-name">Owner_resolved_dt</div><div class="col-type">datetime2, nullable</div><div class="col-notes">Set when the owner answers for an ended session, or at once when a session ends with no order in cart_filled</div></div>
     <div class="col-row"><div class="col-name">Vendor_order_id</div><div class="col-type">nvarchar(100), nullable</div><div class="col-notes">Vendor's cart number from the last reconcile that sent one (or the deprecated confirm)</div></div>
-    <div class="col-row"><div class="col-name">Callback_token</div><div class="col-type">nvarchar(100), nullable</div><div class="col-notes">GUID — authorizes the extension's calls for this session. Returned only by preflight; never logged. Cleared when the session ends (the deprecated confirm is the one exception)</div></div>
+    <div class="col-row"><div class="col-name">Callback_token</div><div class="col-type">nvarchar(100), nullable</div><div class="col-notes">SHA-256 hash (64 hex characters) of the session's callback token, which authorizes the extension's calls for this session. The token itself is never stored. Returned only by preflight; never logged. Cleared when the session ends (the deprecated confirm is the one exception)</div></div>
     <div class="col-row"><div class="col-name">Started_dt</div><div class="col-type">datetime2, not null</div><div class="col-notes"></div></div>
     <div class="col-row"><div class="col-name">Expires_dt</div><div class="col-type">datetime2, not null</div><div class="col-notes">Started_dt + 2 hours; a checkout reconcile resets it to now + 2 hours. An expired session does not block a new one</div></div>
     <div class="col-row"><div class="col-name">Completed_dt</div><div class="col-type">datetime2, nullable</div><div class="col-notes">Set when the session completes (mark-ordered, or the deprecated confirm)</div></div>
@@ -737,7 +737,7 @@
   </div></div>
 
   <div class="callout c-warn"><span class="icon">⚠️</span><div class="body">
-    <strong>Callback token security:</strong> <code>Callback_token</code> is a GUID generated at session creation. It is transmitted to the extension via the preflight response and sent back in the extension's callback POST. It is validated against the session ID and accepted only while the session is <code>open</code>. It is never included in Application Insights logs, exception handlers, or Teams notifications, and is set to null on every way a session ends except the deprecated <code>/vendors/cart/confirm</code>.
+    <strong>Callback token security:</strong> The callback token is 32 random bytes (64 hex characters) generated at session creation. Only its SHA-256 hash is stored in <code>Callback_token</code>; the token itself is returned once, in the preflight response, and sent back in the extension's callback POSTs. It is validated by hashing the presented value and comparing in constant time, together with the session ID, and accepted only while the session is <code>open</code>. It is never included in Application Insights logs, exception handlers, or Teams notifications, and is set to null on every way a session ends except the deprecated <code>/vendors/cart/confirm</code>.
   </div></div>
 </div>
 

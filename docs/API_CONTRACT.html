@@ -828,7 +828,7 @@ Content-Type: application/json</pre>
 <ul>
   <li><strong>Cart lock:</strong> one <code>open</code> session per vendor and lock key. The key is <code>company</code> or the warehouse's property code, from the <code>web_cart</code> <code>cart_scope</code>. Enforced by a unique filtered index; an expired holder does not block a new session.</li>
   <li><strong>Unresolved sessions:</strong> an <code>abandoned</code> or <code>overridden</code> session with orders still <code>cart_filled</code> waits for the owner to answer through <code>resolve</code>. A session that ends through release, <code>abandon-session</code>, the cleanup service or an override with no order in <code>cart_filled</code> is marked resolved at once.</li>
-  <li><strong>Callback token:</strong> a GUID returned only by preflight, sent only in request bodies, never returned by <code>sessions/mine</code>, and cleared when the session ends (except by the deprecated <code>confirm</code>). Failed attempts are counted per session in memory; five return <code>429</code>.</li>
+  <li><strong>Callback token:</strong> 64 hex characters (32 random bytes) returned only by preflight; the API stores only its SHA-256 hash. It is sent only in request bodies, never returned by <code>sessions/mine</code>, and cleared when the session ends (except by the deprecated <code>confirm</code>). Failed attempts are counted per session in memory; five return <code>429</code>.</li>
 </ul>
 
 <h3>POST /vendors/{vendorId}/cart/preflight <span class="auth-label auth-prop">DM or propCode_wh</span></h3>
@@ -843,7 +843,7 @@ Content-Type: application/json</pre>
 {
   "valid": true,
   "session_id": 42,
-  "callback_token": "guid",
+  "callback_token": "64 hex characters",
   "vendor_key": "fox",
   "expires_in_seconds": 7200,
   "items": [ { "order_id": 101, "part_name": "Bake Element", "vendor_code": "C-GEOWR12X31686", "quantity": 2 } ]
