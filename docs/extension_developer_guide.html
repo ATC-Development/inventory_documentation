@@ -446,7 +446,7 @@
     </div>
     <div class="meta-cell">
       <span class="lbl">Status</span>
-      <span class="val green">Active — v1.0</span>
+      <span class="val green">Active — v1.0.1</span>
     </div>
     <div class="meta-cell">
       <span class="lbl">Vendor</span>
@@ -806,7 +806,7 @@ npm run build</pre>
       <tr><td class="t-accent">dist/fox/content-bridge.js</td><td class="t-mono">IIFE</td><td>Injected into PWA page — IIFE required for content scripts</td></tr>
       <tr><td class="t-accent">dist/fox/vendors/fox/content.main.js</td><td class="t-mono">IIFE</td><td>MAIN world content script</td></tr>
       <tr><td class="t-accent">dist/fox/vendors/fox/content.isolated.js</td><td class="t-mono">IIFE</td><td>ISOLATED world content script</td></tr>
-      <tr><td class="t-accent">dist/fox/manifest.json</td><td class="t-muted">—</td><td>Copied from manifests/manifest.json</td></tr>
+      <tr><td class="t-accent">dist/fox/manifest.json</td><td class="t-muted">—</td><td>Generated from <code>manifests/manifest.json</code>: adds <code>version</code> from <code>package.json</code>, and <code>host_permissions</code> and vendor content scripts from each <code>vendor.config.js</code></td></tr>
     </tbody>
   </table>
 
@@ -829,6 +829,7 @@ npm run build</pre>
   <table>
     <thead><tr><th>Setting</th><th>Value</th><th>Notes</th></tr></thead>
     <tbody>
+      <tr><td class="t-accent">version</td><td class="t-mono">—</td><td>Not in the base manifest. The build writes <code>package.json</code>'s version into every generated manifest and stops if it is not 1–4 dot-separated numbers (§11)</td></tr>
       <tr><td class="t-accent">permissions</td><td class="t-mono">tabs, scripting, storage</td><td>Minimum required set</td></tr>
       <tr><td class="t-accent">host_permissions</td><td class="t-mono">https://www.foxparts.com/*</td><td>Add new vendor domains here when onboarding</td></tr>
       <tr><td class="t-accent">content_scripts[0].matches</td><td class="t-mono">localhost:5173, gray-tree-*.azurestaticapps.net/*</td><td>PWA origins — must stay in sync with APPROVED_PWA_ORIGINS in background.js</td></tr>
@@ -1027,26 +1028,36 @@ const VENDOR_CONFIG = {
   <p>A push to <code>main</code> builds, signs and publishes the extension to Azure Storage. An Intune device configuration policy force-installs it on every managed device, and Edge picks up new versions from the hosted update manifest. Users do not install it.</p>
 
   <h3>Release Pipeline — <code>.github/workflows/deploy.yml</code></h3>
-  <p>Runs on every push to <code>main</code>, and on demand (<strong style="color:var(--white)">Run workflow</strong>). No approval step.</p>
+  <p>Runs on every push to <code>main</code>, and on demand (<strong style="color:var(--white)">Run workflow</strong>). One run at a time (a newer run waits). No approval step. A run <strong style="color:var(--white)">publishes only when the version is higher than the hosted one</strong>; otherwise it stops after the build.</p>
   <table>
     <thead><tr><th>Step</th><th>What it does</th></tr></thead>
     <tbody>
-      <tr><td class="t-accent">Build</td><td>Node 20; <code>npm ci</code>; <code>npm run build:combined</code> → <code>dist/combined/</code> (all vendors, one merged manifest)</td></tr>
-      <tr><td class="t-accent">Signing key</td><td>Secret <code>EXTENSION_SIGNING_KEY</code> (PKCS#1) converted to PKCS#8 in <code>/tmp</code>; deleted at the end of the job, also on failure</td></tr>
-      <tr><td class="t-accent">Pack</td><td><code>npx crx3</code> → <code>atc-inventory-extension.crx</code> and <code>update_manifest.xml</code>. Version from <code>manifests/manifest.json</code>; package URL fixed (below)</td></tr>
-      <tr><td class="t-accent">Version alignment</td><td>Compares the manifest version with the version written into <code>update_manifest.xml</code>. Both come from the same value, so this step does not detect a missing version bump</td></tr>
-      <tr><td class="t-accent">Azure login</td><td>OIDC with secrets <code>AZURE_CLIENT_ID</code>, <code>AZURE_TENANT_ID</code>, <code>AZURE_SUBSCRIPTION_ID</code>: app registration <code>ATC-Github-Actions-Deployer</code>, federated credential <code>inventory-extension-main</code> (subject <code>ref:refs/heads/main</code>; no GitHub environment)</td></tr>
-      <tr><td class="t-accent">Upload</td><td><code>az storage blob upload --overwrite</code> to storage account <code>atcextensionhost</code>, container <code>$web</code>: the CRX (<code>application/x-chrome-extension</code>) and <code>update_manifest.xml</code> (<code>application/xml</code>)</td></tr>
+      <tr><td class="t-accent">Build</td><td>Node 24; <code>npm ci</code>; <code>npm run build:combined</code> → <code>dist/combined/</code> (all vendors, one merged manifest)</td></tr>
+      <tr><td class="t-accent">Release gate</td><td><code>node scripts/version-gate.mjs</code> reads the hosted <code>update_manifest.xml</code>. Built version higher, or nothing hosted → publish. Equal or lower → the remaining steps are skipped. Hosted manifest for a different extension ID, or any read error other than not found → the run fails</td></tr>
+      <tr><td class="t-accent">Signing key</td><td>Publish only. Secret <code>EXTENSION_SIGNING_KEY</code> (PKCS#1) converted to PKCS#8 in <code>/tmp</code>; deleted at the end of the job, also on failure</td></tr>
+      <tr><td class="t-accent">Pack</td><td>Publish only. <code>npx crx3</code> → <code>atc-inventory-extension.crx</code> and <code>update_manifest.xml</code>. Version from <code>dist/combined/manifest.json</code>; package URL fixed (below)</td></tr>
+      <tr><td class="t-accent">Check package</td><td>Publish only. <code>version-gate.mjs --check-package</code>: the generated <code>update_manifest.xml</code> must carry the expected extension ID and the built version. A package signed with a different key fails here, before upload</td></tr>
+      <tr><td class="t-accent">Azure login</td><td>Publish only. OIDC with secrets <code>AZURE_CLIENT_ID</code>, <code>AZURE_TENANT_ID</code>, <code>AZURE_SUBSCRIPTION_ID</code>: app registration <code>ATC-Github-Actions-Deployer</code>, federated credential <code>inventory-extension-main</code> (subject <code>ref:refs/heads/main</code>; no GitHub environment)</td></tr>
+      <tr><td class="t-accent">Upload</td><td>Publish only. CRX first, then the update manifest, so the manifest never points to a package that is not there yet. <code>az storage blob upload --overwrite</code> to storage account <code>atcextensionhost</code>, container <code>$web</code>: the CRX (<code>application/x-chrome-extension</code>) and <code>update_manifest.xml</code> (<code>application/xml</code>)</td></tr>
+      <tr><td class="t-accent">Verify hosted version</td><td>Publish only. <code>version-gate.mjs --verify</code>: the hosted manifest must now show the expected extension ID and the built version</td></tr>
     </tbody>
   </table>
+  <p>The hosted URL and the extension ID are set once, at the top of <code>scripts/version-gate.mjs</code>.</p>
 
   <h3>Versioning</h3>
   <div class="callout c-warn">
     <span class="icon">⚠️</span>
     <div class="body">
-      <strong>Edge installs an update only when the hosted version is higher than the installed one.</strong> The version comes from <code>manifests/manifest.json</code> (currently <code>1.0</code>); the <code>package.json</code> version (<code>1.0.0</code>) is not used for packaging. Every push to <code>main</code> publishes. If the manifest version did not change, the hosted package is replaced but devices that already have the extension keep their copy, while a device installing it for the first time gets the new upload, so devices can run different builds under the same version number. To release to existing devices, raise the manifest version in the same push.
+      <strong>Edge installs an update only when the hosted version is higher than the installed one.</strong> The only version source is <code>package.json</code> (currently <code>1.0.1</code>). Versions compare as Edge compares them: dotted numbers, missing parts count as 0 (<code>1.0.0</code> equals <code>1.0</code>). A push without a version bump builds but publishes nothing, so a released version is never replaced by a different build.
     </div>
   </div>
+
+  <h3>Releasing a Version</h3>
+  <div class="pre-label">bash — on main, working tree clean</div>
+  <pre>git commit -m "..."            # the change
+npm version patch               # or minor / major: bumps package.json and package-lock.json, commits, tags vX.Y.Z
+git push --follow-tags          # the workflow publishes</pre>
+  <p>Patch for fixes, minor for new capabilities, major for breaking changes to the PWA message protocol. Pre-release versions (<code>1.1.0-beta</code>) are not allowed: the build stops.</p>
 
   <h3>Hosting</h3>
   <table>
@@ -1056,11 +1067,11 @@ const VENDOR_CONFIG = {
       <tr><td class="t-accent">Update manifest</td><td><code>https://atcextensionhost.z13.web.core.windows.net/update_manifest.xml</code></td></tr>
     </tbody>
   </table>
-  <div class="pre-label">update_manifest.xml — as hosted (checked 2026-11-09)</div>
+  <div class="pre-label">update_manifest.xml — generated by crx3 at each release (1.0.1 shown)</div>
   <pre>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
 &lt;gupdate xmlns="http://www.google.com/update2/response" protocol="2.0"&gt;
   &lt;app appid="mkkkjimbaeioecfkippbplnegmaebdel"&gt;
-    &lt;updatecheck codebase="https://atcextensionhost.z13.web.core.windows.net/atc-inventory-extension.crx" version="1.0" prodversionmin="64.0.3242" /&gt;
+    &lt;updatecheck codebase="https://atcextensionhost.z13.web.core.windows.net/atc-inventory-extension.crx" version="1.0.1" prodversionmin="64.0.3242" /&gt;
   &lt;/app&gt;
 &lt;/gupdate&gt;</pre>
 
@@ -1083,13 +1094,13 @@ const VENDOR_CONFIG = {
   </div>
 
   <h3>Rollback</h3>
-  <p>Edge never installs a lower version. To undo a release, revert the change and publish it with a <strong style="color:var(--white)">higher</strong> version.</p>
+  <p>Edge never installs a lower version, and the release gate never publishes one. To undo a release, revert the change and release it with a <strong style="color:var(--white)">higher</strong> version (<code>npm version patch</code>).</p>
 
   <h3>After Deployment — Verify</h3>
   <table>
     <thead><tr><th>Check</th><th>How</th></tr></thead>
     <tbody>
-      <tr><td class="t-accent2">Hosted version</td><td>Open the update manifest URL; <code>version</code> matches <code>manifests/manifest.json</code></td></tr>
+      <tr><td class="t-accent2">Hosted version</td><td>The workflow's <strong style="color:var(--white)">Verify hosted version</strong> step passed (it checks the hosted manifest against the built version)</td></tr>
       <tr><td class="t-accent2">Policy applied</td><td><code>edge://policy</code> lists <code>ExtensionInstallForcelist</code> with the value above</td></tr>
       <tr><td class="t-accent2">Installed version</td><td><code>edge://extensions</code> on a managed device shows the extension (managed, no developer mode) at the new version. Edge checks for updates periodically, so a new version can take time to appear</td></tr>
       <tr><td class="t-accent2">PWA detects extension</td><td>On Order page → select orders → Fill Web Cart button should be enabled when extension is active</td></tr>
