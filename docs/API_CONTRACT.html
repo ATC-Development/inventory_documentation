@@ -88,7 +88,7 @@
 <div class="title-block">
   <h1>ATC Inventory API</h1>
   <div class="subtitle">Developer Contract — Full Endpoint Reference</div>
-  <div class="meta">Version: <strong>1.2</strong> &nbsp;&nbsp; Date: <strong>November 5, 2026</strong> &nbsp;&nbsp; Related: <strong>API_DEVELOPER_GUIDE.md</strong> &nbsp;&nbsp; Source: <strong>inventory_api snapshot 2026-05-17; vendor order methods, vendor cart and orders sections 2026-11-05</strong></div>
+  <div class="meta">Version: <strong>1.2</strong> &nbsp;&nbsp; Date: <strong>November 10, 2026</strong> &nbsp;&nbsp; Related: <strong>API_DEVELOPER_GUIDE.md</strong> &nbsp;&nbsp; Source: <strong>inventory_api snapshot 2026-05-17; vendor order methods, vendor cart and orders sections 2026-11-05</strong></div>
 </div>
 
 <div class="toc">
@@ -351,7 +351,7 @@ Content-Type: application/json</pre>
     <tr><td class="ep-method m-post">POST</td><td class="ep-path">/vendors/cart/sessions/{sessionId}/add-unmatched</td><td>Add an extra cart line as an order</td><td class="ep-auth a-prop">Session owner or DM</td></tr>
     <tr><td class="ep-method m-post">POST</td><td class="ep-path">/vendors/cart/override-session/{sessionId}</td><td>Force-release an open session</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
     <tr><td class="ep-method m-post">POST</td><td class="ep-path">/vendors/cart/abandon-session/{sessionId}</td><td>PWA: end a session without ordering</td><td class="ep-auth a-prop">Session owner or DM</td></tr>
-    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/vendors/cart/confirm</td><td><strong>Deprecated</strong> &mdash; pre-v4 confirm; removed once the PWA stops calling it</td><td class="ep-auth a-token">CallbackToken</td></tr>
+    <tr><td class="ep-method m-post">POST</td><td class="ep-path">/vendors/cart/confirm</td><td><strong>Deprecated, no caller</strong> &mdash; pre-v4 confirm; kept until removed (backlog)</td><td class="ep-auth a-token">CallbackToken</td></tr>
   </tbody>
 </table>
 
@@ -813,7 +813,7 @@ Content-Type: application/json</pre>
 
 <h2 id="vendor-cart">9b. Vendor Cart (web cart fill)</h2>
 <p>Fills a vendor's web cart through the browser extension. The PWA starts a session (preflight) and hands the session's <code>callback_token</code> to the extension. The extension reports the cart's contents (reconcile) and ends the session (mark-ordered or release). The PWA lists the caller's sessions, asks the owner whether an ended session's orders were ordered (resolve), and adds extra cart lines as orders.</p>
-<div class="warn"><strong>Transition:</strong> the API is on the v4 flow below. Until the v4 extension and PWA ship, they still use the pre-v4 sequence: <code>confirm</code> (deprecated) followed by <code>mark-ordered</code>. Because <code>mark-ordered</code> now requires an open session and <code>confirm</code> completes the session, that sequence can no longer mark orders ordered.</div>
+<div class="note">The v4 extension and PWA use this flow (November 2026). <code>POST /vendors/cart/confirm</code> is deprecated and has no caller; it stays served until it is removed (backlog).</div>
 
 <h3>Sessions</h3>
 <table>
@@ -969,7 +969,7 @@ Content-Type: application/json</pre>
 <div class="note">A <code>409 SESSION_COMPLETED</code> or <code>SESSION_OVERRIDDEN</code> means the session has already ended. The PWA closes its panel; for an override, the owner's resolution popup takes over.</div>
 
 <h3>POST /vendors/cart/confirm <span class="auth-label auth-token">CallbackToken</span> &nbsp;<em>Deprecated</em></h3>
-<p>Pre-v4 confirm, still served for the current extension and PWA; removed once the PWA no longer calls it. Request: <code>{ session_id, callback_token, vendor_order_id?, items_added, items_failed? }</code>. Moves the session's orders to <code>cart_filled</code> except those whose codes are in <code>items_failed</code>, and completes the session. Does not clear the token.</p>
+<p>Pre-v4 confirm. No caller since the v4 extension and PWA shipped (November 2026); still served until it is removed (backlog). Request: <code>{ session_id, callback_token, vendor_order_id?, items_added, items_failed? }</code>. Moves the session's orders to <code>cart_filled</code> except those whose codes are in <code>items_failed</code>, and completes the session. Does not clear the token.</p>
 <pre>// Response: 200 OK &mdash; { "success": true, "orders_filled": 2, "orders_skipped": 0 }
 // Side effects: SignalR orders.updated
 // Errors: 429 &middot; 400 INVALID_TOKEN &middot; 400 SESSION_EXPIRED</pre>

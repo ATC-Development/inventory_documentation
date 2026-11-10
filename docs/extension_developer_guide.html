@@ -446,7 +446,7 @@
     </div>
     <div class="meta-cell">
       <span class="lbl">Status</span>
-      <span class="val green">Active — v1.0.1</span>
+      <span class="val green">Active — v1.3.0</span>
     </div>
     <div class="meta-cell">
       <span class="lbl">Vendor</span>
@@ -482,18 +482,23 @@
     <span class="sn">01</span>
     <h2>Overview</h2>
   </div>
-  <p>The <strong style="color:var(--white)">ATC Inventory Extension</strong> is a Manifest V3 Chrome/Edge extension that automates filling vendor web carts on behalf of property managers. It is the fourth component of the ATC Inventory system alongside <code>inventory_api</code>, <code>inventory_pwa</code>, and <code>inventory_functions</code>.</p>
-  <p>The extension bridges the PWA and the vendor's web platform. The PWA orchestrates the session lifecycle — login verification, preflight validation, order confirmation — while the extension handles the actual browser automation: detecting login state, clearing existing cart items, and bulk-posting order line items to the vendor's API.</p>
+  <p>The <strong style="color:var(--white)">ATC Inventory Extension</strong> is a Manifest V3 Edge extension that fills a vendor's web cart for an Inventory App order list and keeps the Inventory App up to date while the user finishes the order on the vendor's site. It is the fourth component of the ATC Inventory system alongside <code>inventory_api</code>, <code>inventory_pwa</code> and <code>inventory_functions</code>.</p>
+  <p>The PWA starts a cart session through the API (preflight, which takes the vendor's cart lock) and hands the session to the extension. From then on the extension runs the session on the vendor's site: it waits for the vendor login, fills the cart, reports the cart's contents to the API (reconcile), shows an overlay with the result and a countdown, and ends the session when the user clicks <strong style="color:var(--white)">I submitted the order</strong> or <strong style="color:var(--white)">Release cart</strong>, or when the session expires. The PWA can be closed after the fill starts.</p>
 
   <div class="callout c-info">
     <span class="icon">ℹ️</span>
     <div class="body">
-      <strong>First vendor: Fox Appliance Parts</strong> — foxparts.com, running the Kodaris B2B e-commerce platform. The architecture is intentionally generalized to support additional vendors with separate per-vendor content scripts and configuration.
+      <strong>Vendor: Fox Appliance Parts</strong> — foxparts.com, on the Kodaris B2B platform. The session logic in the background worker is vendor-neutral; each vendor has its own content scripts and configuration (§10).
     </div>
   </div>
 
   <h3>What the extension does not do</h3>
-  <p>The extension does not store credentials, manage sessions beyond the current fill operation, make API calls to the ATC inventory system, or hold any state beyond what is needed for the current active cart fill. All business logic, order status transitions, and audit trails live in <code>inventory_api</code>.</p>
+  <ul style="margin: 10px 0 14px 20px; color: var(--text); font-size: 13px; line-height: 2;">
+    <li><strong>Never deletes vendor cart lines.</strong> If the vendor cart is not empty when a fill starts, nothing is added or removed; the fill stops and shows the cart's lines</li>
+    <li><strong>Never creates orders.</strong> Its callback token can only update the session's own orders. Extra cart lines are added as orders in the PWA (<em>Add as order</em>), which uses the user's sign-in</li>
+    <li>Stores no vendor credentials; the user logs in to the vendor site</li>
+    <li>Holds one session at a time per browser</li>
+  </ul>
 </div>
 
 <!-- §02 REPOSITORY STRUCTURE -->
@@ -506,42 +511,47 @@
   <div class="file-tree">
     <span class="ft-dir">inventory_extension/</span><br>
     &nbsp;&nbsp;<span class="ft-dir">src/</span><br>
-    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">background.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Service worker — message router</span><br>
-    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">content-bridge.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Injected into PWA — postMessage ↔ runtime bridge</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">background.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Service worker — runs the cart session</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">content-bridge.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Injected into the PWA — postMessage ↔ runtime bridge</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-dir">core/</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">session-store.js</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// The one session, in chrome.storage.session</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">api-client.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Callback-token API calls</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">api-origins.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Built-in API address per PWA origin</span><br>
     &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-dir">vendors/</span><br>
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-dir">fox/</span><br>
-    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">vendor.config.js</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Fox-specific constants (URLs, company ID)</span><br>
-    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">content.main.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// MAIN world — reads kd global from page</span><br>
-    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">content.isolated.js</span>&nbsp;<span class="ft-note">// ISOLATED world — all fetch calls, cart logic</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">vendor.config.js</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Fox constants (URLs, endpoints, company ID)</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">content.main.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// MAIN world — reads the kd global from the page</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">content.isolated.js</span>&nbsp;<span class="ft-note">// ISOLATED world — Fox cart calls, cart watching, overlay</span><br>
     &nbsp;&nbsp;<span class="ft-dir">manifests/</span><br>
-    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">manifest.json</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// MV3 manifest — permissions, content scripts</span><br>
-    &nbsp;&nbsp;<span class="ft-dir">dist/</span><br>
-    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-dir">fox/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Built output — load this in Chrome/Edge</span><br>
-    &nbsp;&nbsp;<span class="ft-file">build.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// esbuild build script</span><br>
-    &nbsp;&nbsp;<span class="ft-file">package.json</span>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">manifest.json</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Base MV3 manifest (no version, no host permissions)</span><br>
+    &nbsp;&nbsp;<span class="ft-dir">scripts/</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">version-gate.mjs</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Release gate used by deploy.yml (§11)</span><br>
+    &nbsp;&nbsp;<span class="ft-dir">dist/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Built output (fox/, combined/) — not committed</span><br>
+    &nbsp;&nbsp;<span class="ft-file">build.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// esbuild build; generates the manifest</span><br>
+    &nbsp;&nbsp;<span class="ft-file">package.json</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// The only version source</span>
   </div>
 
   <h3>Key Constraint — Two Content Script Worlds</h3>
-  <p>The Fox vendor integration uses two content scripts running in different browser execution worlds on <code>foxparts.com</code>:</p>
+  <p>The Fox integration uses two content scripts in different execution worlds on <code>foxparts.com</code>:</p>
   <table>
     <thead><tr><th>File</th><th>World</th><th>Purpose</th></tr></thead>
     <tbody>
       <tr>
         <td class="t-accent">content.main.js</td>
         <td class="t-mono">MAIN</td>
-        <td>Reads <code>kd</code> global (Kodaris state object) which is not accessible from the isolated world. Passes <code>csrfToken</code>, <code>isLoggedIn</code>, <code>selectedCompanyID</code> to the isolated world via <code>window.postMessage</code>. Contains no fetch calls.</td>
+        <td>Reads the <code>kd</code> global (Kodaris state object), which the isolated world cannot see. Passes <code>csrfToken</code>, <code>isLoggedIn</code> and <code>companyId</code> to the isolated world through <code>window.postMessage</code>. Contains no fetch calls.</td>
       </tr>
       <tr>
         <td class="t-accent">content.isolated.js</td>
         <td class="t-mono">ISOLATED</td>
-        <td>Executes all fetch calls, cart operations, and overlay rendering. Receives identity values from the MAIN world. All network requests run here — the page's JavaScript cannot intercept them.</td>
+        <td>All Fox cart calls, cart watching on the cart page, and the overlay. Talks to the background with <code>chrome.runtime.sendMessage</code>.</td>
       </tr>
     </tbody>
   </table>
   <div class="callout c-warn">
     <span class="icon">⚠️</span>
     <div class="body">
-      <strong>Never put fetch calls in content.main.js.</strong> The MAIN world is accessible to the page's own JavaScript. All network calls that could expose credentials or CSRF tokens must run in the ISOLATED world only.
+      <strong>Never put fetch calls in content.main.js.</strong> The MAIN world is shared with the page's own JavaScript. Network calls and the CSRF token's use stay in the ISOLATED world.
     </div>
   </div>
 </div>
@@ -559,33 +569,45 @@
     <tbody>
       <tr>
         <td class="t-accent">background.js</td>
-        <td class="t-mono">Service Worker</td>
-        <td>Message router and session manager. Handles all <code>chrome.runtime.sendMessage</code> calls. Owns one active session at a time (<code>step: 'login' | 'fill'</code>). Pushes async messages to the PWA tab via <code>chrome.tabs.sendMessage</code>.</td>
+        <td class="t-mono">Service worker</td>
+        <td>Runs the one cart session: state changes, login wait, fill, reconcile, ending. The only part that calls the API (<code>core/api-client.js</code>). Pushes every state change to the PWA tab and to the vendor tab.</td>
       </tr>
       <tr>
         <td class="t-accent">content-bridge.js</td>
         <td class="t-mono">PWA tab (ISOLATED)</td>
-        <td>Injected into the PWA origin. Bridges <code>window.postMessage</code> from the PWA page into <code>chrome.runtime.sendMessage</code> (outbound) and forwards push messages from background back into the PWA page via <code>window.postMessage</code> (inbound).</td>
+        <td>Forwards the PWA's <code>window.postMessage</code> requests to the background, and the background's pushes back into the page.</td>
       </tr>
       <tr>
         <td class="t-accent">content.main.js</td>
         <td class="t-mono">Vendor tab (MAIN)</td>
-        <td>Reads Kodaris <code>kd</code> global and relays identity values to the isolated world.</td>
+        <td>Reads the Kodaris <code>kd</code> global and relays identity values to the isolated world.</td>
       </tr>
       <tr>
         <td class="t-accent">content.isolated.js</td>
         <td class="t-mono">Vendor tab (ISOLATED)</td>
-        <td>Handles login detection, pending login tracking across page reloads, cart inspection, cart clearing, bulk item POST, post-fill cart verification, and the post-fill overlay.</td>
+        <td>Answers the background (identity check, fill, cart read), watches the Fox cart page tabs, and draws the overlay: result, countdown, 15-minute warning, I submitted the order, Release cart. Inert on any page load without a session.</td>
       </tr>
     </tbody>
   </table>
 
-  <h3>Active Session Model</h3>
-  <p>The background maintains a single <code>activeSession</code> object — only one cart fill operation can be in progress at a time. The session tracks: <code>step</code> (login or fill), <code>vendorKey</code>, <code>correlationId</code>, <code>tabId</code> (vendor tab), <code>pwaTabId</code> (PWA tab), and a timeout handle.</p>
+  <h3>Session States</h3>
+  <table>
+    <thead><tr><th>State</th><th>Meaning</th><th>Leaves by</th></tr></thead>
+    <tbody>
+      <tr><td class="t-mono">awaiting_login</td><td>Vendor tab opened; waiting for the vendor login (<code>login_reason</code>: <code>login_required</code> or <code>wrong_account</code>)</td><td>Login detected → <code>filling</code>. 15 minutes → ended <code>login_timeout</code>. Vendor tab closed → ended <code>vendor_tab_closed</code></td></tr>
+      <tr><td class="t-mono">filling</td><td>Reading the cart, adding the items</td><td>Added or failed → reconcile → <code>in_cart</code>. Cart not empty → ended <code>cart_not_empty</code>. Fox refuses the add because its login expired → back to <code>awaiting_login</code></td></tr>
+      <tr><td class="t-mono">in_cart</td><td>Filled and reconciled; the user finishes on the vendor site. Checkout entries reconcile again and reset the 2-hour expiry</td><td>I submitted the order → ended <code>completed</code>. Release cart → ended <code>released</code>. Expiry → ended <code>expired</code></td></tr>
+      <tr><td class="t-mono">ended</td><td>Kept (without the token) so the overlay can show why; Dismiss on the overlay clears it</td><td>Next <code>start_fill</code> replaces it</td></tr>
+    </tbody>
+  </table>
+  <p>End reasons: <code>completed</code>, <code>released</code>, <code>expired</code>, <code>closed</code> (the API no longer has the session open: released in the PWA or overridden by a DatabaseManager), <code>cart_not_empty</code>, <code>login_timeout</code>, <code>vendor_tab_closed</code>, <code>failed</code>. The extension releases the cart lock itself for <code>login_timeout</code>, <code>vendor_tab_closed</code> and <code>cart_not_empty</code> (nothing was added).</p>
+
+  <h3>Durability and Timers</h3>
+  <p>The session record is kept in <code>chrome.storage.session</code> (<code>core/session-store.js</code>), so it survives Edge stopping the service worker. Timers use <code>chrome.alarms</code>: login wait (15 minutes), fill check (2 minutes, finishes a fill whose worker was stopped by reading the cart), and session expiry. Automated steps (vendor page load, identity check, add, cart read) time out after 60 seconds. State changes run one at a time and apply only if the session is still the expected one in an expected state.</p>
   <div class="callout c-info">
     <span class="icon">ℹ️</span>
     <div class="body">
-      <strong>correlationId</strong> is generated by the PWA and passed through every message. The PWA validates it on all async push messages to prevent stale responses from a previous session from being processed.
+      <strong>correlationId</strong> is generated by the PWA for each fill and carried on every push. The PWA applies a push to its panel only when the correlationId and vendor key match its active session.
     </div>
   </div>
 </div>
@@ -597,39 +619,29 @@
     <h2>Message Flow</h2>
   </div>
 
-  <h3>Step 1 — Login Check</h3>
+  <h3>Fill to Submit</h3>
   <div class="flow">
-    <div class="flow-step"><span class="flow-arrow">1 →</span><span>PWA sends <code>check_login</code> via <code>window.postMessage</code> (with <code>vendorKey</code>, <code>correlationId</code>)</span></div>
-    <div class="flow-step"><span class="flow-arrow">2 →</span><span>content-bridge forwards to background via <code>chrome.runtime.sendMessage</code></span></div>
-    <div class="flow-step"><span class="flow-arrow">3 →</span><span>background opens/focuses the vendor tab and sends <code>check_login</code> to content.isolated.js</span></div>
-    <div class="flow-step"><span class="flow-arrow">4a →</span><span><strong>Logged in:</strong> isolated script returns <code>login_verified</code> → background sends immediate response to PWA</span></div>
-    <div class="flow-step"><span class="flow-arrow">4b →</span><span><strong>Not logged in:</strong> isolated stores <code>PENDING_LOGIN_KEY</code> in session storage, shows login banner → returns <code>login_required</code> immediately</span></div>
-    <div class="flow-step"><span class="flow-arrow">5 →</span><span>On page reload after login: <code>checkPendingLogin()</code> detects login, clears flag, pushes <code>login_ready</code> to PWA asynchronously</span></div>
-  </div>
-
-  <h3>Step 2 — Cart Fill</h3>
-  <div class="flow">
-    <div class="flow-step"><span class="flow-arrow">1 →</span><span>PWA sends <code>fill_cart</code> with <code>{ vendor_key, items[], warehouse_name, correlationId }</code></span></div>
-    <div class="flow-step"><span class="flow-arrow">2 →</span><span>background opens/focuses vendor tab and sends <code>fill_cart</code> payload to content.isolated.js</span></div>
-    <div class="flow-step"><span class="flow-arrow">3 →</span><span>isolated script checks existing cart — if not empty, shows clear-cart warning overlay</span></div>
-    <div class="flow-step"><span class="flow-arrow">4a →</span><span><strong>User cancels clear:</strong> returns <code>{ success: false, error: 'user_cancelled' }</code></span></div>
-    <div class="flow-step"><span class="flow-arrow">4b →</span><span><strong>User confirms / cart empty:</strong> DELETEs existing items via <code>Promise.all()</code>, then bulk POSTs new items</span></div>
-    <div class="flow-step"><span class="flow-arrow">5 →</span><span>isolated verifies cart via GET, stores overlay state, navigates to cart page</span></div>
-    <div class="flow-step"><span class="flow-arrow">6 →</span><span>background pushes <code>cart_filled</code> (or <code>cart_fill_failed</code>) to PWA tab asynchronously</span></div>
+    <div class="flow-step"><span class="flow-arrow">1 →</span><span>PWA calls <code>POST /vendors/{id}/cart/preflight</code> (user sign-in): validates the orders, takes the cart lock, returns <code>session_id</code>, <code>callback_token</code>, <code>vendor_key</code>, <code>expires_in_seconds</code> and the items</span></div>
+    <div class="flow-step"><span class="flow-arrow">2 →</span><span>PWA sends <code>start_fill</code> with that payload. The background stores the session and answers <code>accepted</code> at once (or a refusal)</span></div>
+    <div class="flow-step"><span class="flow-arrow">3 →</span><span>Background opens or focuses the Fox tab and sends <code>check_identity</code>. Not logged in: the page shows the login banner and the PWA shows Login required. Each reload of that same tab re-checks (E1)</span></div>
+    <div class="flow-step"><span class="flow-arrow">4 →</span><span>Logged in: <code>fill</code>. The content script reads the cart (<code>viewCart</code>); not empty → stop. Empty → bulk add; the result and the cart's lines go back to the background</span></div>
+    <div class="flow-step"><span class="flow-arrow">5 →</span><span>Background calls <code>reconcile</code> (trigger <code>fill</code>) with the cart's lines, stores the result, moves the tab to the Fox cart page</span></div>
+    <div class="flow-step"><span class="flow-arrow">6 →</span><span>Cart tab shown: the overlay lists changes since the last save (no API call). Checkout entered (Cart tab → tab 1 or 2): <code>reconcile</code> (trigger <code>checkout</code>), which also resets the 2-hour expiry</span></div>
+    <div class="flow-step"><span class="flow-arrow">7 →</span><span>I submitted the order → <code>mark-ordered</code>. Release cart → <code>release</code>. Either ends the session; the token is cleared</span></div>
   </div>
 
   <h3>Message Types Reference</h3>
   <table>
-    <thead><tr><th>Direction</th><th>Type</th><th>Transport</th><th>Notes</th></tr></thead>
+    <thead><tr><th>Direction</th><th>Type</th><th>Notes</th></tr></thead>
     <tbody>
-      <tr><td class="t-accent2">PWA → Extension</td><td class="t-mono">check_login</td><td class="t-muted">postMessage → runtime</td><td>Carries vendorKey, correlationId</td></tr>
-      <tr><td class="t-accent2">PWA → Extension</td><td class="t-mono">fill_cart</td><td class="t-muted">postMessage → runtime</td><td>Carries vendor_key, items[], warehouse_name, correlationId</td></tr>
-      <tr><td class="t-accent2">PWA → Extension</td><td class="t-mono">ping</td><td class="t-muted">postMessage → runtime</td><td>Extension availability check</td></tr>
-      <tr><td class="t-accent">Extension → PWA (sync)</td><td class="t-mono">check_login:response</td><td class="t-muted">runtime → postMessage</td><td>login_verified or login_required</td></tr>
-      <tr><td class="t-accent">Extension → PWA (sync)</td><td class="t-mono">fill_cart:response</td><td class="t-muted">runtime → postMessage</td><td>Acknowledgement only — fill is async</td></tr>
-      <tr><td class="t-accent">Extension → PWA (async push)</td><td class="t-mono">login_ready</td><td class="t-muted">tabs.sendMessage → postMessage</td><td>Pushed after page-reload login detection</td></tr>
-      <tr><td class="t-accent">Extension → PWA (async push)</td><td class="t-mono">cart_filled</td><td class="t-muted">tabs.sendMessage → postMessage</td><td>Carries vendor_order_id, items_added, items_failed</td></tr>
-      <tr><td class="t-accent">Extension → PWA (async push)</td><td class="t-mono">cart_fill_failed</td><td class="t-muted">tabs.sendMessage → postMessage</td><td>Carries error string; user_cancelled for user-initiated cancels</td></tr>
+      <tr><td class="t-accent2">PWA → Extension</td><td class="t-mono">ping</td><td>Availability check; reply <code>pong</code></td></tr>
+      <tr><td class="t-accent2">PWA → Extension</td><td class="t-mono">start_fill</td><td>Payload: <code>session_id</code>, <code>callback_token</code>, <code>vendor_key</code>, <code>warehouse_name</code>, <code>expires_in_seconds</code>, <code>items[]</code> (<code>order_id</code>, <code>part_name</code>, <code>code</code>, <code>quantity</code>). Reply <code>accepted</code>, or refused: <code>unsupported_vendor</code>, <code>session_in_progress</code>, <code>origin_not_mapped</code>, <code>invalid_payload</code>, <code>unauthorized</code>. The same <code>session_id</code> again re-attaches the sending tab</td></tr>
+      <tr><td class="t-accent2">PWA → Extension</td><td class="t-mono">end_session</td><td>Sent after the PWA released the session through the API. The extension ends it (<code>released</code>) without an API call</td></tr>
+      <tr><td class="t-accent">Extension → PWA (push)</td><td class="t-mono">cart_session</td><td>On every change: <code>correlationId</code>, <code>vendorKey</code>, <code>session_id</code>, <code>state</code>, <code>login_reason</code>, <code>end_reason</code>, <code>end_detail</code>, <code>last_result</code>, <code>expires_in_seconds</code>, <code>warning_shown</code>. Never the token or the API address</td></tr>
+      <tr><td class="t-accent2">Background → Fox page</td><td class="t-mono">check_identity · fill · read_cart · session_changed</td><td>Identity status; fill result with cart lines; cart lines; overlay re-render</td></tr>
+      <tr><td class="t-accent">Fox page → Background</td><td class="t-mono">get_session_view</td><td>On every Fox page load. Reply is the session's public view, or <code>null</code> on a device without a session</td></tr>
+      <tr><td class="t-accent">Fox page → Background</td><td class="t-mono">checkout_entered</td><td>Carries the cart read at checkout entry; background reconciles</td></tr>
+      <tr><td class="t-accent">Fox page → Background</td><td class="t-mono">overlay_action · warning_shown · dismiss_session</td><td><code>submit</code> / <code>release</code>; the 15-minute popup was shown; forget an ended session</td></tr>
     </tbody>
   </table>
 </div>
@@ -641,16 +653,18 @@
     <h2>Security Model</h2>
   </div>
 
-  <h3>PWA Origin Validation</h3>
-  <p>The background service worker maintains an <code>APPROVED_PWA_ORIGINS</code> allowlist. Every message received from a content script is validated against this set before processing. Messages from unapproved origins are rejected with a 403-equivalent error.</p>
-  <pre>const APPROVED_PWA_ORIGINS = new Set([
-  'http://localhost:5173',
-  'https://gray-tree-0fe80630f.4.azurestaticapps.net',
-]);</pre>
+  <h3>Approved PWA Origins and API Addresses</h3>
+  <p>The background accepts PWA messages only from the origins in <code>src/core/api-origins.js</code>, and takes the API address for a session from that same map, keyed by the sending PWA's origin. The API address is never taken from a message.</p>
+  <pre>export const API_ORIGIN_BY_PWA_ORIGIN = {
+  'http://localhost:5173': 'http://localhost:5077',
+  'https://gray-tree-0fe80630f.4.azurestaticapps.net':
+    'https://atc-inventory-api-fhadavctbwbqace3.eastus-01.azurewebsites.net',
+};</pre>
+  <p>The deployed PWA maps to the <strong style="color:var(--white)">Test</strong> API. <code>build.js</code> adds each API origin to the manifest's <code>host_permissions</code>, which lets the background call it.</p>
   <div class="callout c-warn">
     <span class="icon">⚠️</span>
     <div class="body">
-      <strong>Update this set when the PWA URL changes.</strong> Adding a new Azure Static Web Apps deployment or a custom domain requires adding the new origin here and rebuilding.
+      <strong>A PWA origin is listed in three places that must agree:</strong> <code>api-origins.js</code>, and in <code>manifests/manifest.json</code> the content-bridge <code>matches</code> and <code>externally_connectable.matches</code>.
     </div>
   </div>
 
@@ -660,22 +674,24 @@
     <li><code>event.source === window</code> — same window only</li>
     <li><code>event.origin === PWA_ORIGIN</code> — same origin only</li>
     <li><code>data.source === 'ATC_PWA'</code> — correct source tag</li>
-    <li><code>ALLOWED_TYPES.has(data.type)</code> — only <code>ping</code>, <code>fill_cart</code>, <code>check_login</code></li>
+    <li><code>ALLOWED_TYPES</code>: <code>ping</code>, <code>start_fill</code>, <code>end_session</code>. Pushes forwarded to the page: <code>cart_session</code></li>
   </ul>
+  <p>Messages from the Fox page are accepted only from this extension's content scripts on the session vendor's origin.</p>
 
   <h3>Sensitive Values</h3>
   <table>
     <thead><tr><th>Value</th><th>Handling</th></tr></thead>
     <tbody>
+      <tr><td class="t-accent">callback_token</td><td>From preflight, passed to the extension once in <code>start_fill</code>. Kept only in the background's session record in <code>chrome.storage.session</code> (in memory, cleared when the browser closes, not readable by content scripts at the default access level). Never sent to a content script or back to the PWA; sent only to the built-in API address. Cleared when the session ends. The API stores only its hash</td></tr>
+      <tr><td class="t-accent">What the token allows</td><td>Reconcile, mark-ordered, release and leftovers for that one session, while open and unexpired. It cannot create records</td></tr>
       <tr><td class="t-accent">Fox session cookies</td><td>HttpOnly — never accessible to JavaScript in any world</td></tr>
-      <tr><td class="t-accent">CSRF token (kd.csrfToken)</td><td>Read in MAIN world, passed to ISOLATED via postMessage. Never logged or stored beyond the current fill operation.</td></tr>
-      <tr><td class="t-accent">callback_token</td><td>Carried in PWA session state only. Never passed to the extension — the PWA calls cartConfirm directly using the stored token.</td></tr>
-      <tr><td class="t-accent">session_id</td><td>Same as callback_token — stays in the PWA, never sent to the extension.</td></tr>
+      <tr><td class="t-accent">CSRF token (kd.csrfToken)</td><td>Read in the MAIN world, used by the ISOLATED world for the add request only; not stored</td></tr>
     </tbody>
   </table>
 
   <h3>No Stored Credentials</h3>
-  <p>The extension stores no vendor credentials. The manager logs in manually via the browser. The extension only reads identity state that the vendor's own page exposes after login (<code>kd.customer.isLoggedIn</code>, <code>kd.customer.selectedCompanyID</code>).</p>
+  <p>The extension stores no vendor credentials. The user logs in on the vendor site. The extension reads only the identity state the vendor's page exposes (<code>kd.customer.isLoggedIn</code>, <code>kd.customer.selectedCompanyID</code>). Because that page state can be stale, a Fox refusal of the add (HTTP 401/403 or "Unauthorized") is treated as login required.</p>
+  <p>All overlay text is set with <code>textContent</code>; part names, codes and Fox error text are never parsed as HTML.</p>
 </div>
 
 <!-- §06 LOCAL SETUP -->
@@ -689,10 +705,10 @@
   <table>
     <thead><tr><th>Requirement</th><th>Notes</th></tr></thead>
     <tbody>
-      <tr><td class="t-accent">Node.js ≥ 18</td><td>Required by esbuild</td></tr>
-      <tr><td class="t-accent">Microsoft Edge or Chrome</td><td>Extension targets Chrome 120+; Edge uses same engine</td></tr>
-      <tr><td class="t-accent">inventory_api running locally</td><td>Port 5077 — required for preflight and confirm calls from the PWA</td></tr>
-      <tr><td class="t-accent">inventory_pwa running locally</td><td>Port 5173 — PWA origin must match APPROVED_PWA_ORIGINS</td></tr>
+      <tr><td class="t-accent">Node.js 24</td><td>Same as CI (<code>deploy.yml</code>); <code>crx3</code> requires Node 22 or later</td></tr>
+      <tr><td class="t-accent">Microsoft Edge</td><td>The extension targets Edge</td></tr>
+      <tr><td class="t-accent">inventory_api running locally</td><td>Port 5077 — the local PWA's sessions use the local API (<code>api-origins.js</code>)</td></tr>
+      <tr><td class="t-accent">inventory_pwa running locally</td><td>Port 5173 — an approved PWA origin (§05)</td></tr>
     </tbody>
   </table>
 
@@ -806,7 +822,7 @@ npm run build</pre>
       <tr><td class="t-accent">dist/fox/content-bridge.js</td><td class="t-mono">IIFE</td><td>Injected into PWA page — IIFE required for content scripts</td></tr>
       <tr><td class="t-accent">dist/fox/vendors/fox/content.main.js</td><td class="t-mono">IIFE</td><td>MAIN world content script</td></tr>
       <tr><td class="t-accent">dist/fox/vendors/fox/content.isolated.js</td><td class="t-mono">IIFE</td><td>ISOLATED world content script</td></tr>
-      <tr><td class="t-accent">dist/fox/manifest.json</td><td class="t-muted">—</td><td>Generated from <code>manifests/manifest.json</code>: adds <code>version</code> from <code>package.json</code>, and <code>host_permissions</code> and vendor content scripts from each <code>vendor.config.js</code></td></tr>
+      <tr><td class="t-accent">dist/fox/manifest.json</td><td class="t-muted">—</td><td>Generated from <code>manifests/manifest.json</code>: adds <code>version</code> from <code>package.json</code>, <code>host_permissions</code> from <code>api-origins.js</code> and each <code>vendor.config.js</code>, and each vendor's content scripts</td></tr>
     </tbody>
   </table>
 
@@ -830,36 +846,33 @@ npm run build</pre>
     <thead><tr><th>Setting</th><th>Value</th><th>Notes</th></tr></thead>
     <tbody>
       <tr><td class="t-accent">version</td><td class="t-mono">—</td><td>Not in the base manifest. The build writes <code>package.json</code>'s version into every generated manifest and stops if it is not 1–4 dot-separated numbers (§11)</td></tr>
-      <tr><td class="t-accent">permissions</td><td class="t-mono">tabs, scripting, storage</td><td>Minimum required set</td></tr>
-      <tr><td class="t-accent">host_permissions</td><td class="t-mono">https://www.foxparts.com/*</td><td>Add new vendor domains here when onboarding</td></tr>
-      <tr><td class="t-accent">content_scripts[0].matches</td><td class="t-mono">localhost:5173, gray-tree-*.azurestaticapps.net/*</td><td>PWA origins — must stay in sync with APPROVED_PWA_ORIGINS in background.js</td></tr>
-      <tr><td class="t-accent">background.type</td><td class="t-mono">module</td><td>Required for ESM service worker</td></tr>
+      <tr><td class="t-accent">permissions</td><td class="t-mono">tabs, scripting, storage, alarms</td><td><code>alarms</code> for the login wait, fill check and session expiry</td></tr>
+      <tr><td class="t-accent">host_permissions</td><td class="t-mono">— (generated)</td><td>Written by <code>build.js</code>: each API origin from <code>api-origins.js</code>, plus each vendor's <code>base_url</code> from its <code>vendor.config.js</code></td></tr>
+      <tr><td class="t-accent">content_scripts</td><td class="t-mono">content-bridge + generated</td><td>Base manifest: content-bridge on the PWA origins. <code>build.js</code> adds each vendor's MAIN and ISOLATED scripts for its <code>base_url</code></td></tr>
+      <tr><td class="t-accent">externally_connectable.matches</td><td class="t-mono">PWA origins</td><td>Must match the content-bridge matches and <code>api-origins.js</code> (§05)</td></tr>
+      <tr><td class="t-accent">background.type</td><td class="t-mono">module</td><td>Required for the ESM service worker</td></tr>
     </tbody>
   </table>
 
   <h3>vendor.config.js — Fox</h3>
   <pre>export const FOX_CONFIG = {
-  vendor_key: 'fox',           // Must match Vendors.Vendor_key in the database
+  vendor_key: 'fox',                          // Must match Vendors.Vendor_key in the database
   base_url: 'https://www.foxparts.com',
-  cart_endpoint: '/api/user/cart/item/bulk',
+  cart_endpoint: '/api/user/cart/item/bulk',  // bulk add
+  view_cart_endpoint: '/api/user/cart/viewCart',
   cart_page: '/spcu/cart',
-  company_id: 2771,            // ATC's Kodaris company ID — identity verification
+  company_id: 2771,                           // ATC's Kodaris company ID — identity check
 };</pre>
 
   <div class="callout c-warn">
     <span class="icon">⚠️</span>
     <div class="body">
-      <strong>vendor_key must match Vendors.Vendor_key in the database.</strong> The preflight API response returns this key and the PWA passes it to the extension for routing. If it doesn't match <code>VENDOR_CONFIG</code> in background.js, the fill_cart message will be rejected.
+      <strong>vendor_key must match Vendors.Vendor_key in the database.</strong> Preflight returns it and the PWA passes it in <code>start_fill</code>. A key that is not in <code>VENDOR_CONFIG</code> in background.js is refused with <code>unsupported_vendor</code>.
     </div>
   </div>
 
-  <h3>background.js — APPROVED_PWA_ORIGINS</h3>
-  <p>When the PWA URL changes (new deployment, custom domain), add the new origin to the set in <code>src/background.js</code> and rebuild:</p>
-  <pre>const APPROVED_PWA_ORIGINS = new Set([
-  'http://localhost:5173',
-  'https://gray-tree-0fe80630f.4.azurestaticapps.net',
-  // Add new origins here
-]);</pre>
+  <h3>api-origins.js — PWA Origins and API Addresses</h3>
+  <p>When the PWA URL changes (new deployment, custom domain), add the origin and its API address to <code>src/core/api-origins.js</code>, add the origin to the two lists in <code>manifests/manifest.json</code> (§05), and release a new version.</p>
 
   <h3>PWA Environment Variable</h3>
   <table>
@@ -895,27 +908,30 @@ kd.csrfToken                   // Required as X-CSRF-TOKEN header on mutating re
     </div>
   </div>
 
-  <h3>Confirmed API Endpoints</h3>
+  <h3>Fox Endpoints Used</h3>
   <table>
     <thead><tr><th>Method</th><th>Endpoint</th><th>Purpose</th></tr></thead>
     <tbody>
-      <tr><td class="t-mono">GET</td><td class="t-accent">/api/user/cart</td><td>Retrieve current cart state — orderID and line items</td></tr>
-      <tr><td class="t-mono">POST</td><td class="t-accent">/api/user/cart/item/bulk</td><td>Add multiple items by part code and quantity</td></tr>
-      <tr><td class="t-mono">DELETE</td><td class="t-accent">/api/user/cart/item/{orderItemID}</td><td>Remove single item — no bulk delete endpoint exists</td></tr>
+      <tr><td class="t-mono">GET</td><td class="t-accent">/api/user/cart/viewCart</td><td>Read the cart: <code>orderID</code> and <code>orderItems[]</code> (<code>code</code>, <code>quantity</code>, <code>orderItemID</code>). No CSRF token needed</td></tr>
+      <tr><td class="t-mono">POST</td><td class="t-accent">/api/user/cart/item/bulk</td><td>Add items by code and quantity (<code>X-CSRF-TOKEN</code> required). On success the response data is the updated cart. On a bad code Fox stops at it and returns its error text; the extension then reads the cart to see what was added</td></tr>
     </tbody>
   </table>
 
-  <h3>Cart Clearing</h3>
-  <p>No clear-all cart endpoint exists. Per-item DELETE is required. All DELETEs are issued in parallel via <code>Promise.all()</code> before the bulk POST. Never chain them sequentially — the Fox API does not require ordering and parallel execution is significantly faster.</p>
-  <pre>const deleteResponses = await Promise.all(
-  existingItems.map((item) =>
-    fetch(`/api/user/cart/item/${item.orderItemID}`, {
-      method: 'DELETE',
-      credentials: 'include',
-      headers: { 'X-CSRF-TOKEN': csrfToken },
-    })
-  )
-);</pre>
+  <h3>No Cart Deletion</h3>
+  <p>The extension never deletes Fox cart lines. A fill starts only on an <strong style="color:var(--white)">empty</strong> cart: if <code>viewCart</code> returns any line, the fill stops (<code>cart_not_empty</code>), the lines are shown on the overlay and in the PWA, and the session's cart lock is released. Lines left in the cart by an ended session are removed by hand on Fox.</p>
+
+  <h3>Cart Page Tabs</h3>
+  <p><code>/spcu/cart</code> is one page with three tabs (<code>.cv-tab</code>, active one <code>.cv-tab--active</code>): 0 Cart, 1 Addresses, 2 Delivery and payment. Changing tab does not reload the page. While the session is in the cart, the content script watches the active tab:</p>
+  <table>
+    <thead><tr><th>Moment</th><th>What happens</th><th>API calls</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">Cart tab shown</td><td>Cart read; overlay lists what changed since the last save</td><td>0</td></tr>
+      <tr><td class="t-accent">Checkout entered (Cart → tab 1 or 2)</td><td>Cart read and reconciled (<code>checkout</code>); 2-hour expiry reset. Moving between tabs 1 and 2 is not a new entry</td><td>1</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Overlay</h3>
+  <p>In the cart: matched count, items not in the cart, quantity changes, lines not in this order (with a pointer to Add as order in the Inventory App), Fox errors, last save time, the YARDI → PO → place order steps, and <strong style="color:var(--white)">Time left</strong> (red at 15 minutes, with a one-time popup: <em>"15 minutes left. Finish checkout or release the cart."</em>, once per expiry). Ended: the reason and Dismiss.</p>
 
   <h3>Authentication</h3>
   <p>All Fox API calls require two things: session cookies (<code>sscaltoken</code> and <code>JSESSIONID</code> — HttpOnly, set by Fox on login, not accessible to JavaScript) and the CSRF token set as <code>X-CSRF-TOKEN</code> on all mutating requests. The <code>credentials: 'include'</code> fetch option handles cookie forwarding automatically.</p>
@@ -927,86 +943,58 @@ kd.csrfToken                   // Required as X-CSRF-TOKEN header on mutating re
     <span class="sn">10</span>
     <h2>Adding a New Vendor</h2>
   </div>
-  <p>The extension is designed to support multiple vendors. Each vendor gets its own content scripts and configuration. The shared infrastructure (background.js, content-bridge.js, manifest) does not need to change for most additions.</p>
+  <p>The background's session logic is vendor-neutral. A new vendor needs its own content scripts and configuration; the manifest entries are generated by the build.</p>
 
   <div class="steps">
     <div class="step">
       <div class="step-num">1</div>
       <div class="step-body">
-        <div class="step-title">Create vendor directory and config</div>
-        <div class="step-desc">
-          Create <code>src/vendors/{vendorkey}/</code> with a <code>vendor.config.js</code> file matching the Fox pattern. Set <code>vendor_key</code> to match the value that will be stored in <code>Vendors.Vendor_key</code> in the database.
-        </div>
+        <div class="step-title">Create the vendor directory and config</div>
+        <div class="step-desc">Create <code>src/vendors/{vendorkey}/vendor.config.js</code> following the Fox pattern, with one named export. <code>vendor_key</code> must match <code>Vendors.Vendor_key</code>; <code>base_url</code> and <code>cart_page</code> are used by the build and the background.</div>
       </div>
     </div>
     <div class="step">
       <div class="step-num">2</div>
       <div class="step-body">
-        <div class="step-title">Create content.main.js</div>
-        <div class="step-desc">
-          Handles reading any page-level globals that are not accessible from the isolated world. If the vendor's platform does not use MAIN world globals, this file can be minimal — just respond to the request message and return empty values.
-        </div>
+        <div class="step-title">Create content.main.js (if the platform needs it)</div>
+        <div class="step-desc">Reads page globals the isolated world cannot see. No fetch calls.</div>
       </div>
     </div>
     <div class="step">
       <div class="step-num">3</div>
       <div class="step-body">
         <div class="step-title">Create content.isolated.js</div>
-        <div class="step-desc">
-          Implement <code>handleCheckLogin()</code> and <code>handleFillCart(payload)</code> following the Fox pattern. Every <code>handleFillCart</code> path must return either <code>{ success: true, ... }</code> or <code>{ success: false, error: '...' }</code> — no silent failures or unresolved promises. Use <code>'user_cancelled'</code> specifically when the user cancels a warning dialog.
-        </div>
+        <div class="step-desc">Answer the background's messages with the shapes in §04: <code>check_identity</code> → <code>logged_in</code> / <code>login_required</code> / <code>wrong_account</code>; <code>fill</code> → <code>added</code> / <code>add_failed</code> / <code>cart_not_empty</code> / <code>login_required</code>, always with <code>cart_lines</code> (<code>code</code>, <code>quantity</code>, <code>line_id</code>) and <code>vendor_order_id</code>; <code>read_cart</code>. Never delete cart lines. Send <code>get_session_view</code> on load and stay inert without a session; send <code>checkout_entered</code> when the user enters checkout. Overlay text through <code>textContent</code> only.</div>
       </div>
     </div>
     <div class="step">
       <div class="step-num">4</div>
       <div class="step-body">
-        <div class="step-title">Register in background.js</div>
+        <div class="step-title">Register in background.js and build.js</div>
         <div class="step-desc">
-          Add the new vendor config to <code>VENDOR_CONFIG</code>:
-          <pre style="margin-top:10px">import { NEW_VENDOR_CONFIG } from './vendors/newvendor/vendor.config.js';
-
-const VENDOR_CONFIG = {
+          Add the config to <code>VENDOR_CONFIG</code> in background.js and the key to <code>ALL_VENDORS</code> in build.js:
+          <pre style="margin-top:10px">const VENDOR_CONFIG = {
   fox: FOX_CONFIG,
-  newvendor: NEW_VENDOR_CONFIG,  // add here
-};</pre>
+  newvendor: NEW_VENDOR_CONFIG,
+};
+
+const ALL_VENDORS = ['fox', 'newvendor'];</pre>
+          The build adds the vendor's <code>host_permissions</code> and both content scripts from <code>base_url</code>; the base manifest does not change.
         </div>
       </div>
     </div>
     <div class="step">
       <div class="step-num">5</div>
       <div class="step-body">
-        <div class="step-title">Update manifest.json</div>
-        <div class="step-desc">
-          Add the new vendor's domain to <code>host_permissions</code> and add two new <code>content_scripts</code> entries (MAIN and ISOLATED worlds) targeting the new domain.
-        </div>
+        <div class="step-title">Database — vendor records</div>
+        <div class="step-desc">A <code>Vendors</code> row with the matching <code>Vendor_key</code>, an active <code>VendorOrderMethods</code> row with <code>method = 'web_cart'</code>, and <code>VendorParts</code> rows with the vendor's part codes.</div>
       </div>
     </div>
     <div class="step">
       <div class="step-num">6</div>
       <div class="step-body">
-        <div class="step-title">Register vendor in build.js</div>
-        <div class="step-desc">
-          Add the new vendor key to <code>ALL_VENDORS</code> in <code>build.js</code>:
-          <pre style="margin-top:10px">const ALL_VENDORS = ['fox', 'newvendor'];</pre>
-        </div>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">7</div>
-      <div class="step-body">
-        <div class="step-title">Database — add vendor records</div>
-        <div class="step-desc">
-          In the inventory database: add a <code>Vendors</code> row with <code>Vendor_key</code> matching your config, add a <code>VendorOrderMethods</code> row with <code>method = 'web_cart'</code> and a valid <code>Config_json</code>, and populate <code>VendorParts</code> cross-reference rows with the vendor's part codes.
-        </div>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">8</div>
-      <div class="step-body">
-        <div class="step-title">Build and test</div>
-        <div class="step-desc">
-          Run <code>npm run build</code>, reload the extension, and test the full flow from the PWA On Order page. Verify login detection, cart clear warning, fill, confirmation, and the post-fill overlay.
-        </div>
+        <div class="step-title">Build, release, test</div>
+        <div class="step-desc"><code>npm run build:combined</code>, release a new version (§11), and test from the PWA: login wait, stop on a non-empty cart, fill, checkout reconcile, I submitted the order, Release cart, countdown.</div>
       </div>
     </div>
   </div>
@@ -1014,7 +1002,7 @@ const VENDOR_CONFIG = {
   <div class="callout c-ok">
     <span class="icon">✅</span>
     <div class="body">
-      <strong>No API changes required for new vendors</strong> — the session management, collision detection, confirm/mark-ordered flow, and all status transitions reuse existing endpoints. The only API change needed is the database records and potentially a <code>web_cart</code> Config_json validation rule for the new vendor's required fields.
+      <strong>No API changes required for a new vendor</strong> — sessions, the cart lock, reconcile, mark-ordered, release and resolution are vendor-neutral. Only the database records above are needed.
     </div>
   </div>
 </div>
@@ -1048,7 +1036,7 @@ const VENDOR_CONFIG = {
   <div class="callout c-warn">
     <span class="icon">⚠️</span>
     <div class="body">
-      <strong>Edge installs an update only when the hosted version is higher than the installed one.</strong> The only version source is <code>package.json</code> (currently <code>1.0.1</code>). Versions compare as Edge compares them: dotted numbers, missing parts count as 0 (<code>1.0.0</code> equals <code>1.0</code>). A push without a version bump builds but publishes nothing, so a released version is never replaced by a different build.
+      <strong>Edge installs an update only when the hosted version is higher than the installed one.</strong> The only version source is <code>package.json</code> (currently <code>1.3.0</code>). Versions compare as Edge compares them: dotted numbers, missing parts count as 0 (<code>1.0.0</code> equals <code>1.0</code>). A push without a version bump builds but publishes nothing, so a released version is never replaced by a different build.
     </div>
   </div>
 
@@ -1067,11 +1055,11 @@ git push --follow-tags          # the workflow publishes</pre>
       <tr><td class="t-accent">Update manifest</td><td><code>https://atcextensionhost.z13.web.core.windows.net/update_manifest.xml</code></td></tr>
     </tbody>
   </table>
-  <div class="pre-label">update_manifest.xml — generated by crx3 at each release (1.0.1 shown)</div>
+  <div class="pre-label">update_manifest.xml — generated by crx3 at each release (1.3.0 shown)</div>
   <pre>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
 &lt;gupdate xmlns="http://www.google.com/update2/response" protocol="2.0"&gt;
   &lt;app appid="mkkkjimbaeioecfkippbplnegmaebdel"&gt;
-    &lt;updatecheck codebase="https://atcextensionhost.z13.web.core.windows.net/atc-inventory-extension.crx" version="1.0.1" prodversionmin="64.0.3242" /&gt;
+    &lt;updatecheck codebase="https://atcextensionhost.z13.web.core.windows.net/atc-inventory-extension.crx" version="1.3.0" prodversionmin="64.0.3242" /&gt;
   &lt;/app&gt;
 &lt;/gupdate&gt;</pre>
 
@@ -1103,8 +1091,8 @@ git push --follow-tags          # the workflow publishes</pre>
       <tr><td class="t-accent2">Hosted version</td><td>The workflow's <strong style="color:var(--white)">Verify hosted version</strong> step passed (it checks the hosted manifest against the built version)</td></tr>
       <tr><td class="t-accent2">Policy applied</td><td><code>edge://policy</code> lists <code>ExtensionInstallForcelist</code> with the value above</td></tr>
       <tr><td class="t-accent2">Installed version</td><td><code>edge://extensions</code> on a managed device shows the extension (managed, no developer mode) at the new version. Edge checks for updates periodically, so a new version can take time to appear</td></tr>
-      <tr><td class="t-accent2">PWA detects extension</td><td>On Order page → select orders → Fill Web Cart button should be enabled when extension is active</td></tr>
-      <tr><td class="t-accent2">APPROVED_PWA_ORIGINS</td><td>Confirm the production PWA URL is in the allowlist before deploying a production build</td></tr>
+      <tr><td class="t-accent2">PWA detects extension</td><td>Vendor actions → the Fill Web Cart option is enabled. After an update, an open PWA tab shows "Extension not available" until it is reloaded</td></tr>
+      <tr><td class="t-accent2">PWA origins</td><td>Confirm the PWA URL and its API address are in <code>api-origins.js</code> and the manifest (§05) before a release for a new PWA URL</td></tr>
       <tr><td class="t-accent2">vendor_key matches DB</td><td>Confirm <code>Vendors.Vendor_key = 'fox'</code> for the Fox vendor record in production</td></tr>
     </tbody>
   </table>

@@ -175,8 +175,8 @@
   <h1>Application Architecture</h1>
   <p class="subtitle">Three-repo system design, service boundaries, Azure infrastructure, auth flow, SignalR, barcode scan routing, and cross-cutting design principles.</p>
   <div class="meta-strip">
-    <div class="meta-cell"><span class="lbl">Repos</span><span class="val">inventory_pwa · inventory_api · inventory_functions</span></div>
-    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">May 2026</span></div>
+    <div class="meta-cell"><span class="lbl">Repos</span><span class="val">inventory_pwa · inventory_api · inventory_functions · inventory_extension</span></div>
+    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">November 2026</span></div>
     <div class="meta-cell"><span class="lbl">Status</span><span class="val green">Current</span></div>
   </div>
 </div>
@@ -193,6 +193,7 @@
   <a href="#s8">08 Equipment Tracking</a>
   <a href="#s9">09 Invoice Scan</a>
   <a href="#s10">10 Quote Request — Graph OBO</a>
+  <a href="#s11">11 Vendor Web Cart — Extension</a>
 </div>
 
 <div class="content">
@@ -200,7 +201,7 @@
 <!-- §01 HIGH-LEVEL ARCHITECTURE -->
 <div class="section" id="s1">
   <div class="section-header"><span class="sn">01</span><h2>High-Level Architecture</h2></div>
-  <p>The Inventory Application is composed of three independently deployed systems across three separate repositories.</p>
+  <p>The Inventory Application is composed of three independently deployed systems across three separate repositories, plus the vendor web cart browser extension (<code>inventory_extension</code>, §11).</p>
   <div class="arch-diagram">
     <pre>
 ┌───────────────────────────────┐
@@ -637,12 +638,38 @@
   </div>
 </div>
 
+<div class="section" id="s11">
+  <div class="section-header"><span class="sn">11</span><h2>Vendor Web Cart — Browser Extension</h2></div>
+  <p>A fourth component, <code>inventory_extension</code> (Manifest V3 Edge extension), fills a vendor's web cart for an order list and keeps the API up to date while the user finishes the order on the vendor's site. First vendor: Fox Appliance Parts. It is force-installed on managed devices by Intune and hosted on <code>atcextensionhost</code> (see the <a href="extension_developer_guide.html">Extension Developer Guide</a>).</p>
+
+  <h3>Flow</h3>
+  <div class="pipeline">
+    <div class="pipeline-step"><span class="pipeline-arrow">1 →</span><span>PWA calls <code>POST /vendors/{id}/cart/preflight</code> with the user's Bearer token: the API validates the orders, takes the vendor's cart lock and starts a 2-hour session with a callback token</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">2 →</span><span>PWA hands the session to the extension (<code>window.postMessage</code> → content bridge → background worker). The PWA can be closed from here</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">3 →</span><span>Extension waits for the vendor login, fills the cart (never deleting lines), and calls the API's callback-token endpoints: <code>reconcile</code> after the fill and at checkout, then <code>mark-ordered</code> or <code>release</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">4 →</span><span>PWA (any page) asks the owner about extra cart lines (<code>add-unmatched</code>) and, for a session that ended without I submitted the order, whether its orders were ordered (<code>resolve</code>)</span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">5 →</span><span>Order changes broadcast <code>orders.updated</code> over SignalR</span></div>
+  </div>
+
+  <h3>Boundaries</h3>
+  <table>
+    <thead><tr><th>Rule</th><th>Detail</th></tr></thead>
+    <tbody>
+      <tr><td class="t-muted">API is the source of truth</td><td>The extension reports what is in the vendor cart; the API decides order status</td></tr>
+      <tr><td class="t-muted">Callback token</td><td>Scoped to one open session: update that session's orders, mark ordered, release. Cannot create records. Held only in the extension's background worker; the API stores its hash</td></tr>
+      <tr><td class="t-muted">User sign-in calls</td><td>Preflight, abandon, my sessions, resolve and add as order go through the PWA with the user's token</td></tr>
+      <tr><td class="t-muted">API address</td><td>Built into the extension per PWA origin; the deployed PWA uses the Test API</td></tr>
+    </tbody>
+  </table>
+  <p>Details: <a href="API_CONTRACT.html#vendor-cart">API_CONTRACT §9b</a> · <a href="Fox_Cart_Workflow_Annotated.html">Fox Cart — Annotated Extension Workflow</a>.</p>
+</div>
+
 </div><!-- /content -->
 
 <!-- ── FOOTER ── -->
 <div class="doc-footer">
   <span>ATC Inventory Application</span>
-  <span>Application Architecture · May 2026</span>
+  <span>Application Architecture · November 2026</span>
   <span>All Repos · Internal Use Only</span>
 </div>
 

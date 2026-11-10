@@ -133,7 +133,7 @@
     <div class="meta-cell"><span class="lbl">Repo</span><span class="val">inventory_pwa</span></div>
     <div class="meta-cell"><span class="lbl">Status</span><span class="val">Draft</span></div>
     <div class="meta-cell"><span class="lbl">Related</span><span class="val">PWA_DEVELOPER_GUIDE · API_CONTRACT · API_DEVELOPER_GUIDE</span></div>
-    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">May 2026</span></div>
+    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">November 2026</span></div>
   </div>
 </div>
 
@@ -295,6 +295,10 @@
         <tr><td class="t-white">Equipment scan resolve</td><td class="t-muted">equipment</td><td>POST /equipment/scan/resolve</td><td>authenticated</td><td>used by tool scan workflow</td></tr>
         <tr><td class="t-white">Equipment checkout/checkin/location</td><td class="t-muted">equipment</td><td>POST /equipment/scan/checkout, POST /equipment/scan/checkin, POST /equipment/scan/locationupdate</td><td>property write or DatabaseManager</td><td>invalidate equipment; equipment.changed may supplement</td></tr>
         <tr><td class="t-white">Equipment transactions</td><td class="t-muted">equipment</td><td>GET /equipment/transactions</td><td>authenticated</td><td>read-only equipment ledger</td></tr>
+        <tr><td class="t-white">Vendor web cart — start / release</td><td class="t-muted">vendorCart</td><td>POST /vendors/{vendorId}/cart/preflight, POST /vendors/cart/abandon-session/{sessionId}</td><td>preflight: property write or DatabaseManager; abandon: session owner or DatabaseManager</td><td>ExtensionCartProvider; reconcile, mark-ordered and release are called by the extension (callback token), not the PWA; orders refresh through orders.updated</td></tr>
+        <tr><td class="t-white">Vendor web cart — my sessions</td><td class="t-muted">vendorCart</td><td>GET /vendors/cart/sessions/mine</td><td>authenticated (caller's own sessions)</td><td>Read on app load; invalidated after a release, an ended update (not completed), or an update with extra cart lines</td></tr>
+        <tr><td class="t-white">Vendor web cart — resolution</td><td class="t-muted">vendorCart</td><td>POST /vendors/cart/sessions/{sessionId}/resolve</td><td>session owner</td><td>CartResolutionPopup; invalidate cartSessions mine; orders.updated refreshes On Order</td></tr>
+        <tr><td class="t-white">Vendor web cart — add as order</td><td class="t-muted">vendorCart</td><td>POST /vendors/cart/sessions/{sessionId}/add-unmatched</td><td>session owner or DatabaseManager</td><td>CartExtraLines; 409 MULTIPLE_PENDING_ORDERS → user picks an order and resends; invalidate cartSessions mine</td></tr>
       </tbody>
     </table>
   </div>
@@ -345,6 +349,7 @@
         <tr><td class="t-white">Equipment</td><td class="t-accent">equipment</td><td>5 minutes (default)</td><td>equipment mutation, equipment.changed</td></tr>
         <tr><td class="t-white">Reports</td><td class="t-muted">report-specific</td><td>5 minutes or manual</td><td>underlying domain mutation or explicit refresh</td></tr>
         <tr><td class="t-white">Vendor aliases</td><td class="t-muted">alias-specific</td><td>5 minutes (default)</td><td>alias mutation, invoice confirmation</td></tr>
+        <tr><td class="t-white">Vendor cart sessions (mine)</td><td class="t-accent">cartSessions</td><td class="t-accent2">Infinity</td><td>ExtensionCartProvider (release, ended or extra-line updates from the extension), resolve, add as order</td></tr>
       </tbody>
     </table>
   </div>

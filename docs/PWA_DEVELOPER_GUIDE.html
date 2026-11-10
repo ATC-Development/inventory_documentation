@@ -162,7 +162,7 @@
     <div class="meta-cell"><span class="lbl">Runtime</span><span class="val">React 19 · TypeScript · Vite 7</span></div>
     <div class="meta-cell"><span class="lbl">Status</span><span class="val">Draft</span></div>
     <div class="meta-cell"><span class="lbl">Target</span><span class="val">Azure Static Web Apps</span></div>
-    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">May 2026</span></div>
+    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">November 2026</span></div>
   </div>
 </div>
 
@@ -765,6 +765,25 @@ npm run dev</pre>
     <div class="rule-item"><div class="rule-dot warn"></div><span>Alias creation must be deliberate — a bad alias creates repeated future mismatches</span></div>
     <div class="rule-item"><div class="rule-dot"></div><span>Duplicate/409 handling should be graceful</span></div>
     <div class="rule-item"><div class="rule-dot"></div><span>DatabaseManager or appropriate authorized role controls sensitive alias operations per API contract</span></div>
+  </div>
+
+  <h3>Vendor Web Cart (Fill Web Cart)</h3>
+  <p>From vendor actions (On Order, or the Order Report after submit), the <code>web_cart</code> method fills the vendor's web cart through the browser extension. The PWA starts the session with preflight and hands it to the extension; the extension runs the session on the vendor site and reports to the API itself, so the PWA can be closed after the fill starts. Full walkthrough: <a href="Fox_Cart_Workflow_Annotated.html">Fox Cart — Annotated Extension Workflow</a>.</p>
+  <table>
+    <thead><tr><th>Piece</th><th>File</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td>Provider</td><td><code>src/context/ExtensionCartProvider.tsx</code></td><td>Owns the session: preflight, then <code>start_fill</code> to the extension; applies the extension's <code>cart_session</code> updates (matched by correlationId and vendor key); Release = abandon-session, then <code>end_session</code>. Re-reads "my sessions" when a session ends other than completed, or reports extra cart lines, also after the panel was closed</td></tr>
+      <tr><td>Panel</td><td><code>src/components/QuoteRequest/CartFillPanel.tsx</code></td><td>Display and control only: validating → checking login → login required / wrong account → filling → in cart (time left, result, extra lines) → ended. Cancel works in every starting state. Close in the cart keeps the session open on the vendor site</td></tr>
+      <tr><td>Extra lines</td><td><code>CartExtraLines.tsx</code>, <code>CartExtrasPrompt.tsx</code></td><td>"Items not in On Order": cart lines not in the order, with <strong>Add as order</strong> where the code matches exactly one part. App-level prompt while a session is open; in the panel when it is open</td></tr>
+      <tr><td>Resolution</td><td><code>CartResolutionPopup.tsx</code></td><td>"Did you order these?" for a session that ended without I submitted the order, with orders still <code>cart_filled</code>. Ticked → ordered; unticked → pending. Ask me later changes nothing</td></tr>
+      <tr><td>Mounting</td><td><code>src/auth/AuthShell.tsx</code></td><td><code>CartResolutionPopup</code> and <code>CartExtrasPrompt</code> are mounted once in <code>AuthenticatedShell</code></td></tr>
+    </tbody>
+  </table>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot danger"></div><span>The extension and the PWA never delete vendor cart lines. A non-empty vendor cart stops the fill and shows its lines</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span><code>VITE_CART_EXTENSION_ID</code> is a presence check, read when Fill Cart is clicked; messages go through <code>window.postMessage</code> and the extension's content bridge</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>After an extension update, an open PWA tab shows "Extension not available" until it is reloaded</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Orders are created from extra lines only by the user's click (Add as order); never automatically</span></div>
   </div>
 </div>
 
