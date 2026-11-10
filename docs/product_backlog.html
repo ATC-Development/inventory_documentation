@@ -285,15 +285,15 @@
     <div class="doc-meta">
       <div class="meta-item">
         <span class="meta-label">Version</span>
-        <span class="meta-value">1.6</span>
+        <span class="meta-value">1.7</span>
       </div>
       <div class="meta-item">
         <span class="meta-label">Date</span>
-        <span class="meta-value">May 17, 2026</span>
+        <span class="meta-value">November 10, 2026</span>
       </div>
       <div class="meta-item">
         <span class="meta-label">Repos</span>
-        <span class="meta-value">inventory_pwa · inventory_api · inventory_functions · cross-app</span>
+        <span class="meta-value">inventory_pwa · inventory_api · inventory_functions · inventory_extension · cross-app</span>
       </div>
     </div>
   </div>
@@ -301,9 +301,9 @@
   <div class="doc-body">
 
     <div class="summary-bar">
-      <div class="summary-cell"><div class="num">16</div><div class="lbl">Total Items</div></div>
+      <div class="summary-cell"><div class="num">23</div><div class="lbl">Total Items</div></div>
       <div class="summary-cell"><div class="num">15</div><div class="lbl">Complete</div></div>
-      <div class="summary-cell"><div class="num">0</div><div class="lbl">Open</div></div>
+      <div class="summary-cell"><div class="num">7</div><div class="lbl">Open</div></div>
       <div class="summary-cell"><div class="num">1</div><div class="lbl">Blocked</div></div>
       <div class="summary-cell"><div class="num">0</div><div class="lbl">Partial</div></div>
     </div>
@@ -520,6 +520,91 @@
               — <code>weekly_warehouse_report</code> — pending natural schedule (Fridays 6:00 AM)<br>
               — <code>daily_channel_failures</code> — pending natural schedule<br><br>
               Per-event PA flow URLs stored as <code>PA__{event_type}</code> Azure App Settings. Test override (<code>NotificationOverride__TeamId</code> / <code>NotificationOverride__ChannelId</code>) confirmed working. <code>SanitizeForNotification</code> applied at all notification body construction points to prevent PA Adaptive Card JSON failures on user-entered strings containing special characters.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- SECTION 2b: Vendor web cart backlog -->
+    <div class="section">
+      <div class="section-title">
+        <span class="section-num">§02b</span>
+        <h2>Vendor Web Cart — Backlog</h2>
+      </div>
+      <p class="section-intro">Vendor cart v4 (Fox) shipped November 2026: preflight and cart lock, login wait, fill with stop on a non-empty cart, reconcile after the fill and at checkout, countdown with 15-minute warning, I submitted the order / Release cart, resolution popup, and Add as order for extra cart lines. The items below were deferred.</p>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:52px">#</th>
+            <th style="width:220px">Item</th>
+            <th style="width:80px">Scope</th>
+            <th style="width:90px">Status</th>
+            <th>Details &amp; Decisions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>B-14</td>
+            <td class="td-name">Vendor web cart — leftover-line cleanup</td>
+            <td><span class="badge badge-desktop">Desktop</span></td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td class="td-notes">
+              Deferred from vendor cart v4 (spec D-23), November 2026. Today a fill stops when the vendor cart is not empty, and an ended session&rsquo;s lines stay in the shared Fox cart until removed by hand. Planned: at the next fill, the extension sends the cart&rsquo;s lines to <code>POST /vendors/cart/leftovers</code> (built in the API) and deletes only the lines that belong to an ended, unresolved session; those orders return to pending. Extension and PWA work not built.
+            </td>
+          </tr>
+          <tr>
+            <td>B-15</td>
+            <td class="td-name">Vendor web cart — order-placed prompt</td>
+            <td><span class="badge badge-desktop">Desktop</span></td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td class="td-notes">
+              Deferred (spec D-19). On the Fox thank-you page after an order is placed, the overlay asks the user to confirm and marks the session&rsquo;s orders ordered. Today the user clicks <strong>I submitted the order</strong>; a missed click ends at the resolution popup.
+            </td>
+          </tr>
+          <tr>
+            <td>B-16</td>
+            <td class="td-name">On Order banner — orders in cart_filled</td>
+            <td><span class="badge badge-desktop">Desktop</span></td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td class="td-notes">
+              Deferred (spec D-04/D-05). On Order banner: <em>&ldquo;You have X orders in a cart filled status that have not been marked as ordered.&rdquo;</em>, with X the true total across pages. Today such orders are surfaced by the resolution popup only.
+            </td>
+          </tr>
+          <tr>
+            <td>B-17</td>
+            <td class="td-name">Vendor web cart — cart-in-use detail and DM override</td>
+            <td><span class="badge badge-desktop">Desktop</span></td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td class="td-notes">
+              Deferred (spec P11). When preflight is refused because the vendor cart is in use, show who and since when, and give a DatabaseManager an override control (<code>POST /vendors/cart/override-session/{id}</code>, built in the API). Orders in another open session: list them. Today the panel shows the API&rsquo;s message text.
+            </td>
+          </tr>
+          <tr>
+            <td>B-18</td>
+            <td class="td-name">Remove deprecated /vendors/cart/confirm</td>
+            <td><span class="badge badge-infra">Infra</span></td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td class="td-notes">
+              API only. Pre-v4 confirm has had no caller since the v4 extension and PWA shipped (November 2026). Remove the endpoint, its DTO and tests, and its entry in API_CONTRACT.
+            </td>
+          </tr>
+          <tr>
+            <td>B-19</td>
+            <td class="td-name">Reopen the Fill Web Cart panel after reload</td>
+            <td><span class="badge badge-desktop">Desktop</span></td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td class="td-notes">
+              Deferred (spec P6, remainder). Once the panel is closed or the PWA reloaded, it cannot be reopened for a running session. The actions it offered are covered elsewhere: Add as order by the app-level <em>Items not in On Order</em> prompt, I submitted the order and Release cart on the Fox overlay, and the resolution popup after the session ends.
+            </td>
+          </tr>
+          <tr>
+            <td>B-20</td>
+            <td class="td-name">Scan-in Mark received — failure message</td>
+            <td><span class="badge badge-both">Both</span></td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td class="td-notes">
+              Deferred (spec P15). When the scan-in prompt&rsquo;s Mark received status change fails, show <em>&ldquo;Stock added, but the order couldn&rsquo;t be marked received. Mark it received from On Order.&rdquo;</em> instead of failing silently. The stock count is already updated; the API allows <code>cart_filled &rarr; received</code>.
             </td>
           </tr>
         </tbody>
