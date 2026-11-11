@@ -446,7 +446,7 @@
     </div>
     <div class="meta-cell">
       <span class="lbl">Status</span>
-      <span class="val green">Active — v1.3.0</span>
+      <span class="val green">Active — v1.3.1</span>
     </div>
     <div class="meta-cell">
       <span class="lbl">Vendor</span>
@@ -517,11 +517,12 @@
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">session-store.js</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// The one session, in chrome.storage.session</span><br>
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">api-client.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Callback-token API calls</span><br>
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">api-origins.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Built-in API address per PWA origin</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">overlay.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// The overlay shared by every vendor page</span><br>
     &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-dir">vendors/</span><br>
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-dir">fox/</span><br>
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">vendor.config.js</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Fox constants (URLs, endpoints, company ID)</span><br>
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">content.main.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// MAIN world — reads the kd global from the page</span><br>
-    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">content.isolated.js</span>&nbsp;<span class="ft-note">// ISOLATED world — Fox cart calls, cart watching, overlay</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">content.isolated.js</span>&nbsp;<span class="ft-note">// ISOLATED world — Fox identity, cart calls, cart watching</span><br>
     &nbsp;&nbsp;<span class="ft-dir">manifests/</span><br>
     &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">manifest.json</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Base MV3 manifest (no version, no host permissions)</span><br>
     &nbsp;&nbsp;<span class="ft-dir">scripts/</span><br>
@@ -544,7 +545,7 @@
       <tr>
         <td class="t-accent">content.isolated.js</td>
         <td class="t-mono">ISOLATED</td>
-        <td>All Fox cart calls, cart watching on the cart page, and the overlay. Talks to the background with <code>chrome.runtime.sendMessage</code>.</td>
+        <td>Fox identity check, all Fox cart calls and cart watching on the cart page. Draws the overlay through <code>core/overlay.js</code>. Talks to the background with <code>chrome.runtime.sendMessage</code>.</td>
       </tr>
     </tbody>
   </table>
@@ -585,7 +586,12 @@
       <tr>
         <td class="t-accent">content.isolated.js</td>
         <td class="t-mono">Vendor tab (ISOLATED)</td>
-        <td>Answers the background (identity check, fill, cart read), watches the Fox cart page tabs, and draws the overlay: result, countdown, 15-minute warning, I submitted the order, Release cart. Inert on any page load without a session.</td>
+        <td>Answers the background (identity check, fill, cart read) and watches the Fox cart page tabs. Inert on any page load without a session.</td>
+      </tr>
+      <tr>
+        <td class="t-accent">core/overlay.js</td>
+        <td class="t-mono">Vendor tab (bundled)</td>
+        <td>The overlay every vendor page uses, so it looks and behaves the same on each: login banner, cart panel (result, missing, quantity changes, lines not in this order, changes since the last save), countdown, 15-minute warning popup, ended panel, I submitted the order, Release cart, Dismiss. <code>createOverlay({ vendor: { name, siteName }, onInCart, onLeftCart })</code> returns <code>render</code>, <code>setLiveCart</code>, <code>setCheckoutStatus</code>, <code>showLoginBanner</code>, <code>hideLoginBanner</code>. The vendor script supplies only its names and the cart-tab watch. Text through <code>textContent</code> only</td>
       </tr>
     </tbody>
   </table>
@@ -676,6 +682,7 @@
     <li><code>data.source === 'ATC_PWA'</code> — correct source tag</li>
     <li><code>ALLOWED_TYPES</code>: <code>ping</code>, <code>start_fill</code>, <code>end_session</code>. Pushes forwarded to the page: <code>cart_session</code></li>
   </ul>
+  <p>Since PWA 1.1.8 every message also carries <code>targetExtensionId</code>, the current environment's extension ID. Version 1.3.1 does not check it: the bridge forwards only <code>type</code>, <code>requestId</code>, <code>correlationId</code>, <code>vendorKey</code> and <code>payload</code>.</p>
   <p>Messages from the Fox page are accepted only from this extension's content scripts on the session vendor's origin.</p>
 
   <h3>Sensitive Values</h3>
@@ -964,7 +971,7 @@ kd.csrfToken                   // Required as X-CSRF-TOKEN header on mutating re
       <div class="step-num">3</div>
       <div class="step-body">
         <div class="step-title">Create content.isolated.js</div>
-        <div class="step-desc">Answer the background's messages with the shapes in §04: <code>check_identity</code> → <code>logged_in</code> / <code>login_required</code> / <code>wrong_account</code>; <code>fill</code> → <code>added</code> / <code>add_failed</code> / <code>cart_not_empty</code> / <code>login_required</code>, always with <code>cart_lines</code> (<code>code</code>, <code>quantity</code>, <code>line_id</code>) and <code>vendor_order_id</code>; <code>read_cart</code>. Never delete cart lines. Send <code>get_session_view</code> on load and stay inert without a session; send <code>checkout_entered</code> when the user enters checkout. Overlay text through <code>textContent</code> only.</div>
+        <div class="step-desc">Answer the background's messages with the shapes in §04: <code>check_identity</code> → <code>logged_in</code> / <code>login_required</code> / <code>wrong_account</code>; <code>fill</code> → <code>added</code> / <code>add_failed</code> / <code>cart_not_empty</code> / <code>login_required</code>, always with <code>cart_lines</code> (<code>code</code>, <code>quantity</code>, <code>line_id</code>) and <code>vendor_order_id</code>; <code>read_cart</code>. Never delete cart lines. Send <code>get_session_view</code> on load and stay inert without a session; send <code>checkout_entered</code> when the user enters checkout. Draw the overlay with <code>createOverlay</code> from <code>core/overlay.js</code> (vendor names, plus <code>onInCart</code> / <code>onLeftCart</code> to start and stop the cart watch); do not build a vendor-specific overlay.</div>
       </div>
     </div>
     <div class="step">
@@ -1036,7 +1043,7 @@ const ALL_VENDORS = ['fox', 'newvendor'];</pre>
   <div class="callout c-warn">
     <span class="icon">⚠️</span>
     <div class="body">
-      <strong>Edge installs an update only when the hosted version is higher than the installed one.</strong> The only version source is <code>package.json</code> (currently <code>1.3.0</code>). Versions compare as Edge compares them: dotted numbers, missing parts count as 0 (<code>1.0.0</code> equals <code>1.0</code>). A push without a version bump builds but publishes nothing, so a released version is never replaced by a different build.
+      <strong>Edge installs an update only when the hosted version is higher than the installed one.</strong> The only version source is <code>package.json</code> (currently <code>1.3.1</code>). Versions compare as Edge compares them: dotted numbers, missing parts count as 0 (<code>1.0.0</code> equals <code>1.0</code>). A push without a version bump builds but publishes nothing, so a released version is never replaced by a different build.
     </div>
   </div>
 
@@ -1055,11 +1062,11 @@ git push --follow-tags          # the workflow publishes</pre>
       <tr><td class="t-accent">Update manifest</td><td><code>https://atcextensionhost.z13.web.core.windows.net/update_manifest.xml</code></td></tr>
     </tbody>
   </table>
-  <div class="pre-label">update_manifest.xml — generated by crx3 at each release (1.3.0 shown)</div>
+  <div class="pre-label">update_manifest.xml — generated by crx3 at each release (1.3.1 shown)</div>
   <pre>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
 &lt;gupdate xmlns="http://www.google.com/update2/response" protocol="2.0"&gt;
   &lt;app appid="mkkkjimbaeioecfkippbplnegmaebdel"&gt;
-    &lt;updatecheck codebase="https://atcextensionhost.z13.web.core.windows.net/atc-inventory-extension.crx" version="1.3.0" prodversionmin="64.0.3242" /&gt;
+    &lt;updatecheck codebase="https://atcextensionhost.z13.web.core.windows.net/atc-inventory-extension.crx" version="1.3.1" prodversionmin="64.0.3242" /&gt;
   &lt;/app&gt;
 &lt;/gupdate&gt;</pre>
 

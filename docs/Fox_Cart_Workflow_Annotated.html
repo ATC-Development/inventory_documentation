@@ -355,10 +355,10 @@
 <!-- ── Header ───────────────────────────────────────────────────────────── -->
 <div class="doc-header">
   <div class="doc-title">Fox Cart — Annotated Extension Workflow</div>
-  <div class="doc-subtitle">inventory_pwa / inventory_api / inventory_extension · vendor cart v4 · extension 1.3.0 · November 2026</div>
+  <div class="doc-subtitle">inventory_pwa / inventory_api / inventory_extension · vendor cart v4 · extension 1.3.1 · PWA 1.1.8 · November 2026</div>
   <div class="doc-meta">
     <span class="badge badge-blue">PWA: ExtensionCartProvider · CartFillPanel · CartExtrasPrompt · CartResolutionPopup</span>
-    <span class="badge badge-purple">Extension: background.js · content-bridge.js · core/</span>
+    <span class="badge badge-purple">Extension: background.js · content-bridge.js · core/ (overlay.js shared by every vendor page)</span>
     <span class="badge badge-teal">Fox: content.isolated.js · content.main.js</span>
     <span class="badge badge-green">API: preflight · reconcile · mark-ordered · release · sessions/mine · resolve · add-unmatched</span>
   </div>
@@ -455,7 +455,7 @@
       </div>
     </div>
     <div class="step-body">
-      <div class="step-desc">The vendor key comes from preflight. If the extension refuses, or does not answer within 10 seconds (missing or too old), the provider releases the session through the API and shows why.</div>
+      <div class="step-desc">The vendor key comes from preflight. Every message to the extension also carries <span class="mono">targetExtensionId</span>, the current environment's extension ID (<span class="mono">postToExtension</span>); extension 1.3.1 ignores it. If the extension refuses, or does not answer within 10 seconds (missing or too old), the provider releases the session through the API and shows why.</div>
       <div class="code-block">
         <div class="code-label">ExtensionCartProvider.tsx · start_fill</div>
         <pre>postToExtension({
@@ -556,7 +556,7 @@
       </div>
     </div>
     <div class="step-body">
-      <div class="step-desc">The MAIN-world script reads <span class="mono">kd</span>; the isolated script shows the login banner when not logged in.</div>
+      <div class="step-desc">The MAIN-world script reads <span class="mono">kd</span>; when not logged in, the isolated script shows the login banner of the shared overlay (<span class="mono">core/overlay.js</span>).</div>
       <div class="code-block">
         <div class="code-label">content.isolated.js · checkIdentity()</div>
         <pre>async function checkIdentity() {
@@ -564,12 +564,12 @@
   const rightCompany = Number(kd.companyId) === Number(COMPANY_ID);
 
   if (kd.isLoggedIn &amp;&amp; rightCompany) {
-    removeElement(LOGIN_BANNER_ID);
+    overlay.hideLoginBanner();
     return { status: &#x27;logged_in&#x27; };
   }
 
   const status = kd.isLoggedIn ? &#x27;wrong_account&#x27; : &#x27;login_required&#x27;;
-  showLoginBanner(status === &#x27;wrong_account&#x27;);
+  overlay.showLoginBanner(status === &#x27;wrong_account&#x27;);
   return { status };
 }</pre>
       </div>
@@ -711,14 +711,14 @@ void queryClient.invalidateQueries({ queryKey: queryKeys.cartSessionsMine() });<
   <div class="phase-header">
     <div class="phase-num">07</div>
     <div class="phase-title">Countdown and 15-minute warning</div>
-    <div class="phase-where"><span class="badge badge-teal">content.isolated.js · startCountdown()</span><span class="badge badge-blue">CartFillPanel.tsx · Countdown</span></div>
+    <div class="phase-where"><span class="badge badge-purple">core/overlay.js · startCountdown()</span><span class="badge badge-blue">CartFillPanel.tsx · Countdown</span></div>
   </div>
   <div class="step">
     <div class="step-header">
       <div class="step-icon icon-fox">FOX</div>
       <div class="step-meta">
         <div class="step-title">Time left on the overlay</div>
-        <div class="step-location">content.isolated.js · startCountdown()</div>
+        <div class="step-location">src/core/overlay.js · startCountdown()</div>
       </div>
     </div>
     <div class="step-body">
@@ -791,12 +791,12 @@ void queryClient.invalidateQueries({ queryKey: queryKeys.cartSessionsMine() });<
       </div>
     </div>
     <div class="step-body">
-      <div class="step-desc">For a session that ended without I submitted the order (released, expired, overridden) with orders still <span class="mono">cart_filled</span>, the PWA asks on load and right after a release or an ended update. Ticked → <span class="mono">ordered</span>; unticked → <span class="mono">pending</span> with the original quantity (<span class="mono">POST …/resolve</span>). <em>Ask me later</em> changes nothing.</div>
+      <div class="step-desc">For a session that ended without I submitted the order (released, expired, overridden) with orders still <span class="mono">cart_filled</span>, the PWA asks on load and right after a release or an ended update. Each item is answered <em>Ordered</em> or <em>Not ordered</em>; nothing is preselected and Save is enabled once every item has an answer. Ordered → <span class="mono">ordered</span>; Not ordered → <span class="mono">pending</span> with the original quantity (<span class="mono">POST …/resolve</span>). <em>Ask me later</em> changes nothing.</div>
       <div class="code-block">
         <div class="code-label">CartResolutionPopup.tsx · save</div>
         <pre>const orderedIds = inCart
   .map((item) =&gt; item.order_id)
-  .filter((orderId) =&gt; ticked.has(orderId));
+  .filter((orderId) =&gt; answers.get(orderId) === &quot;ordered&quot;);
 await cartResolveSession(session.session_id, orderedIds);</pre>
       </div>
     </div>
