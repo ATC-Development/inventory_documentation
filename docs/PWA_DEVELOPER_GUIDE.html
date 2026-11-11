@@ -336,6 +336,7 @@ npm run dev</pre>
 
   <h3>Environment Files</h3>
   <p>The repository includes <code>.env.example</code> and environment-specific files. Values are Vite variables and must use the <code>VITE_</code> prefix to be available in client code. Do not commit secrets. See Appendix B for the full environment variable reference.</p>
+  <p>The API URL, Functions URL and cart extension ID come in one set per environment (<code>VITE_TEST_*</code>, <code>VITE_LIVE_*</code>), read by <code>src/config/environment.ts</code>. The <code>VITE_LIVE_*</code> values stay empty until Live exists. Locally, point the <code>VITE_TEST_*</code> URLs at the local API and Functions.</p>
 
   <div class="callout c-info">
     <span class="icon">ℹ️</span>
@@ -434,12 +435,24 @@ npm run dev</pre>
     <div class="rule-item"><div class="rule-dot danger"></div><span>Prevent stale MSAL interaction state from trapping the user in a loop</span></div>
   </div>
 
+  <h3>Environment Selection (Test / Live)</h3>
+  <p>The login screen has two buttons: <strong>Sign in to Test</strong> (amber) and <strong>Sign in to Live</strong> (green). An environment is available when both its API URL and its Functions URL are set in the fixed environment map; otherwise its button is disabled and shows <em>Not available yet</em>. Live stays disabled until the release that adds its values.</p>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Only the key (<code>test</code> or <code>live</code>) is stored, in localStorage <code>atc_environment</code>, saved before <code>loginRedirect</code>. A URL is never stored or read from storage</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span><code>getStoredEnvironment()</code> accepts only <code>test</code> or <code>live</code>, and only when that environment is available; anything else counts as no environment</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span><code>AuthShell</code> logs out a signed-in user with no valid stored environment (for example the first load after the release that added environment selection, or an edited value)</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>API, Functions and SignalR URLs and the cart extension ID are read at call time with <code>requireEnvironment()</code>, which throws <code>No environment selected</code> before any token request</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>The MSAL client ID, tenant and API scope are shared by both environments (one <code>ATC_InventoryAPI</code> registration)</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>Switching environment requires a full logout. The current logout buttons do not yet clear the stored key; the shared logout (environment, selected warehouse, query cache, API cache) is still to be built</span></div>
+  </div>
+
   <h3>Auth Troubleshooting Quick Reference</h3>
   <table>
     <thead><tr><th>Symptom</th><th>Likely Area</th></tr></thead>
     <tbody>
       <tr><td>Repeated login redirects</td><td>MSAL redirect handling order, AuthShell, route guards, Static Web App headers</td></tr>
       <tr><td>Blank page after login</td><td>inProgress state, account state, redirect promise handling</td></tr>
+      <tr><td>Logged out right after signing in</td><td>No valid stored environment: <code>atc_environment</code> not saved, or the environment is not available in this build (missing <code>VITE_TEST_*</code> or <code>VITE_LIVE_*</code> URL)</td></tr>
       <tr><td>User role does not update</td><td>Token contains stale role claims — user must log out and back in</td></tr>
       <tr><td>Works locally but not in Azure</td><td>redirect URI, Static Web App config, Entra app registration</td></tr>
       <tr><td>Silent token failure</td><td>API scope, tenant/client mismatch, expired session, blocked iframe behavior</td></tr>
@@ -451,7 +464,7 @@ npm run dev</pre>
     <div class="pipeline-step"><span class="pipeline-arrow">1 →</span><span>Use MSAL account context</span></div>
     <div class="pipeline-step"><span class="pipeline-arrow">2 →</span><span>Request API scope with <code>acquireTokenSilent</code></span></div>
     <div class="pipeline-step"><span class="pipeline-arrow">3 →</span><span>Attach <code>Authorization: Bearer &lt;access_token&gt;</code></span></div>
-    <div class="pipeline-step"><span class="pipeline-arrow">4 →</span><span>Send request to <code>VITE_API_BASE_URL</code></span></div>
+    <div class="pipeline-step"><span class="pipeline-arrow">4 →</span><span>Send request to the current environment's API URL (<code>requireEnvironment().apiBaseUrl</code>)</span></div>
     <div class="pipeline-step"><span class="pipeline-arrow">5 →</span><span>Parse API errors into a user-appropriate message; let route/page code handle forbidden or failed actions gracefully</span></div>
   </div>
 </div>
@@ -648,6 +661,12 @@ npm run dev</pre>
 
   <h3>Shared Logic</h3>
   <p>Desktop and mobile experiences share: API client modules, query hooks, auth context, permission logic, warehouse context, barcode normalization utilities, domain types, and mutation/invalidation conventions. Do not implement separate business logic for desktop and mobile unless the API contract requires distinct flows.</p>
+
+  <h3>Test Banner</h3>
+  <p>In Test, <code>TestEnvironmentBanner</code> shows an amber TEST ENVIRONMENT strip on every signed-in screen. Desktop: a strip above the sidebar and header, part of the layout. Mobile: fixed to the bottom of the screen. Full-screen overlays cover it while they are open.</p>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot warn"></div><span>In Test, mobile elements fixed to the bottom are raised by the banner height (<code>h-6</code>): <code>AppShell</code> main <code>pb-6</code>, help button <code>bottom-12</code>, Mobile Home version footer <code>mb-9</code>. A new bottom-fixed mobile element does the same with <code>isTestEnvironment()</code></span></div>
+  </div>
 </div>
 
 <!-- §14 SCAN WORKFLOW -->
@@ -781,7 +800,7 @@ npm run dev</pre>
   </table>
   <div class="rules-list">
     <div class="rule-item"><div class="rule-dot danger"></div><span>The extension and the PWA never delete vendor cart lines. A non-empty vendor cart stops the fill and shows its lines</span></div>
-    <div class="rule-item"><div class="rule-dot warn"></div><span><code>VITE_CART_EXTENSION_ID</code> is a presence check, read when Fill Cart is clicked; messages go through <code>window.postMessage</code> and the extension's content bridge</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>The current environment's cart extension ID (<code>cartExtensionId</code> in the environment map) is a presence check, read when Fill Cart is clicked; messages go through <code>window.postMessage</code> and the extension's content bridge. Until the Test extension exists, the Test entry holds the current extension's ID</span></div>
     <div class="rule-item"><div class="rule-dot warn"></div><span>After an extension update, an open PWA tab shows "Extension not available" until it is reloaded</span></div>
     <div class="rule-item"><div class="rule-dot"></div><span>Orders are created from extra lines only by the user's click (Add as order); never automatically</span></div>
   </div>
@@ -847,7 +866,7 @@ npm run dev</pre>
   <div class="section-header"><span class="sn">20</span><h2>API Client Layer</h2></div>
 
   <h3>Standard API Fetch Behavior</h3>
-  <p>The API fetch helper isolates transport details from page components. Expected responsibilities: read <code>VITE_API_BASE_URL</code>, acquire MSAL API token, attach bearer token, set JSON headers, serialize request body, parse JSON response, and convert error responses to a consistent frontend error shape.</p>
+  <p>The API fetch helper isolates transport details from page components. Expected responsibilities: read the current environment's API URL (<code>requireEnvironment()</code>), acquire MSAL API token, attach bearer token, set JSON headers, serialize request body, parse JSON response, and convert error responses to a consistent frontend error shape.</p>
   <div class="callout c-warn">
     <span class="icon">⚠️</span>
     <div class="body">Page components should call service functions or hooks, not raw <code>fetch</code>, unless there is a deliberate exception.</div>
@@ -855,7 +874,7 @@ npm run dev</pre>
 
   <h3>Functions Client Rules</h3>
   <div class="rules-list">
-    <div class="rule-item"><div class="rule-dot danger"></div><span>Keep <code>VITE_FUNCTIONS_BASE_URL</code> separate from <code>VITE_API_BASE_URL</code></span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Keep the Functions URL separate from the API URL (both come from the environment map)</span></div>
     <div class="rule-item"><div class="rule-dot danger"></div><span>Do not call Functions for API-owned business rules</span></div>
     <div class="rule-item"><div class="rule-dot warn"></div><span>Handle Functions failures separately from API failures — response shapes may differ</span></div>
   </div>
@@ -885,6 +904,7 @@ npm run dev</pre>
     <li>Mobile vs desktop route redirection</li>
     <li>Modal save/cancel/delete flows</li>
     <li>Update prompt behavior</li>
+    <li>Environment selection: login choice, stored-key validation, <code>AuthShell</code> forced logout, Test banner</li>
   </ul>
 
   <h3>Testing Boundaries</h3>
@@ -899,6 +919,7 @@ npm run dev</pre>
 
   <h3>Test Utilities</h3>
   <p>Provide reusable wrappers for: Router context, QueryClient provider, MSAL/provider mocks, permission context, warehouse context, and SignalR context where needed. Avoid duplicating provider setup in every test file.</p>
+  <p>Tests that touch the environment either mock <code>@/config/environment</code> or stub every <code>VITE_TEST_*</code> and <code>VITE_LIVE_*</code> value with <code>vi.stubEnv</code>, so a local <code>.env</code> cannot change the results. <code>vitest.config.ts</code> aliases <code>virtual:pwa-register/react</code> to <code>src/test-utils/pwaRegisterStub.ts</code> because Vitest does not load vite-plugin-pwa; without it, any test that imports <code>useSwUpdate</code> (for example through <code>AuthShell</code>) fails to load.</p>
 </div>
 
 <!-- §22 DEPLOYMENT -->
@@ -909,7 +930,7 @@ npm run dev</pre>
   <div class="rules-list">
     <div class="rule-item"><div class="rule-dot danger"></div><span>Do not combine the PWA with the API or Functions repository</span></div>
     <div class="rule-item"><div class="rule-dot danger"></div><span>Do not deploy server secrets into the PWA</span></div>
-    <div class="rule-item"><div class="rule-dot warn"></div><span>Production build must use production API and Functions URLs</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>The build takes each environment's API URL, Functions URL and cart extension ID from GitHub secrets (<code>VITE_TEST_*</code>, <code>VITE_LIVE_*</code>). A missing Test secret leaves Test disabled on the login screen</span></div>
     <div class="rule-item"><div class="rule-dot warn"></div><span>Entra redirect URI must match the deployed Static Web App URL and app registration configuration</span></div>
     <div class="rule-item"><div class="rule-dot warn"></div><span><code>version.json</code> must match the deployed app version</span></div>
   </div>
@@ -917,7 +938,7 @@ npm run dev</pre>
   <h3>Post-Deploy Smoke Test</h3>
   <div class="checklist">
     <div class="check-item"><div class="check-num">01</div><span>App loads from production URL</span></div>
-    <div class="check-item"><div class="check-num">02</div><span>Login succeeds</span></div>
+    <div class="check-item"><div class="check-num">02</div><span>Login screen shows Sign in to Test and Sign in to Live (Live disabled until available); signing in to Test succeeds</span></div>
     <div class="check-item"><div class="check-num">03</div><span>Logout succeeds</span></div>
     <div class="check-item"><div class="check-num">04</div><span>Version/about display is correct</span></div>
     <div class="check-item"><div class="check-num">05</div><span>PWA update prompt does not show falsely</span></div>
@@ -929,6 +950,7 @@ npm run dev</pre>
     <div class="check-item"><div class="check-num">11</div><span>DatabaseManager-only pages are hidden/shown correctly</span></div>
     <div class="check-item"><div class="check-num">12</div><span>A read-only user cannot perform write actions</span></div>
     <div class="check-item"><div class="check-num">13</div><span>Functions-backed export or invoice flow works if in scope for release</span></div>
+    <div class="check-item"><div class="check-num">14</div><span>In Test, the TEST ENVIRONMENT banner shows on desktop (top) and mobile (bottom)</span></div>
   </div>
 </div>
 
@@ -952,7 +974,7 @@ npm run dev</pre>
   <table>
     <thead><tr><th>Symptom</th><th>Check</th></tr></thead>
     <tbody>
-      <tr><td>API calls hit wrong server</td><td>VITE_API_BASE_URL</td></tr>
+      <tr><td>API calls hit wrong server</td><td>Stored environment key (<code>atc_environment</code>); <code>VITE_TEST_API_BASE_URL</code> / <code>VITE_LIVE_API_BASE_URL</code> secrets</td></tr>
       <tr><td>CORS/network error</td><td>API CORS config, URL, HTTPS, local dev port</td></tr>
       <tr><td>Mutation succeeds but UI stale</td><td>query invalidation and SignalR event mapping</td></tr>
       <tr><td>Works on desktop but not mobile</td><td>route branch, warehouse context, camera permissions, viewport-specific UI</td></tr>
@@ -1111,11 +1133,15 @@ npm run dev</pre>
       <tr><td class="t-accent">VITE_ENTRA_CLIENT_ID</td><td class="t-accent2">Yes</td><td>MSAL</td><td>PWA client app registration ID</td></tr>
       <tr><td class="t-accent">VITE_ENTRA_TENANT_ID</td><td class="t-accent2">Yes</td><td>MSAL</td><td>Entra tenant ID</td></tr>
       <tr><td class="t-accent">VITE_REDIRECT_URI</td><td class="t-muted">Present in templates</td><td>Implementation note</td><td>In env files; current MSAL config may derive redirect URI instead — see Section 24</td></tr>
-      <tr><td class="t-accent">VITE_API_BASE_URL</td><td class="t-accent2">Yes</td><td>API client</td><td>Base URL for inventory_api</td></tr>
       <tr><td class="t-accent">VITE_API_SCOPE</td><td class="t-accent2">Yes</td><td>MSAL token acquisition</td><td>API access scope</td></tr>
       <tr><td class="t-accent">VITE_DM_GROUP_ID</td><td class="t-muted">Optional — verify</td><td>Permissions legacy/config</td><td>Present in env files and README; verify whether current permission hooks consume it or if it is vestigial</td></tr>
       <tr><td class="t-accent">VITE_APP_VERSION</td><td class="t-accent2">Yes at build/runtime</td><td>Version display/check</td><td>Current app version from package/build</td></tr>
-      <tr><td class="t-accent">VITE_FUNCTIONS_BASE_URL</td><td class="t-accent2">Yes for Functions flows</td><td>Functions client/export/invoice</td><td>Base URL for inventory_functions</td></tr>
+      <tr><td class="t-accent">VITE_TEST_API_BASE_URL</td><td class="t-accent2">Yes</td><td>Environment map (Test)</td><td>Test API base URL; also the SignalR hub host. Local API when developing</td></tr>
+      <tr><td class="t-accent">VITE_TEST_FUNCTIONS_BASE_URL</td><td class="t-accent2">Yes</td><td>Environment map (Test)</td><td>Test Functions base URL (exports, invoice analysis)</td></tr>
+      <tr><td class="t-accent">VITE_TEST_CART_EXTENSION_ID</td><td class="t-accent2">Yes for Fill Cart</td><td>Environment map (Test)</td><td>Cart extension ID used in Test (presence check)</td></tr>
+      <tr><td class="t-accent">VITE_LIVE_API_BASE_URL</td><td class="t-muted">Empty until Live exists</td><td>Environment map (Live)</td><td>Live API base URL. With the Live Functions URL, makes Live available on the login screen</td></tr>
+      <tr><td class="t-accent">VITE_LIVE_FUNCTIONS_BASE_URL</td><td class="t-muted">Empty until Live exists</td><td>Environment map (Live)</td><td>Live Functions base URL</td></tr>
+      <tr><td class="t-accent">VITE_LIVE_CART_EXTENSION_ID</td><td class="t-muted">Empty until Live exists</td><td>Environment map (Live)</td><td>Cart extension ID used in Live</td></tr>
     </tbody>
   </table>
 </div>

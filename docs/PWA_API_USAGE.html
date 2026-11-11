@@ -189,7 +189,7 @@
   <p>All protected API calls must use an access token acquired through MSAL for <code>VITE_API_SCOPE</code>.</p>
   <div class="auth-box">
     Standard PWA API calls use <code>apiFetch</code>, which:<br><br>
-    — reads <code>VITE_API_BASE_URL</code><br>
+    — reads the current environment's API URL (<code>requireEnvironment()</code>; fails with <code>No environment selected</code> before any token request)<br>
     — gets the active MSAL account or sets the first available account active<br>
     — calls <code>acquireTokenSilent</code><br>
     — attaches <code>Authorization: Bearer &lt;accessToken&gt;</code><br>
@@ -201,7 +201,7 @@
     <span class="icon">⚠️</span>
     <div class="body">
       <strong>Frontend role checks are UI-only.</strong> The API remains the final authorization authority. Every mutation path must handle <code>401</code> and <code>403</code> even when the UI hides unauthorized actions.<br><br>
-      Functions calls may use <code>VITE_FUNCTIONS_BASE_URL</code> and a separate authenticated helper, especially when payloads are not JSON (e.g. invoice file upload).
+      Functions calls use the current environment's Functions URL and a separate authenticated helper, especially when payloads are not JSON (e.g. invoice file upload).
     </div>
   </div>
 </div>
@@ -313,7 +313,7 @@
         <tr><th>PWA Feature</th><th>Functions Endpoint</th><th>Payload Style</th><th>Auth</th><th>Notes</th></tr>
       </thead>
       <tbody>
-        <tr><td class="t-white">Invoice analysis</td><td class="t-accent">POST {VITE_FUNCTIONS_BASE_URL}/api/invoice/analyze</td><td>FormData with file, warehouse_id, optional vendor_id</td><td>Bearer token from MSAL</td><td>Separate from apiFetch — file upload must not force JSON headers</td></tr>
+        <tr><td class="t-white">Invoice analysis</td><td class="t-accent">POST {Functions URL}/api/invoice/analyze</td><td>FormData with file, warehouse_id, optional vendor_id</td><td>Bearer token from MSAL</td><td>Separate from apiFetch — file upload must not force JSON headers</td></tr>
         <tr><td class="t-white">Report exports</td><td class="t-accent">Functions export endpoints</td><td>JSON payload built by PWA</td><td>Bearer token from MSAL</td><td>PWA builds filters and requested-by identity; Functions generates files</td></tr>
         <tr><td class="t-white">Transactions export</td><td class="t-accent">export utility payload builder</td><td>JSON</td><td>Bearer token</td><td>Payload builder should include selected filters and requester identity</td></tr>
         <tr><td class="t-white">Part trend export</td><td class="t-accent">export utility payload builder</td><td>JSON</td><td>Bearer token</td><td>Keep visible report filters and export payload synchronized</td></tr>
@@ -325,7 +325,7 @@
   <div class="callout c-warn">
     <span class="icon">⚠️</span>
     <div class="body">
-      Keep <code>VITE_FUNCTIONS_BASE_URL</code> separate from <code>VITE_API_BASE_URL</code>. Do not call Functions for API-owned business rules. Handle Functions failures separately from API failures — response shapes may differ.
+      Keep the Functions URL separate from the API URL (both come from the environment map in <code>src/config/environment.ts</code>). Do not call Functions for API-owned business rules. Handle Functions failures separately from API failures — response shapes may differ.
     </div>
   </div>
 </div>
@@ -472,7 +472,7 @@
     <div class="check-item"><span class="check-num">07</span><span>Handle <code>401</code>, <code>403</code>, <code>409</code>, validation errors, network errors, and server errors intentionally</span></div>
     <div class="check-item"><span class="check-num">08</span><span>Add tests for PWA behavior, especially cache invalidation and role-gated UI</span></div>
     <div class="check-item"><span class="check-num">09</span><span>Do not duplicate full request/response contracts from <code>API_CONTRACT.html</code></span></div>
-    <div class="check-item"><span class="check-num">10</span><span>If the change crosses into Functions, update the Functions usage matrix and verify <code>VITE_FUNCTIONS_BASE_URL</code> behavior</span></div>
+    <div class="check-item"><span class="check-num">10</span><span>If the change crosses into Functions, update the Functions usage matrix and verify the Functions URL for each environment</span></div>
   </div>
 </div>
 

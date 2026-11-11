@@ -778,7 +778,7 @@ npm run build</pre>
       <div class="step-num">4</div>
       <div class="step-body">
         <div class="step-title">Note the Extension ID</div>
-        <div class="step-desc">Copy the extension ID shown on the card. An unpacked copy has a different ID from the managed copy. The PWA does not address messages by ID (it uses <code>window.postMessage</code>); it only requires <code>VITE_CART_EXTENSION_ID</code> to be set in its <code>.env.local</code> (§08).</div>
+        <div class="step-desc">Copy the extension ID shown on the card. An unpacked copy has a different ID from the managed copy. The PWA does not address messages by ID (it uses <code>window.postMessage</code>); it only requires <code>VITE_TEST_CART_EXTENSION_ID</code> to be set in its local env file (<code>.env</code> or <code>.env.local</code>, §08).</div>
       </div>
     </div>
     <div class="step">
@@ -874,14 +874,14 @@ npm run build</pre>
   <h3>api-origins.js — PWA Origins and API Addresses</h3>
   <p>When the PWA URL changes (new deployment, custom domain), add the origin and its API address to <code>src/core/api-origins.js</code>, add the origin to the two lists in <code>manifests/manifest.json</code> (§05), and release a new version.</p>
 
-  <h3>PWA Environment Variable</h3>
+  <h3>PWA Environment Variables</h3>
   <table>
     <thead><tr><th>Variable</th><th>Purpose</th><th>Where to Set</th></tr></thead>
     <tbody>
       <tr>
-        <td class="t-accent">VITE_CART_EXTENSION_ID</td>
-        <td>Presence check only. If it is empty, <code>startCartFill</code> logs an error and does nothing. Messages are not addressed by this ID: the PWA uses <code>window.postMessage</code>, and any installed copy of the extension answers. Deployed value: <code>mkkkjimbaeioecfkippbplnegmaebdel</code> (§11)</td>
-        <td><code>.env.local</code> for dev. Deployed PWA: GitHub Actions secret <code>VITE_CART_EXTENSION_ID</code>, passed to <code>npm run build</code> (build-time; a Static Web Apps environment variable has no effect)</td>
+        <td class="t-accent">VITE_TEST_CART_EXTENSION_ID<br>VITE_LIVE_CART_EXTENSION_ID</td>
+        <td>One per environment in the PWA's fixed environment map; Fill Cart uses the current environment's value. Presence check only. If it is empty, <code>startCartFill</code> logs an error and does nothing. Messages are not addressed by this ID: the PWA uses <code>window.postMessage</code>, and any installed copy of the extension answers. Deployed Test value: <code>mkkkjimbaeioecfkippbplnegmaebdel</code> (§11), the current extension, until the Test extension exists. Live: empty until Live exists</td>
+        <td><code>.env</code> or <code>.env.local</code> for dev. Deployed PWA: GitHub Actions secrets <code>VITE_TEST_CART_EXTENSION_ID</code> and <code>VITE_LIVE_CART_EXTENSION_ID</code>, passed to <code>npm run build</code> (build-time; a Static Web Apps environment variable has no effect)</td>
       </tr>
     </tbody>
   </table>
@@ -1077,7 +1077,7 @@ git push --follow-tags          # the workflow publishes</pre>
   <div class="callout c-danger">
     <span class="icon">⛔</span>
     <div class="body">
-      <strong>The extension ID comes from the signing key.</strong> A package signed with a different key has a different ID, which matches neither the Intune policy value nor the PWA's <code>VITE_CART_EXTENSION_ID</code>. Keep <code>EXTENSION_SIGNING_KEY</code> unchanged.
+      <strong>The extension ID comes from the signing key.</strong> A package signed with a different key has a different ID, which matches neither the Intune policy value nor the PWA's <code>VITE_TEST_CART_EXTENSION_ID</code>. Keep <code>EXTENSION_SIGNING_KEY</code> unchanged.
     </div>
   </div>
 
