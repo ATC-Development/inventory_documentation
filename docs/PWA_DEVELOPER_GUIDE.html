@@ -662,10 +662,25 @@ npm run dev</pre>
   <h3>Shared Logic</h3>
   <p>Desktop and mobile experiences share: API client modules, query hooks, auth context, permission logic, warehouse context, barcode normalization utilities, domain types, and mutation/invalidation conventions. Do not implement separate business logic for desktop and mobile unless the API contract requires distinct flows.</p>
 
-  <h3>Test Banner</h3>
+  <h3>Test Banner and Colors</h3>
   <p>In Test, <code>TestEnvironmentBanner</code> shows an amber TEST ENVIRONMENT strip on every signed-in screen. Desktop: a strip above the sidebar and header, part of the layout. Mobile: fixed to the bottom of the screen. Full-screen overlays cover it while they are open.</p>
   <div class="rules-list">
     <div class="rule-item"><div class="rule-dot warn"></div><span>In Test, mobile elements fixed to the bottom are raised by the banner height (<code>h-6</code>): <code>AppShell</code> main <code>pb-6</code>, help button <code>bottom-12</code>, Mobile Home version footer <code>mb-9</code>. A new bottom-fixed mobile element does the same with <code>isTestEnvironment()</code></span></div>
+  </div>
+  <p>The Test colors come from named colors in <code>src/index.css</code>. <code>AppShell</code> sets <code>data-env="test"</code> on both layout roots when the stored environment is Test, and a <code>[data-env="test"]</code> block overrides the named colors. Outside Test the defaults equal the original colors, so nothing changes.</p>
+  <table>
+    <thead><tr><th>Named color (class)</th><th>Default</th><th>Test</th><th>Used by</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">--color-app-bg (<code>bg-app-bg</code>)</td><td>gray-50</td><td>amber-50</td><td><code>AppShell</code> roots; page backgrounds in <code>ScanLayout</code>, <code>ScanLookupPage</code>, <code>NewPartPage</code> (both states), <code>ScanToolPage</code></td></tr>
+      <tr><td class="t-accent">--color-app-sidebar (<code>bg-app-sidebar</code>)</td><td>ATC navy</td><td>amber-900</td><td><code>AppShell</code> sidebar container, <code>DesktopNav</code></td></tr>
+      <tr><td class="t-accent">--color-app-overlay (<code>bg-app-overlay/35</code>)</td><td>white</td><td>amber-400</td><td><code>MobilePageShell</code> layer over the background photo</td></tr>
+      <tr><td class="t-accent">--color-app-dm-badge, -border, -text</td><td>amber-500 / 400 / 300</td><td>sky-500 / 400 / 300</td><td>DB Manager badge in <code>DesktopNav</code> (stands out on the amber sidebar)</td></tr>
+    </tbody>
+  </table>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Do not use <code>@theme inline</code> for these colors: inlining removes the variable the Test block overrides</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>The shared ATC navy is not changed in Test (buttons, mobile pill, headers). A new full-page background uses <code>bg-app-bg</code>, not <code>bg-gray-50</code>, so it follows Test</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Pop-ups rendered outside the layout keep their normal colors. Browsers without <code>color-mix</code> show the default photo layer and badge in Test; sidebar and backgrounds do not depend on it</span></div>
   </div>
 </div>
 
@@ -950,7 +965,7 @@ npm run dev</pre>
     <div class="check-item"><div class="check-num">11</div><span>DatabaseManager-only pages are hidden/shown correctly</span></div>
     <div class="check-item"><div class="check-num">12</div><span>A read-only user cannot perform write actions</span></div>
     <div class="check-item"><div class="check-num">13</div><span>Functions-backed export or invoice flow works if in scope for release</span></div>
-    <div class="check-item"><div class="check-num">14</div><span>In Test, the TEST ENVIRONMENT banner shows on desktop (top) and mobile (bottom)</span></div>
+    <div class="check-item"><div class="check-num">14</div><span>In Test, the TEST ENVIRONMENT banner shows on desktop (top) and mobile (bottom); amber sidebar, sky DB Manager badge and pale amber backgrounds</span></div>
   </div>
 </div>
 
