@@ -501,12 +501,12 @@ npm run dev</pre>
     <thead><tr><th>UI Area</th><th>Rendering Rule</th></tr></thead>
     <tbody>
       <tr><td>Manage pages</td><td class="t-warn">DatabaseManager only</td></tr>
-      <tr><td>Bulk operations</td><td class="t-warn">DatabaseManager only</td></tr>
+      <tr><td>Bulk operations</td><td class="t-warn">DatabaseManager only, except Add to Warehouse for several parts on the Parts page (warehouses the user can write to)</td></tr>
       <tr><td>Part delete</td><td class="t-warn">DatabaseManager only</td></tr>
       <tr><td>Warehouse/category/vendor management</td><td class="t-warn">DatabaseManager only</td></tr>
       <tr><td>Scan out / consume</td><td>Authenticated flow; final write access enforced by API and property rules</td></tr>
       <tr><td>Stock in / add to warehouse</td><td>Requires matching property role or DatabaseManager</td></tr>
-      <tr><td>901 / ATC Office writes</td><td class="t-warn">DatabaseManager only unless architecture changes</td></tr>
+      <tr><td>901 / ATC Office writes</td><td>Same as every property: <code>901_wh</code> or DatabaseManager</td></tr>
     </tbody>
   </table>
 </div>

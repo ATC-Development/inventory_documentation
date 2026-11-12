@@ -88,7 +88,7 @@
 <div class="title-block">
   <h1>ATC Inventory API</h1>
   <div class="subtitle">Developer Contract — Full Endpoint Reference</div>
-  <div class="meta">Version: <strong>1.2</strong> &nbsp;&nbsp; Date: <strong>November 10, 2026</strong> &nbsp;&nbsp; Related: <strong>API_DEVELOPER_GUIDE.md</strong> &nbsp;&nbsp; Source: <strong>inventory_api snapshot 2026-05-17; vendor order methods, vendor cart and orders sections 2026-11-05</strong></div>
+  <div class="meta">Version: <strong>1.2</strong> &nbsp;&nbsp; Date: <strong>November 12, 2026</strong> &nbsp;&nbsp; Related: <strong>API_DEVELOPER_GUIDE.md</strong> &nbsp;&nbsp; Source: <strong>inventory_api snapshot 2026-05-17; vendor order methods, vendor cart and orders sections 2026-11-05</strong></div>
 </div>
 
 <div class="toc">
@@ -215,7 +215,7 @@ Content-Type: application/json</pre>
     <tr><td><code>INITIAL_STOCK</code></td><td></td></tr>
     <tr><td><code>ORDER_RECEIPT</code></td><td></td></tr>
     <tr><td><code>CORRECTION</code></td><td></td></tr>
-    <tr><td><code>New Part in Warehouse</code></td><td><strong>Reserved string.</strong> Triggers DatabaseManager alert + label print in Azure Functions. Do not use for manual adjustments.</td></tr>
+    <tr><td><code>New Part in Warehouse</code></td><td><strong>Reserved string.</strong> Transaction <code>Reason</code> whenever a supply row is created. The DatabaseManager alert is raised by the API (queued <code>new_part_in_warehouse</code> / <code>bulk_supplies_created</code>, delivered by Azure Functions), not by monitoring this string. Do not use for manual adjustments.</td></tr>
   </tbody>
 </table>
 
@@ -1371,7 +1371,7 @@ Content-Type: application/json</pre>
     <tr><td class="f-name">force</td><td class="f-type">bool</td><td class="f-req-n">No</td><td>Defaults to <code>false</code>.</td></tr>
   </tbody>
 </table>
-<div class="warn">When the supply row is auto-created (part not previously stocked at this warehouse), the transaction reason is set to the reserved string <code>"New Part in Warehouse"</code>. This triggers the DatabaseManager alert and label-print workflow in Azure Functions. Do not use this reason string manually for other adjustments.</div>
+<div class="warn">When the supply row is auto-created (part not previously stocked at this warehouse), the transaction reason is set to the reserved string <code>"New Part in Warehouse"</code> and the API queues a <code>new_part_in_warehouse</code> DatabaseManager alert (delivered by Azure Functions). The alert is raised by the API, not by monitoring the reason string. Do not use this reason string manually for other adjustments.</div>
 <pre>// Response: 200 OK &mdash; SuppliesEnrichedReadDto
 // Side effects: Transaction SCAN_IN (or "New Part in Warehouse" if auto-created)
 //              SignalR supply.updated &middot; supply.low_stock if qty &le; min_level

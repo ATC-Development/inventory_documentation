@@ -149,7 +149,7 @@
   <p class="subtitle">Architectural, security, and responsibility boundaries for the Inventory Application. All development decisions across repositories must adhere to these rules.</p>
   <div class="meta-strip">
     <div class="meta-cell"><span class="lbl">Scope</span><span class="val">All Repos</span></div>
-    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">May 2026</span></div>
+    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">November 2026</span></div>
     <div class="meta-cell"><span class="lbl">Status</span><span class="val green">Enforced</span></div>
   </div>
 </div>
@@ -292,7 +292,7 @@
     <div class="rule-item"><div class="rule-dot"></div><span>Scan Out: <code>POST /supplies/scan/consume</code> — decrements by <code>qty_each</code> EA directly, no multiplier</span></div>
     <div class="rule-item"><div class="rule-dot"></div><span>Scan In: <code>POST /supplies/scan/stockin</code> — applies multiplier, auto-creates supply row if missing</span></div>
     <div class="rule-item"><div class="rule-dot danger"></div><span><code>/identifiers/resolve/{code}</code> is <strong>not</strong> part of normal scan operations — only triggered on <code>404 IDENTIFIER_NOT_FOUND</code></span></div>
-    <div class="rule-item"><div class="rule-dot warn"></div><span>Auto-creating a supply row writes <code>Reason = "New Part in Warehouse"</code> — triggers Azure Functions alert to DatabaseManager</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>Auto-creating a supply row writes <code>Reason = "New Part in Warehouse"</code>; the API queues the DatabaseManager alert, which Azure Functions delivers</span></div>
   </div>
 
   <h3>ATC_MASTER Barcode Rule</h3>

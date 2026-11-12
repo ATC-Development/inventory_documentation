@@ -156,7 +156,7 @@
     <div class="meta-cell"><span class="lbl">Runtime</span><span class="val">ASP.NET 10 Minimal API</span></div>
     <div class="meta-cell"><span class="lbl">Status</span><span class="val">Draft</span></div>
     <div class="meta-cell"><span class="lbl">Related</span><span class="val">API_CONTRACT · SCHEMA · ARCHITECTURE · PROJECT_RULES</span></div>
-    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">May 2026</span></div>
+    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">November 2026</span></div>
   </div>
 </div>
 
@@ -440,7 +440,7 @@ dotnet run</pre>
     <tbody>
       <tr><td class="t-warn">Database Manager</td><td>DatabaseManager</td><td>Full access to all warehouses; all bulk, destructive, and administrative operations</td></tr>
       <tr><td class="t-accent">Property Warehouse</td><td>{propCode}_wh e.g. ms_wh</td><td>Warehouse write access for property-scoped operations on the matching warehouse</td></tr>
-      <tr><td class="t-muted">Baseline Authenticated</td><td>Valid token, no app role</td><td>Authenticated reads, single-record creates, scan and adjustment workflows where the route permits</td></tr>
+      <tr><td class="t-muted">Baseline Authenticated</td><td>Valid token, no app role</td><td>Authenticated reads, single creates of parts, identifiers and vendor-parts, part updates, scan out and equipment scans where the route permits</td></tr>
       <tr><td class="t-muted">Function App</td><td>PropertyChannelFailure.Write</td><td>Notification failure logging endpoints — used by Azure Functions, not human users</td></tr>
       <tr><td class="t-danger">Unauthenticated</td><td>No valid token</td><td>Only routes that explicitly omit .RequireAuthorization()</td></tr>
     </tbody>
@@ -450,21 +450,22 @@ dotnet run</pre>
   <p>Baseline authenticated access is <strong>not</strong> fully read-only. A baseline authenticated user can:</p>
   <ul>
     <li>Read all inventory data where the route uses <code>.RequireAuthorization()</code></li>
-    <li>Create single parts, single identifiers, single supplies</li>
-    <li>Perform scan consume and scan stock-in operations</li>
-    <li>Perform manual supply adjustments</li>
+    <li>Create single parts, single identifiers, single vendor-parts and vendor aliases; update parts</li>
+    <li>Scan out (<code>POST /supplies/scan/consume</code>) and update a supply quantity by ID (<code>PUT /supplies/{supplyId}</code>)</li>
+    <li>Check equipment out and in, and update its location</li>
     <li>Create inventory orders</li>
   </ul>
-  <p>A baseline authenticated user cannot: perform bulk creates, delete parts/supplies/identifiers, create/update/delete warehouses/categories/vendors, or access notification failure endpoints.</p>
+  <p>A baseline authenticated user cannot: create supply rows (single or bulk), adjust quantities or scan in (these require DatabaseManager or the warehouse&#39;s <code>{propCode}_wh</code> role), perform other bulk creates, delete parts/supplies/identifiers, create/update/delete warehouses/categories/vendors, or access notification failure endpoints.</p>
 
   <h3>Property Warehouse Roles</h3>
+  <p>Every property has a <code>{propCode}_wh</code> App Role. The API builds the role name from the warehouse&#39;s <code>PropCode</code>, so no property is handled differently. Examples:</p>
   <table>
     <thead><tr><th>Property</th><th>PropCode</th><th>Role</th></tr></thead>
     <tbody>
       <tr><td>McHenry Square</td><td class="t-muted">ms</td><td class="t-accent">ms_wh</td></tr>
       <tr><td>The Augustan</td><td class="t-muted">aug</td><td class="t-accent">aug_wh</td></tr>
       <tr><td>Helena Springs</td><td class="t-muted">hs</td><td class="t-accent">hs_wh</td></tr>
-      <tr><td>901 / ATC Office</td><td class="t-muted">901</td><td class="t-danger">No property role — DatabaseManager only for writes</td></tr>
+      <tr><td>901 / ATC Office</td><td class="t-muted">901</td><td class="t-accent">901_wh</td></tr>
     </tbody>
   </table>
 
@@ -613,7 +614,7 @@ VALUES ('20260407140513_YourMigrationName', '10.0.5');
     <div class="rule-item"><div class="rule-dot"></div><span>Quantity is always stored in EA (base units)</span></div>
     <div class="rule-item"><div class="rule-dot danger"></div><span><strong>Negative inventory is blocked on every quantity-changing path</strong> — this check must never be bypassed</span></div>
     <div class="rule-item"><div class="rule-dot"></div><span>Every quantity change automatically appends an immutable transaction row</span></div>
-    <div class="rule-item"><div class="rule-dot warn"></div><span><code>POST /supplies/scan/stockin</code> auto-creates the supply row if missing — triggers <code>"New Part in Warehouse"</code> transaction and DatabaseManager notification</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span><code>POST /supplies/adjust</code> and <code>POST /supplies/scan/stockin</code> auto-create the supply row if missing. Every new supply row (including <code>POST /supplies</code> and <code>/supplies/multiple</code>) gets the <code>"New Part in Warehouse"</code> transaction reason, and the API queues the DatabaseManager alert</span></div>
   </div>
 
   <h3>Transaction Ledger Rules</h3>
@@ -677,7 +678,7 @@ VALUES ('20260407140513_YourMigrationName', '10.0.5');
       <tr><td>Vendors</td><td>Authenticated (reads)</td><td>Create, update, delete</td></tr>
       <tr><td>Parts</td><td>Authenticated</td><td>Bulk create, delete</td></tr>
       <tr><td>Identifiers</td><td>Anonymous (/lookup only) / Authenticated (others)</td><td>Bulk create, delete, patch</td></tr>
-      <tr><td>Supplies</td><td>Authenticated</td><td>Bulk create, delete</td></tr>
+      <tr><td>Supplies</td><td>Authenticated (reads, scan out, <code>PUT /supplies/{supplyId}</code>); DM or propCode_wh (create single and bulk, adjust, scan in)</td><td>Delete</td></tr>
       <tr><td>Transactions</td><td>Authenticated</td><td>None — read-only</td></tr>
       <tr><td>VendorParts</td><td>Authenticated</td><td>Delete, bulk create</td></tr>
       <tr><td>Equipment</td><td>Authenticated (reads, scan ops)</td><td>Create single, bulk create, update, delete, identifier create/delete</td></tr>
@@ -801,7 +802,7 @@ VALUES ('20260407140513_YourMigrationName', '10.0.5');
     <thead><tr><th>Touchpoint</th><th>Purpose</th></tr></thead>
     <tbody>
       <tr><td class="t-accent">NotificationQueue config</td><td>Azure Storage Queue for inventory notification messages</td></tr>
-      <tr><td class="t-accent">"New Part in Warehouse" transaction reason</td><td>Triggers DatabaseManager alert and label print workflow</td></tr>
+      <tr><td class="t-accent">new_part_in_warehouse / bulk_supplies_created queue messages</td><td>Queued by the API when supply rows are created; Functions delivers the DatabaseManager alert. Functions does not monitor the &quot;New Part in Warehouse&quot; reason string</td></tr>
       <tr><td class="t-accent">POST /notification-failures/</td><td>Functions log delivery failures</td></tr>
       <tr><td class="t-accent">POST /notification-failures/delivery-successes</td><td>Functions mark successful recoveries</td></tr>
       <tr><td class="t-accent">/property-channels endpoints</td><td>Configure where notifications are delivered per property</td></tr>
@@ -1040,7 +1041,7 @@ CORRECTION</pre>
   <h3>Reserved Reason String</h3>
   <div class="callout c-warn">
     <span class="icon">⚠️</span>
-    <div class="body"><strong>"New Part in Warehouse"</strong> — this string triggers the DatabaseManager alert and label print workflow in Azure Functions. Before adding or renaming reason values, confirm whether any Function timer, notification, or report logic depends on the value.</div>
+    <div class="body"><strong>"New Part in Warehouse"</strong> — the transaction reason written whenever a supply row is created. The DatabaseManager alert is raised by the API, which queues <code>new_part_in_warehouse</code> (<code>bulk_supplies_created</code> for <code>/supplies/multiple</code>) for Azure Functions to deliver; it is not triggered by monitoring this string. Do not use it for manual adjustments. Before adding or renaming reason values, confirm whether any Function timer, notification, or report logic depends on the value.</div>
   </div>
 </div>
 

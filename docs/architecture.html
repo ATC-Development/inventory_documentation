@@ -423,7 +423,7 @@
       <ul>
         <li>Multiplier applied: <code>qty_packages × Unit_multiplier_to_base = qty_change</code></li>
         <li>Supply row auto-created if missing (<code>allowCreate = true</code>)</li>
-        <li>Auto-create triggers <code>"New Part in Warehouse"</code> transaction → Functions alert DatabaseManagers</li>
+        <li>Auto-create writes the <code>"New Part in Warehouse"</code> transaction; the API queues the DatabaseManager alert and Functions delivers it</li>
         <li><code>404</code> → pivot to Lane 3</li>
       </ul>
     </div>

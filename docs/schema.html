@@ -340,7 +340,7 @@
     <div class="col-row"><div class="col-name">Quantity_before</div><div class="col-type">int</div><div class="col-notes">Quantity before this change</div></div>
     <div class="col-row"><div class="col-name">Quantity_after</div><div class="col-type">int</div><div class="col-notes">Quantity after this change</div></div>
     <div class="col-row"><div class="col-name">Reason</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Human-readable description</div></div>
-    <div class="col-row"><div class="col-name">ReasonType</div><div class="col-type">nvarchar(60), nullable</div><div class="col-notes">Structured type code — null on older records predating this column</div></div>
+    <div class="col-row"><div class="col-name">ReasonType</div><div class="col-type">nvarchar(30), nullable</div><div class="col-notes">Structured type code — null on older records predating this column</div></div>
     <div class="col-row"><div class="col-name">ReferenceId</div><div class="col-type">int, nullable</div><div class="col-notes">FK to source record (e.g. InventoryOrders.Id for ORDER_RECEIPT)</div></div>
     <div class="col-row"><div class="col-name">Edited_by_oid</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Entra OID of editor</div></div>
     <div class="col-row"><div class="col-name">Edited_by_email</div><div class="col-type">nvarchar, nullable</div><div class="col-notes">Email snapshot at write time</div></div>
@@ -365,7 +365,7 @@
   </table>
 
   <div class="callout c-warn"><span class="icon">⚠️</span><div class="body">
-    <strong>Reserved reason string:</strong> <code>"New Part in Warehouse"</code> is written by <code>POST /supplies/scan/stockin</code> when stock-in auto-creates a supply row. Azure Functions monitors for this value to trigger a DatabaseManager alert. Do not use this string for manual adjustments.
+    <strong>Reserved reason string:</strong> <code>"New Part in Warehouse"</code> is the Transactions <code>Reason</code> whenever a supply row is created: <code>POST /supplies</code>, <code>POST /supplies/multiple</code>, and <code>POST /supplies/adjust</code> or <code>POST /supplies/scan/stockin</code> when they auto-create the row. The DatabaseManager alert is raised by the API, which queues <code>new_part_in_warehouse</code> (<code>bulk_supplies_created</code> for <code>/supplies/multiple</code>) for Azure Functions to deliver. It is not triggered by monitoring this string. Do not use this string for manual adjustments.
   </div></div>
 </div>
 
