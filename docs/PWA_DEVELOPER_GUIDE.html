@@ -443,7 +443,9 @@ npm run dev</pre>
     <div class="rule-item"><div class="rule-dot"></div><span><code>AuthShell</code> logs out a signed-in user with no valid stored environment (for example the first load after the release that added environment selection, or an edited value)</span></div>
     <div class="rule-item"><div class="rule-dot"></div><span>API, Functions and SignalR URLs and the cart extension ID are read at call time with <code>requireEnvironment()</code>, which throws <code>No environment selected</code> before any token request</span></div>
     <div class="rule-item"><div class="rule-dot"></div><span>The MSAL client ID, tenant and API scope are shared by both environments (one <code>ATC_InventoryAPI</code> registration)</span></div>
-    <div class="rule-item"><div class="rule-dot warn"></div><span>Switching environment requires a full logout. The current logout buttons do not yet clear the stored key; the shared logout (environment, selected warehouse, query cache, API cache) is still to be built</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>Switching environment requires a full logout</span></div>
+    <div class="rule-item"><div class="rule-dot danger"></div><span>Every sign-out goes through <code>useSignOut</code> (<code>src/auth/useSignOut.ts</code>): Log out in <code>ContextPill</code>, <code>DesktopNav</code> and <code>SessionExpiredBanner</code>, and both automatic sign-outs in <code>AuthShell</code>. It removes the stored environment, selected warehouse, all-properties mode, scan-invoice draft and pending identifier, clears the query cache and the service worker's <code>api-cache</code>, then calls <code>logoutRedirect</code> once (return address from <code>msalConfig</code>). The per-user dashboard layout is kept. Never call <code>logoutRedirect</code> directly</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Session-only localStorage keys live in <code>src/config/storageKeys.ts</code> (the environment key in <code>config/environment.ts</code>). A new key that belongs to one signed-in session goes there and in the sign-out list, so the next sign-in, by another user or in the other environment, starts clean</span></div>
   </div>
 
   <h3>Auth Troubleshooting Quick Reference</h3>
@@ -454,6 +456,7 @@ npm run dev</pre>
       <tr><td>Blank page after login</td><td>inProgress state, account state, redirect promise handling</td></tr>
       <tr><td>Logged out right after signing in</td><td>No valid stored environment: <code>atc_environment</code> not saved, or the environment is not available in this build (missing <code>VITE_TEST_*</code> or <code>VITE_LIVE_*</code> URL)</td></tr>
       <tr><td>User role does not update</td><td>Token contains stale role claims — user must log out and back in</td></tr>
+      <tr><td>User can write in Test but not in Live</td><td>Expected without <code>InvApp_Users</code>: Test does not require <code>inventoryApp</code> (Permission Hook Pattern)</td></tr>
       <tr><td>Works locally but not in Azure</td><td>redirect URI, Static Web App config, Entra app registration</td></tr>
       <tr><td>Silent token failure</td><td>API scope, tenant/client mismatch, expired session, blocked iframe behavior</td></tr>
     </tbody>
@@ -489,6 +492,7 @@ npm run dev</pre>
     <div class="rule-item"><div class="rule-dot danger"></div><span>Do not decode tokens ad hoc in page components</span></div>
     <div class="rule-item"><div class="rule-dot danger"></div><span>Do not call Graph to resolve permissions at runtime unless the architecture changes</span></div>
     <div class="rule-item"><div class="rule-dot warn"></div><span>Do not assume a missing role means unauthenticated — it means authenticated baseline access</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span><code>hasAppAccess</code> (<code>useUserPermissions</code>) is true for a DatabaseManager, a user with the <code>inventoryApp</code> role, or <strong>anyone signed in to Test</strong> (<code>isTestEnvironment()</code>), so untrained users can practice there. In Test every signed-in user gets the actions gated by <code>hasAppAccess</code> alone (scan out, equipment actions, scan invoice, new parts, vendor parts and cross-references, On Order actions); actions that also check <code>canWriteToWarehouse</code> still need the property role. Live is unchanged. PWA-only, like the <code>inventoryApp</code> requirement itself</span></div>
     <div class="rule-item"><div class="rule-dot danger"></div><span>Always handle API <code>403</code> responses, even when the button is hidden</span></div>
   </div>
 
@@ -954,7 +958,7 @@ npm run dev</pre>
   <div class="checklist">
     <div class="check-item"><div class="check-num">01</div><span>App loads from production URL</span></div>
     <div class="check-item"><div class="check-num">02</div><span>Login screen shows Sign in to Test and Sign in to Live (Live disabled until available); signing in to Test succeeds</span></div>
-    <div class="check-item"><div class="check-num">03</div><span>Logout succeeds</span></div>
+    <div class="check-item"><div class="check-num">03</div><span>Logout succeeds and the next sign-in starts clean: a manual warehouse pick under 2 minutes old and all-properties mode are not restored (GPS picks the nearest warehouse), the scan-invoice draft is gone, the dashboard layout is unchanged</span></div>
     <div class="check-item"><div class="check-num">04</div><span>Version/about display is correct</span></div>
     <div class="check-item"><div class="check-num">05</div><span>PWA update prompt does not show falsely</span></div>
     <div class="check-item"><div class="check-num">06</div><span>API calls include bearer token</span></div>
@@ -966,6 +970,7 @@ npm run dev</pre>
     <div class="check-item"><div class="check-num">12</div><span>A read-only user cannot perform write actions</span></div>
     <div class="check-item"><div class="check-num">13</div><span>Functions-backed export or invoice flow works if in scope for release</span></div>
     <div class="check-item"><div class="check-num">14</div><span>In Test, the TEST ENVIRONMENT banner shows on desktop (top) and mobile (bottom); amber sidebar, sky DB Manager badge and pale amber backgrounds</span></div>
+    <div class="check-item"><div class="check-num">15</div><span>In Test, a user with a property role who is not in <code>InvApp_Users</code> can write at that property and not at others</span></div>
   </div>
 </div>
 
@@ -1246,7 +1251,7 @@ npm run dev</pre>
 
 <div class="doc-footer">
   <span>ATC Inventory Application</span>
-  <span>PWA Developer Guide · May 2026</span>
+  <span>PWA Developer Guide · November 2026</span>
   <span>inventory_pwa · Internal Use Only</span>
 </div>
 

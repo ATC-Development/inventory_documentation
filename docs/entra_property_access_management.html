@@ -229,7 +229,7 @@
     </div>
     <div class="meta-cell">
       <span class="lbl">Updated</span>
-      <span class="val">October 2026</span>
+      <span class="val">November 2026</span>
     </div>
     <div class="meta-cell">
       <span class="lbl">Code Changes Required</span>
@@ -345,6 +345,12 @@
     <span class="icon">ℹ️</span>
     <div class="body">
       <strong>inventoryApp is a prerequisite for all write access.</strong> A user must be in the <code>InvApp_Users</code> group (or be a DatabaseManager) before any write operations are enabled — regardless of whether they also hold a property role. This gate is enforced in the PWA and is intended to prevent untrained users from modifying live data.
+    </div>
+  </div>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>Test environment: no inventoryApp gate.</strong> When a user signs in to <strong>Test</strong> (chosen on the login screen), the PWA treats them as if they were in <code>InvApp_Users</code>, so untrained users can practice. The table above then applies with every user at least in the <em>inventoryApp only</em> row: scan out and the other general write actions for everyone signed in; stock-in and add part still only at the properties of their property roles. Test writes go to the Test database only. <strong>Live keeps the gate.</strong> Like the gate itself, this is enforced in the PWA only; no Entra change is involved.
     </div>
   </div>
 </div>
@@ -513,7 +519,7 @@
   <div class="callout c-warn">
     <span class="icon">⚠️</span>
     <div class="body">
-      <strong>New employees are read-only by default.</strong> Any authenticated ATC user can log into the PWA and browse inventory, but cannot perform any write operations until they are added to <code>InvApp_Users</code> after completing training. This is by design.
+      <strong>New employees are read-only by default in Live.</strong> Any authenticated ATC user can log into the PWA and browse inventory, but cannot perform any write operations in Live until they are added to <code>InvApp_Users</code> after completing training. This is by design. In Test they can practice without it (§03).
     </div>
   </div>
   <div class="callout c-ok">
@@ -559,7 +565,7 @@
   <div class="callout c-warn">
     <span class="icon">⚠️</span>
     <div class="body">
-      <strong>Write access requires inventoryApp.</strong> A user with only property roles but without <code>inventoryApp</code> in their token will be treated as read-only. Both <code>inventoryApp</code> and a property role are required for property write access.
+      <strong>Write access requires inventoryApp (Live).</strong> A user with only property roles but without <code>inventoryApp</code> in their token will be treated as read-only. Both <code>inventoryApp</code> and a property role are required for property write access. In Test the PWA does not require <code>inventoryApp</code> (§03); the property role is still required for property writes.
     </div>
   </div>
   <div class="callout c-info">
