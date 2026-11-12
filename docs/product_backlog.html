@@ -285,11 +285,11 @@
     <div class="doc-meta">
       <div class="meta-item">
         <span class="meta-label">Version</span>
-        <span class="meta-value">1.7</span>
+        <span class="meta-value">1.8</span>
       </div>
       <div class="meta-item">
         <span class="meta-label">Date</span>
-        <span class="meta-value">November 10, 2026</span>
+        <span class="meta-value">November 12, 2026</span>
       </div>
       <div class="meta-item">
         <span class="meta-label">Repos</span>
@@ -301,9 +301,9 @@
   <div class="doc-body">
 
     <div class="summary-bar">
-      <div class="summary-cell"><div class="num">23</div><div class="lbl">Total Items</div></div>
+      <div class="summary-cell"><div class="num">25</div><div class="lbl">Total Items</div></div>
       <div class="summary-cell"><div class="num">15</div><div class="lbl">Complete</div></div>
-      <div class="summary-cell"><div class="num">7</div><div class="lbl">Open</div></div>
+      <div class="summary-cell"><div class="num">9</div><div class="lbl">Open</div></div>
       <div class="summary-cell"><div class="num">1</div><div class="lbl">Blocked</div></div>
       <div class="summary-cell"><div class="num">0</div><div class="lbl">Partial</div></div>
     </div>
@@ -607,6 +607,24 @@
               Deferred (spec P15). When the scan-in prompt&rsquo;s Mark received status change fails, show <em>&ldquo;Stock added, but the order couldn&rsquo;t be marked received. Mark it received from On Order.&rdquo;</em> instead of failing silently. The stock count is already updated; the API allows <code>cart_filled &rarr; received</code>.
             </td>
           </tr>
+          <tr>
+            <td>B-21</td>
+            <td class="td-name">PILL_OFFSET used as an inline style</td>
+            <td><span class="badge badge-mobile">Mobile</span></td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td class="td-notes">
+              PWA bug (traced in 1.1.11). <code>PILL_OFFSET</code> (<code>src/components/ContextPill/index.ts</code>) is a Tailwind class string, <code>'pt-[68px]'</code>, meant for <code>className</code>. <code>ScanLayout.tsx</code> uses it as <code>style={{ paddingTop: PILL_OFFSET + 16 }}</code> and <code>NewPartPage.tsx</code> as <code>paddingTop: PILL_OFFSET</code> and <code>PILL_OFFSET + 16</code>. Those values are not valid CSS, so the browser ignores them and these pages get no top offset; their content can sit under the fixed context pill. Fix: use the class, or a numeric offset for inline styles.
+            </td>
+          </tr>
+          <tr>
+            <td>B-22</td>
+            <td class="td-name">Extension: update esbuild</td>
+            <td><span class="badge badge-infra">Infra</span></td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td class="td-notes">
+              <code>inventory_extension</code> uses esbuild 0.28.0, which has a low-severity advisory in its development server on Windows. The build never runs the development server, so the alert was dismissed in Dependabot as not used (November 2026). Update esbuild in its own patch release, then check that both packages build and work (practice page in Test, Fox through Live).
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>
@@ -704,7 +722,7 @@
 
   <div class="doc-footer">
     <span>ATC Inventory Application — Product Backlog</span>
-    <span>v1.6 · May 17, 2026 · All Repos</span>
+    <span>v1.8 · November 12, 2026 · All Repos</span>
     <span class="footer-mono">CONFIDENTIAL · INTERNAL USE ONLY</span>
   </div>
 

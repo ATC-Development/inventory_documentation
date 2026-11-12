@@ -815,7 +815,7 @@ npm run dev</pre>
   </table>
   <div class="rules-list">
     <div class="rule-item"><div class="rule-dot danger"></div><span>The extension and the PWA never delete vendor cart lines. A non-empty vendor cart stops the fill and shows its lines</span></div>
-    <div class="rule-item"><div class="rule-dot warn"></div><span>The current environment's cart extension ID (<code>cartExtensionId</code> in the environment map) is a presence check, read when Fill Cart is clicked; messages go through <code>window.postMessage</code> and the extension's content bridge. Until the Test extension exists, the Test entry holds the current extension's ID. Every message to the extension carries <code>targetExtensionId</code> (that same ID, added by <code>postToExtension</code>), so that once Test and Live extensions run side by side only the addressed one answers; extension 1.3.1 ignores it</span></div>
+    <div class="rule-item"><div class="rule-dot warn"></div><span>The current environment's cart extension ID (<code>cartExtensionId</code> in the environment map) addresses every message to the extension: messages go through <code>window.postMessage</code> and the extension's content bridge, and each carries <code>targetExtensionId</code> (added by <code>postToExtension</code>, and by <code>pingExtension</code> for the availability ping). The Test and Live extensions are installed side by side; only the one with that ID answers. Test holds the Test extension's ID (<code>olmhgecfkfjjleajendeonaeahcfalib</code>). An empty ID gets no answer (Fill Cart shows the extension as not available), and <code>startCartFill</code> logs an error and does nothing</span></div>
     <div class="rule-item"><div class="rule-dot warn"></div><span>After an extension update, an open PWA tab shows "Extension not available" until it is reloaded</span></div>
     <div class="rule-item"><div class="rule-dot"></div><span>Orders are created from extra lines only by the user's click (Add as order); never automatically</span></div>
   </div>
@@ -1153,10 +1153,10 @@ npm run dev</pre>
       <tr><td class="t-accent">VITE_APP_VERSION</td><td class="t-accent2">Yes at build/runtime</td><td>Version display/check</td><td>Current app version from package/build</td></tr>
       <tr><td class="t-accent">VITE_TEST_API_BASE_URL</td><td class="t-accent2">Yes</td><td>Environment map (Test)</td><td>Test API base URL; also the SignalR hub host. Local API when developing</td></tr>
       <tr><td class="t-accent">VITE_TEST_FUNCTIONS_BASE_URL</td><td class="t-accent2">Yes</td><td>Environment map (Test)</td><td>Test Functions base URL (exports, invoice analysis)</td></tr>
-      <tr><td class="t-accent">VITE_TEST_CART_EXTENSION_ID</td><td class="t-accent2">Yes for Fill Cart</td><td>Environment map (Test)</td><td>Cart extension ID used in Test (presence check)</td></tr>
+      <tr><td class="t-accent">VITE_TEST_CART_EXTENSION_ID</td><td class="t-accent2">Yes for Fill Cart</td><td>Environment map (Test)</td><td>Cart extension ID used in Test: the Test extension, <code>olmhgecfkfjjleajendeonaeahcfalib</code>. Messages are addressed to it</td></tr>
       <tr><td class="t-accent">VITE_LIVE_API_BASE_URL</td><td class="t-muted">Empty until Live exists</td><td>Environment map (Live)</td><td>Live API base URL. With the Live Functions URL, makes Live available on the login screen</td></tr>
       <tr><td class="t-accent">VITE_LIVE_FUNCTIONS_BASE_URL</td><td class="t-muted">Empty until Live exists</td><td>Environment map (Live)</td><td>Live Functions base URL</td></tr>
-      <tr><td class="t-accent">VITE_LIVE_CART_EXTENSION_ID</td><td class="t-muted">Empty until Live exists</td><td>Environment map (Live)</td><td>Cart extension ID used in Live</td></tr>
+      <tr><td class="t-accent">VITE_LIVE_CART_EXTENSION_ID</td><td class="t-muted">Empty until Live exists</td><td>Environment map (Live)</td><td>Cart extension ID used in Live: the Live extension, <code>mkkkjimbaeioecfkippbplnegmaebdel</code>. Not set until the Live environment exists</td></tr>
     </tbody>
   </table>
 </div>

@@ -438,7 +438,7 @@
 <div class="doc-header">
   <div class="eyebrow">ATC Inventory Application — inventory_extension</div>
   <h1>Extension Developer Guide</h1>
-  <p class="subtitle">Architecture, message flow, security model, local setup, build process, and vendor onboarding guide for the ATC Inventory vendor cart fill Chrome/Edge extension.</p>
+  <p class="subtitle">Architecture, packages, message flow, security model, build process, release, and vendor onboarding guide for the ATC Inventory vendor cart fill Chrome/Edge extension.</p>
   <div class="meta-strip">
     <div class="meta-cell">
       <span class="lbl">Repo</span>
@@ -446,11 +446,11 @@
     </div>
     <div class="meta-cell">
       <span class="lbl">Status</span>
-      <span class="val green">Active — v1.3.1</span>
+      <span class="val green">Active — v1.4.1</span>
     </div>
     <div class="meta-cell">
       <span class="lbl">Vendor</span>
-      <span class="val">Fox Appliance Parts (Kodaris)</span>
+      <span class="val">Fox Appliance Parts (Kodaris) · practice page in Test</span>
     </div>
     <div class="meta-cell">
       <span class="lbl">Updated</span>
@@ -466,12 +466,13 @@
   <a href="#s3">03 Architecture</a>
   <a href="#s4">04 Message Flow</a>
   <a href="#s5">05 Security Model</a>
-  <a href="#s6">06 Local Setup</a>
+  <a href="#s6">06 Local Builds</a>
   <a href="#s7">07 Build Process</a>
   <a href="#s8">08 Configuration</a>
   <a href="#s9">09 Fox Parts — Platform Details</a>
-  <a href="#s10">10 Adding a New Vendor</a>
-  <a href="#s11">11 Deployment</a>
+  <a href="#s10">10 Practice Vendor Page (Test)</a>
+  <a href="#s11">11 Adding a New Vendor</a>
+  <a href="#s12">12 Deployment</a>
 </div>
 
 <div class="content">
@@ -488,9 +489,20 @@
   <div class="callout c-info">
     <span class="icon">ℹ️</span>
     <div class="body">
-      <strong>Vendor: Fox Appliance Parts</strong> — foxparts.com, on the Kodaris B2B platform. The session logic in the background worker is vendor-neutral; each vendor has its own content scripts and configuration (§10).
+      <strong>Vendor: Fox Appliance Parts</strong> — foxparts.com, on the Kodaris B2B platform. The session logic in the background worker is vendor-neutral; each vendor has its own content scripts and configuration (§11).
     </div>
   </div>
+
+  <h3>Two Packages from One Source</h3>
+  <p>The build produces two extensions from the same code. Both are force-installed on every managed device (§12). The PWA addresses each message to the current environment's extension ID, and each extension answers only messages addressed to its own ID (§05).</p>
+  <table>
+    <thead><tr><th>Package</th><th>Extension ID</th><th>Serves</th><th>Vendor</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">Live</td><td class="t-mono">mkkkjimbaeioecfkippbplnegmaebdel</td><td>The real vendor sites. PWA origin: <code>localhost:5173</code> only, until the Live environment exists</td><td>Fox site (content scripts, Fox host permission)</td></tr>
+      <tr><td class="t-accent">Test</td><td class="t-mono">olmhgecfkfjjleajendeonaeahcfalib</td><td>The deployed PWA (Test environment) and <code>localhost:5173</code>, against the Test and local APIs</td><td>Practice vendor page only (§10). No vendor host permissions: the real vendor is never contacted</td></tr>
+    </tbody>
+  </table>
+  <p>The core code (background, bridge, overlay, API client) is shared. Each package's differences are data in its package definition (§08).</p>
 
   <h3>What the extension does not do</h3>
   <ul style="margin: 10px 0 14px 20px; color: var(--text); font-size: 13px; line-height: 2;">
@@ -511,25 +523,34 @@
   <div class="file-tree">
     <span class="ft-dir">inventory_extension/</span><br>
     &nbsp;&nbsp;<span class="ft-dir">src/</span><br>
-    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">background.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Service worker — runs the cart session</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">background.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Core service worker — runs the cart session; startBackground(PACKAGE)</span><br>
     &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">content-bridge.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Injected into the PWA — postMessage ↔ runtime bridge</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-dir">packages/</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">live.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Live definition: name, release values, API map, vendors</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">test.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Test definition</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">live.background.js</span>&nbsp;&nbsp;<span class="ft-note">// Service worker entry for Live</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">test.background.js</span>&nbsp;&nbsp;<span class="ft-note">// Service worker entry for Test</span><br>
     &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-dir">core/</span><br>
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">session-store.js</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// The one session, in chrome.storage.session</span><br>
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">api-client.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Callback-token API calls</span><br>
-    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">api-origins.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Built-in API address per PWA origin</span><br>
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">overlay.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// The overlay shared by every vendor page</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-dir">practice/</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">practice.html · .css · .js</span>&nbsp;<span class="ft-note">// Practice vendor page (Test package only, §10)</span><br>
     &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-dir">vendors/</span><br>
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-dir">fox/</span><br>
-    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">vendor.config.js</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Fox constants (URLs, endpoints, company ID)</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">vendor.config.js</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Fox constants (names, URLs, endpoints, company ID)</span><br>
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">content.main.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// MAIN world — reads the kd global from the page</span><br>
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">content.isolated.js</span>&nbsp;<span class="ft-note">// ISOLATED world — Fox identity, cart calls, cart watching</span><br>
     &nbsp;&nbsp;<span class="ft-dir">manifests/</span><br>
-    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">manifest.json</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Base MV3 manifest (no version, no host permissions)</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">manifest.json</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Base MV3 manifest: fields shared by both packages</span><br>
     &nbsp;&nbsp;<span class="ft-dir">scripts/</span><br>
-    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">version-gate.mjs</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Release gate used by deploy.yml (§11)</span><br>
-    &nbsp;&nbsp;<span class="ft-dir">dist/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Built output (fox/, combined/) — not committed</span><br>
-    &nbsp;&nbsp;<span class="ft-file">build.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// esbuild build; generates the manifest</span><br>
-    &nbsp;&nbsp;<span class="ft-file">package.json</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// The only version source</span>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">version-gate.mjs</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Per-package release gate (§12)</span><br>
+    &nbsp;&nbsp;<span class="ft-dir">.github/workflows/</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">deploy.yml</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Releases Test, then Live (§12)</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">release-package.yml</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Build, gate, sign, upload, verify — one package</span><br>
+    &nbsp;&nbsp;<span class="ft-dir">dist/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// Built output (live/, test/) — not committed</span><br>
+    &nbsp;&nbsp;<span class="ft-file">build.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// esbuild build per package; generates the manifest</span><br>
+    &nbsp;&nbsp;<span class="ft-file">package.json</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-note">// The only version source (both packages)</span>
   </div>
 
   <h3>Key Constraint — Two Content Script Worlds</h3>
@@ -571,12 +592,12 @@
       <tr>
         <td class="t-accent">background.js</td>
         <td class="t-mono">Service worker</td>
-        <td>Runs the one cart session: state changes, login wait, fill, reconcile, ending. The only part that calls the API (<code>core/api-client.js</code>). Pushes every state change to the PWA tab and to the vendor tab.</td>
+        <td>Runs the one cart session: state changes, login wait, fill, reconcile, ending. The only part that calls the API (<code>core/api-client.js</code>). Pushes every state change to the PWA tab and to the vendor tab. Started by the package's entry with that package's API map and vendor registry (<code>startBackground(PACKAGE)</code>).</td>
       </tr>
       <tr>
         <td class="t-accent">content-bridge.js</td>
         <td class="t-mono">PWA tab (ISOLATED)</td>
-        <td>Forwards the PWA's <code>window.postMessage</code> requests to the background, and the background's pushes back into the page.</td>
+        <td>Forwards the PWA's <code>window.postMessage</code> requests addressed to this extension's ID to the background, and the background's pushes back into the page.</td>
       </tr>
       <tr>
         <td class="t-accent">content.main.js</td>
@@ -589,10 +610,25 @@
         <td>Answers the background (identity check, fill, cart read) and watches the Fox cart page tabs. Inert on any page load without a session.</td>
       </tr>
       <tr>
+        <td class="t-accent">practice/practice.js</td>
+        <td class="t-mono">Extension page (Test)</td>
+        <td>The practice vendor page: plays the role of the vendor site and its content script, with the same overlay (§10).</td>
+      </tr>
+      <tr>
         <td class="t-accent">core/overlay.js</td>
         <td class="t-mono">Vendor tab (bundled)</td>
         <td>The overlay every vendor page uses, so it looks and behaves the same on each: login banner, cart panel (result, missing, quantity changes, lines not in this order, changes since the last save), countdown, 15-minute warning popup, ended panel, I submitted the order, Release cart, Dismiss. <code>createOverlay({ vendor: { name, siteName }, onInCart, onLeftCart })</code> returns <code>render</code>, <code>setLiveCart</code>, <code>setCheckoutStatus</code>, <code>showLoginBanner</code>, <code>hideLoginBanner</code>. The vendor script supplies only its names and the cart-tab watch. Text through <code>textContent</code> only</td>
       </tr>
+    </tbody>
+  </table>
+
+  <h3>Vendor Kinds</h3>
+  <p>Each package's vendor registry maps a vendor key to a kind. The background sends the same messages to both kinds; only the delivery differs.</p>
+  <table>
+    <thead><tr><th>Kind</th><th>Used by</th><th>Vendor tab</th><th>Background → page</th><th>Page → background accepted from</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">site</td><td>Live (Fox)</td><td>The vendor's site (home page, then the cart page)</td><td><code>chrome.tabs.sendMessage</code> to the content script</td><td>This extension's content scripts on the vendor's origin</td></tr>
+      <tr><td class="t-accent">page</td><td>Test (practice)</td><td><code>practice/practice.html?vendor=&lt;key&gt;</code>; after the fill <code>…&amp;tab=cart</code> (a full reload, as on the vendor)</td><td><code>chrome.runtime.sendMessage</code> with <code>target_tab_id</code>: every extension page receives runtime messages, so only the page in the session's tab answers</td><td>This extension's practice page for the session's vendor key, in a tab</td></tr>
     </tbody>
   </table>
 
@@ -629,7 +665,7 @@
   <div class="flow">
     <div class="flow-step"><span class="flow-arrow">1 →</span><span>PWA calls <code>POST /vendors/{id}/cart/preflight</code> (user sign-in): validates the orders, takes the cart lock, returns <code>session_id</code>, <code>callback_token</code>, <code>vendor_key</code>, <code>expires_in_seconds</code> and the items</span></div>
     <div class="flow-step"><span class="flow-arrow">2 →</span><span>PWA sends <code>start_fill</code> with that payload. The background stores the session and answers <code>accepted</code> at once (or a refusal)</span></div>
-    <div class="flow-step"><span class="flow-arrow">3 →</span><span>Background opens or focuses the Fox tab and sends <code>check_identity</code>. Not logged in: the page shows the login banner and the PWA shows Login required. Each reload of that same tab re-checks (E1)</span></div>
+    <div class="flow-step"><span class="flow-arrow">3 →</span><span>Background opens or focuses the vendor tab (Fox in Live, the practice page in Test) and sends <code>check_identity</code>. Not logged in: the page shows the login banner and the PWA shows Login required. Each reload of that same tab re-checks (E1)</span></div>
     <div class="flow-step"><span class="flow-arrow">4 →</span><span>Logged in: <code>fill</code>. The content script reads the cart (<code>viewCart</code>); not empty → stop. Empty → bulk add; the result and the cart's lines go back to the background</span></div>
     <div class="flow-step"><span class="flow-arrow">5 →</span><span>Background calls <code>reconcile</code> (trigger <code>fill</code>) with the cart's lines, stores the result, moves the tab to the Fox cart page</span></div>
     <div class="flow-step"><span class="flow-arrow">6 →</span><span>Cart tab shown: the overlay lists changes since the last save (no API call). Checkout entered (Cart tab → tab 1 or 2): <code>reconcile</code> (trigger <code>checkout</code>), which also resets the 2-hour expiry</span></div>
@@ -640,14 +676,14 @@
   <table>
     <thead><tr><th>Direction</th><th>Type</th><th>Notes</th></tr></thead>
     <tbody>
-      <tr><td class="t-accent2">PWA → Extension</td><td class="t-mono">ping</td><td>Availability check; reply <code>pong</code></td></tr>
+      <tr><td class="t-accent2">PWA → Extension</td><td class="t-mono">ping</td><td>Availability check; reply <code>pong</code>. Like every PWA message, carries <code>targetExtensionId</code></td></tr>
       <tr><td class="t-accent2">PWA → Extension</td><td class="t-mono">start_fill</td><td>Payload: <code>session_id</code>, <code>callback_token</code>, <code>vendor_key</code>, <code>warehouse_name</code>, <code>expires_in_seconds</code>, <code>items[]</code> (<code>order_id</code>, <code>part_name</code>, <code>code</code>, <code>quantity</code>). Reply <code>accepted</code>, or refused: <code>unsupported_vendor</code>, <code>session_in_progress</code>, <code>origin_not_mapped</code>, <code>invalid_payload</code>, <code>unauthorized</code>. The same <code>session_id</code> again re-attaches the sending tab</td></tr>
       <tr><td class="t-accent2">PWA → Extension</td><td class="t-mono">end_session</td><td>Sent after the PWA released the session through the API. The extension ends it (<code>released</code>) without an API call</td></tr>
       <tr><td class="t-accent">Extension → PWA (push)</td><td class="t-mono">cart_session</td><td>On every change: <code>correlationId</code>, <code>vendorKey</code>, <code>session_id</code>, <code>state</code>, <code>login_reason</code>, <code>end_reason</code>, <code>end_detail</code>, <code>last_result</code>, <code>expires_in_seconds</code>, <code>warning_shown</code>. Never the token or the API address</td></tr>
-      <tr><td class="t-accent2">Background → Fox page</td><td class="t-mono">check_identity · fill · read_cart · session_changed</td><td>Identity status; fill result with cart lines; cart lines; overlay re-render</td></tr>
-      <tr><td class="t-accent">Fox page → Background</td><td class="t-mono">get_session_view</td><td>On every Fox page load. Reply is the session's public view, or <code>null</code> on a device without a session</td></tr>
-      <tr><td class="t-accent">Fox page → Background</td><td class="t-mono">checkout_entered</td><td>Carries the cart read at checkout entry; background reconciles</td></tr>
-      <tr><td class="t-accent">Fox page → Background</td><td class="t-mono">overlay_action · warning_shown · dismiss_session</td><td><code>submit</code> / <code>release</code>; the 15-minute popup was shown; forget an ended session</td></tr>
+      <tr><td class="t-accent2">Background → vendor page</td><td class="t-mono">check_identity · fill · read_cart · session_changed</td><td>Identity status; fill result with cart lines; cart lines; overlay re-render. To the practice page these also carry <code>target_tab_id</code> (§03)</td></tr>
+      <tr><td class="t-accent">Vendor page → Background</td><td class="t-mono">get_session_view</td><td>On every vendor page load. Reply is the session's public view, or <code>null</code> on a device without a session</td></tr>
+      <tr><td class="t-accent">Vendor page → Background</td><td class="t-mono">checkout_entered</td><td>Carries the cart read at checkout entry; background reconciles</td></tr>
+      <tr><td class="t-accent">Vendor page → Background</td><td class="t-mono">overlay_action · warning_shown · dismiss_session</td><td><code>submit</code> / <code>release</code>; the 15-minute popup was shown; forget an ended session</td></tr>
     </tbody>
   </table>
 </div>
@@ -660,19 +696,16 @@
   </div>
 
   <h3>Approved PWA Origins and API Addresses</h3>
-  <p>The background accepts PWA messages only from the origins in <code>src/core/api-origins.js</code>, and takes the API address for a session from that same map, keyed by the sending PWA's origin. The API address is never taken from a message.</p>
-  <pre>export const API_ORIGIN_BY_PWA_ORIGIN = {
-  'http://localhost:5173': 'http://localhost:5077',
-  'https://gray-tree-0fe80630f.4.azurestaticapps.net':
-    'https://atc-inventory-api-fhadavctbwbqace3.eastus-01.azurewebsites.net',
-};</pre>
-  <p>The deployed PWA maps to the <strong style="color:var(--white)">Test</strong> API. <code>build.js</code> adds each API origin to the manifest's <code>host_permissions</code>, which lets the background call it.</p>
-  <div class="callout c-warn">
-    <span class="icon">⚠️</span>
-    <div class="body">
-      <strong>A PWA origin is listed in three places that must agree:</strong> <code>api-origins.js</code>, and in <code>manifests/manifest.json</code> the content-bridge <code>matches</code> and <code>externally_connectable.matches</code>.
-    </div>
-  </div>
+  <p>The background accepts PWA messages only from the origins in its package's <code>api_origin_by_pwa_origin</code> map (§08), and takes the API address for a session from that same map, keyed by the sending PWA's origin. The API address is never taken from a message. <code>build.js</code> generates the content-bridge <code>matches</code>, <code>externally_connectable.matches</code> and the API <code>host_permissions</code> from the same map, so they cannot disagree.</p>
+  <table>
+    <thead><tr><th>Package</th><th>PWA origin</th><th>API</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">Live</td><td class="t-mono">http://localhost:5173</td><td class="t-mono">http://localhost:5077</td></tr>
+      <tr><td class="t-accent" rowspan="2">Test</td><td class="t-mono">http://localhost:5173</td><td class="t-mono">http://localhost:5077</td></tr>
+      <tr><td class="t-mono">https://gray-tree-0fe80630f.4.azurestaticapps.net</td><td class="t-mono">https://atc-inventory-api-fhadavctbwbqace3.eastus-01.azurewebsites.net (Test API)</td></tr>
+    </tbody>
+  </table>
+  <p>The Live package does not recognize the deployed PWA until the Live environment exists: its bridge is not injected there, and the background refuses that origin.</p>
 
   <h3>content-bridge.js Filtering</h3>
   <p>The content-bridge only forwards messages that pass all of these checks:</p>
@@ -680,16 +713,17 @@
     <li><code>event.source === window</code> — same window only</li>
     <li><code>event.origin === PWA_ORIGIN</code> — same origin only</li>
     <li><code>data.source === 'ATC_PWA'</code> — correct source tag</li>
+    <li><code>data.targetExtensionId === chrome.runtime.id</code> — addressed to this extension. Both packages can be installed on the same PWA origin (<code>localhost</code>), and both bridges receive every message; the other one stays silent. An empty target (environment not configured) is answered by neither</li>
     <li><code>ALLOWED_TYPES</code>: <code>ping</code>, <code>start_fill</code>, <code>end_session</code>. Pushes forwarded to the page: <code>cart_session</code></li>
   </ul>
-  <p>Since PWA 1.1.8 every message also carries <code>targetExtensionId</code>, the current environment's extension ID. Version 1.3.1 does not check it: the bridge forwards only <code>type</code>, <code>requestId</code>, <code>correlationId</code>, <code>vendorKey</code> and <code>payload</code>.</p>
-  <p>Messages from the Fox page are accepted only from this extension's content scripts on the session vendor's origin.</p>
+  <p>The bridge forwards only <code>type</code>, <code>requestId</code>, <code>correlationId</code>, <code>vendorKey</code> and <code>payload</code>. A background's pushes reach only its own extension's bridge.</p>
+  <p>Vendor page messages are accepted only from this extension's content scripts on the session vendor's origin, or from this extension's practice page for the session's vendor key (§03).</p>
 
   <h3>Sensitive Values</h3>
   <table>
     <thead><tr><th>Value</th><th>Handling</th></tr></thead>
     <tbody>
-      <tr><td class="t-accent">callback_token</td><td>From preflight, passed to the extension once in <code>start_fill</code>. Kept only in the background's session record in <code>chrome.storage.session</code> (in memory, cleared when the browser closes, not readable by content scripts at the default access level). Never sent to a content script or back to the PWA; sent only to the built-in API address. Cleared when the session ends. The API stores only its hash</td></tr>
+      <tr><td class="t-accent">callback_token</td><td>From preflight, passed to the extension once in <code>start_fill</code>. Kept only in the background's session record in <code>chrome.storage.session</code> (in memory, cleared when the browser closes, not readable by content scripts at the default access level). Extension pages can read that storage area; the practice page uses only its own keys and never reads the session record. Never sent to a content script or back to the PWA; sent only to the built-in API address. Cleared when the session ends. The API stores only its hash</td></tr>
       <tr><td class="t-accent">What the token allows</td><td>Reconcile, mark-ordered, release and leftovers for that one session, while open and unexpired. It cannot create records</td></tr>
       <tr><td class="t-accent">Fox session cookies</td><td>HttpOnly — never accessible to JavaScript in any world</td></tr>
       <tr><td class="t-accent">CSRF token (kd.csrfToken)</td><td>Read in the MAIN world, used by the ISOLATED world for the add request only; not stored</td></tr>
@@ -698,109 +732,38 @@
 
   <h3>No Stored Credentials</h3>
   <p>The extension stores no vendor credentials. The user logs in on the vendor site. The extension reads only the identity state the vendor's page exposes (<code>kd.customer.isLoggedIn</code>, <code>kd.customer.selectedCompanyID</code>). Because that page state can be stale, a Fox refusal of the add (HTTP 401/403 or "Unauthorized") is treated as login required.</p>
-  <p>All overlay text is set with <code>textContent</code>; part names, codes and Fox error text are never parsed as HTML.</p>
+  <p>All overlay and practice page text is set with <code>textContent</code>; part names, codes (including codes typed on the practice page) and Fox error text are never parsed as HTML.</p>
 </div>
 
-<!-- §06 LOCAL SETUP -->
+<!-- §06 LOCAL BUILDS -->
 <div class="section" id="s6">
   <div class="section-header">
     <span class="sn">06</span>
-    <h2>Local Setup</h2>
+    <h2>Local Builds</h2>
   </div>
+  <p>Build locally to check the output before a release. Testing is done through releases: both packages are force-installed on every managed device (§12).</p>
 
   <h3>Prerequisites</h3>
   <table>
     <thead><tr><th>Requirement</th><th>Notes</th></tr></thead>
     <tbody>
-      <tr><td class="t-accent">Node.js 24</td><td>Same as CI (<code>deploy.yml</code>); <code>crx3</code> requires Node 22 or later</td></tr>
-      <tr><td class="t-accent">Microsoft Edge</td><td>The extension targets Edge</td></tr>
-      <tr><td class="t-accent">inventory_api running locally</td><td>Port 5077 — the local PWA's sessions use the local API (<code>api-origins.js</code>)</td></tr>
-      <tr><td class="t-accent">inventory_pwa running locally</td><td>Port 5173 — an approved PWA origin (§05)</td></tr>
+      <tr><td class="t-accent">Node.js 24</td><td>Same as CI (<code>release-package.yml</code>); <code>crx3</code> requires Node 22 or later</td></tr>
     </tbody>
   </table>
 
   <h3>Install and Build</h3>
   <div class="pre-label">bash</div>
   <pre>cd inventory_extension
-npm install
-npm run build</pre>
+npm ci
+npm run build                 # both packages → dist/live/ and dist/test/</pre>
+  <div class="pre-label">PowerShell — list a package's files</div>
+  <pre>tree dist\test /F</pre>
+  <p><code>dist/test/</code> must contain <code>practice/practice.html</code>, <code>practice.css</code> and <code>practice.js</code>; <code>dist/live/</code> must contain <code>vendors/fox/</code>. Check <code>manifest.json</code> in each for the name, version, <code>update_url</code>, host permissions and content scripts (§08).</p>
 
-  <p>This produces <code>dist/fox/</code> containing the built extension ready to load.</p>
-
-  <h3>Exclude Your Device from the Intune Policy First</h3>
-  <div class="callout c-danger">
-    <span class="icon">⛔</span>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
     <div class="body">
-      <strong>Every managed device already has the extension.</strong> The Intune policy <em>Edge - ATC Inventory Extension</em> force-installs it on <strong>All devices</strong>, in every Edge profile (§11). An unpacked copy loaded on the same device runs <strong>beside</strong> the managed copy. The PWA sends its messages with <code>window.postMessage</code>, so <strong>both</strong> copies answer: one Fill cart becomes two fills against the shared Fox cart. Exclude the device before loading an unpacked copy.
-    </div>
-  </div>
-  <div class="steps">
-    <div class="step">
-      <div class="step-num">1</div>
-      <div class="step-body">
-        <div class="step-title">Put the device in an exclusion group</div>
-        <div class="step-desc">In Intune, add the development device to a device group. Open <strong style="color:var(--white)">Devices → Configuration → Policies → Edge - ATC Inventory Extension → Properties → Assignments → Edit</strong> and add that group under <strong style="color:var(--white)">Excluded groups</strong>. No exclusion group exists today; create one when needed</div>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">2</div>
-      <div class="step-body">
-        <div class="step-title">Confirm the managed copy is gone</div>
-        <div class="step-desc">After the device syncs, <code>edge://policy</code> (Reload policies) no longer lists the extension under <code>ExtensionInstallForcelist</code>, and <code>edge://extensions</code> no longer shows the managed copy. Do not continue until both are true</div>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">3</div>
-      <div class="step-body">
-        <div class="step-title">When finished</div>
-        <div class="step-desc">Remove the unpacked copy, then take the device out of the exclusion group. The managed copy reinstalls at the next policy refresh</div>
-      </div>
-    </div>
-  </div>
-
-  <h3>Load in Edge (Developer Mode)</h3>
-  <div class="steps">
-    <div class="step">
-      <div class="step-num">1</div>
-      <div class="step-body">
-        <div class="step-title">Open Extensions</div>
-        <div class="step-desc">Navigate to <code>edge://extensions</code> (or <code>chrome://extensions</code>)</div>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">2</div>
-      <div class="step-body">
-        <div class="step-title">Enable Developer Mode</div>
-        <div class="step-desc">Toggle <strong style="color:var(--white)">Developer mode</strong> on (top-right toggle)</div>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">3</div>
-      <div class="step-body">
-        <div class="step-title">Load Unpacked</div>
-        <div class="step-desc">Click <strong style="color:var(--white)">Load unpacked</strong> → select <code>dist/fox/</code></div>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">4</div>
-      <div class="step-body">
-        <div class="step-title">Note the Extension ID</div>
-        <div class="step-desc">Copy the extension ID shown on the card. An unpacked copy has a different ID from the managed copy. The PWA does not address messages by ID (it uses <code>window.postMessage</code>); it only requires <code>VITE_TEST_CART_EXTENSION_ID</code> to be set in its local env file (<code>.env</code> or <code>.env.local</code>, §08).</div>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">5</div>
-      <div class="step-body">
-        <div class="step-title">Verify ping</div>
-        <div class="step-desc">Open the PWA at <code>http://localhost:5173</code>, navigate to On Order, select an order with Fox as vendor, and click Fill Web Cart. The Fill Cart button should appear if the extension is detected.</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="callout c-info">
-    <span class="icon">ℹ️</span>
-    <div class="body">
-      After any source change, run <code>npm run build</code> then click the reload icon on the extension card in <code>edge://extensions</code>. The vendor tab (foxparts.com) must also be refreshed to pick up updated content scripts.
+      <strong>Unpacked copies are not answered by the PWA.</strong> Edge gives an unpacked copy an ID derived from its folder, and the PWA addresses every message to the released ID (§05), so neither bridge would answer the PWA through it. Unpacked testing is not set up. It would need the package's public key in the generated manifest (so the unpacked ID matches) and the device excluded from the Intune policy (so the managed copy does not run beside it); neither exists today.
     </div>
   </div>
 </div>
@@ -815,21 +778,21 @@ npm run build</pre>
   <p>The build uses <strong style="color:var(--white)">esbuild</strong> to bundle each source file into a self-contained output. No TypeScript — all source is plain JavaScript with ES modules.</p>
 
   <h3>Build Commands</h3>
-  <div class="pre-label">bash — build all vendors</div>
-  <pre>npm run build</pre>
-  <div class="pre-label">bash — build specific vendor</div>
-  <pre>npm run build:fox
-# or: node build.js --vendor=fox</pre>
+  <div class="pre-label">bash</div>
+  <pre>npm run build          # both packages
+npm run build:live     # node build.js --package=live → dist/live/
+npm run build:test     # node build.js --package=test → dist/test/</pre>
+  <p>Each build first deletes its output folder, so no file from an earlier build ends up in the package. A version in <code>package.json</code> that is not 1–4 dot-separated numbers stops the build.</p>
 
   <h3>Build Outputs</h3>
   <table>
-    <thead><tr><th>Output File</th><th>Format</th><th>Notes</th></tr></thead>
+    <thead><tr><th>Output file</th><th>Package</th><th>Format</th><th>Notes</th></tr></thead>
     <tbody>
-      <tr><td class="t-accent">dist/fox/background.js</td><td class="t-mono">ESM</td><td>Service worker — must be ESM for MV3</td></tr>
-      <tr><td class="t-accent">dist/fox/content-bridge.js</td><td class="t-mono">IIFE</td><td>Injected into PWA page — IIFE required for content scripts</td></tr>
-      <tr><td class="t-accent">dist/fox/vendors/fox/content.main.js</td><td class="t-mono">IIFE</td><td>MAIN world content script</td></tr>
-      <tr><td class="t-accent">dist/fox/vendors/fox/content.isolated.js</td><td class="t-mono">IIFE</td><td>ISOLATED world content script</td></tr>
-      <tr><td class="t-accent">dist/fox/manifest.json</td><td class="t-muted">—</td><td>Generated from <code>manifests/manifest.json</code>: adds <code>version</code> from <code>package.json</code>, <code>host_permissions</code> from <code>api-origins.js</code> and each <code>vendor.config.js</code>, and each vendor's content scripts</td></tr>
+      <tr><td class="t-accent">background.js</td><td>Both</td><td class="t-mono">ESM</td><td>From <code>src/packages/&lt;package&gt;.background.js</code>. Service worker — must be ESM for MV3</td></tr>
+      <tr><td class="t-accent">content-bridge.js</td><td>Both</td><td class="t-mono">IIFE</td><td>Injected into the package's PWA origins</td></tr>
+      <tr><td class="t-accent">vendors/fox/content.main.js<br>vendors/fox/content.isolated.js</td><td>Live</td><td class="t-mono">IIFE</td><td>One pair per <code>site</code> vendor</td></tr>
+      <tr><td class="t-accent">practice/practice.js · .html · .css</td><td>Test</td><td class="t-mono">IIFE</td><td>Built when the package has a <code>page</code> vendor. Not web accessible: the background opens it with <code>chrome.runtime.getURL</code>, and no website can load it</td></tr>
+      <tr><td class="t-accent">manifest.json</td><td>Both</td><td class="t-muted">—</td><td>Generated (§08)</td></tr>
     </tbody>
   </table>
 
@@ -849,21 +812,42 @@ npm run build</pre>
   </div>
 
   <h3>manifest.json — Key Settings</h3>
+  <p><code>manifests/manifest.json</code> holds only what both packages share: <code>manifest_version</code>, <code>description</code>, <code>permissions</code> and <code>background</code>. <code>build.js</code> writes the rest from <code>package.json</code> and the package definition.</p>
   <table>
-    <thead><tr><th>Setting</th><th>Value</th><th>Notes</th></tr></thead>
+    <thead><tr><th>Setting</th><th>Source</th><th>Notes</th></tr></thead>
     <tbody>
-      <tr><td class="t-accent">version</td><td class="t-mono">—</td><td>Not in the base manifest. The build writes <code>package.json</code>'s version into every generated manifest and stops if it is not 1–4 dot-separated numbers (§11)</td></tr>
-      <tr><td class="t-accent">permissions</td><td class="t-mono">tabs, scripting, storage, alarms</td><td><code>alarms</code> for the login wait, fill check and session expiry</td></tr>
-      <tr><td class="t-accent">host_permissions</td><td class="t-mono">— (generated)</td><td>Written by <code>build.js</code>: each API origin from <code>api-origins.js</code>, plus each vendor's <code>base_url</code> from its <code>vendor.config.js</code></td></tr>
-      <tr><td class="t-accent">content_scripts</td><td class="t-mono">content-bridge + generated</td><td>Base manifest: content-bridge on the PWA origins. <code>build.js</code> adds each vendor's MAIN and ISOLATED scripts for its <code>base_url</code></td></tr>
-      <tr><td class="t-accent">externally_connectable.matches</td><td class="t-mono">PWA origins</td><td>Must match the content-bridge matches and <code>api-origins.js</code> (§05)</td></tr>
-      <tr><td class="t-accent">background.type</td><td class="t-mono">module</td><td>Required for the ESM service worker</td></tr>
+      <tr><td class="t-accent">name</td><td class="t-mono">PACKAGE.name</td><td><em>ATC Inventory — Vendor Cart Fill</em> / <em>… (TEST)</em></td></tr>
+      <tr><td class="t-accent">version</td><td class="t-mono">package.json</td><td>One version for both packages (§12)</td></tr>
+      <tr><td class="t-accent">update_url</td><td class="t-mono">PACKAGE.release</td><td><code>host_url</code> + <code>update_manifest_name</code></td></tr>
+      <tr><td class="t-accent">permissions</td><td class="t-mono">base manifest</td><td><code>tabs</code>, <code>scripting</code>, <code>storage</code>, <code>alarms</code></td></tr>
+      <tr><td class="t-accent">host_permissions</td><td class="t-mono">generated</td><td>The package's API origins, plus each <code>site</code> vendor's <code>base_url</code> (Live only)</td></tr>
+      <tr><td class="t-accent">content_scripts</td><td class="t-mono">generated</td><td>The content-bridge on the package's PWA origins; each <code>site</code> vendor's MAIN and ISOLATED scripts on its <code>base_url</code></td></tr>
+      <tr><td class="t-accent">externally_connectable.matches</td><td class="t-mono">generated</td><td>The package's PWA origins</td></tr>
+      <tr><td class="t-accent">background.type</td><td class="t-mono">base manifest</td><td><code>module</code>, required for the ESM service worker</td></tr>
     </tbody>
   </table>
+
+  <h3>Package Definitions — src/packages/live.js, test.js</h3>
+  <pre>export const PACKAGE = {
+  name: 'ATC Inventory — Vendor Cart Fill (TEST)',
+  release: {                                      // scripts/version-gate.mjs, build.js
+    extension_id: 'olmhgecfkfjjleajendeonaeahcfalib',
+    host_url: 'https://atcextensionhost.z13.web.core.windows.net',
+    crx_name: 'atc-inventory-extension-test.crx',
+    update_manifest_name: 'update_manifest_test.xml',
+  },
+  api_origin_by_pwa_origin: { /* PWA origin → API address (§05) */ },
+  vendors: {
+    fox: { kind: 'page', config: FOX_CONFIG },    // Live: kind 'site'
+  },
+};</pre>
+  <p>When the PWA URL changes (new deployment, custom domain), add the origin and its API address to the map of the package that should serve it, and release a new version. The manifest entries follow from the build.</p>
 
   <h3>vendor.config.js — Fox</h3>
   <pre>export const FOX_CONFIG = {
   vendor_key: 'fox',                          // Must match Vendors.Vendor_key in the database
+  name: 'Fox',                                // Overlay wording (also on the practice page)
+  site_name: 'Fox Parts',
   base_url: 'https://www.foxparts.com',
   cart_endpoint: '/api/user/cart/item/bulk',  // bulk add
   view_cart_endpoint: '/api/user/cart/viewCart',
@@ -874,12 +858,9 @@ npm run build</pre>
   <div class="callout c-warn">
     <span class="icon">⚠️</span>
     <div class="body">
-      <strong>vendor_key must match Vendors.Vendor_key in the database.</strong> Preflight returns it and the PWA passes it in <code>start_fill</code>. A key that is not in <code>VENDOR_CONFIG</code> in background.js is refused with <code>unsupported_vendor</code>.
+      <strong>vendor_key must match Vendors.Vendor_key in the database.</strong> Preflight returns it and the PWA passes it in <code>start_fill</code>. A key that is not in the package's <code>vendors</code> is refused with <code>unsupported_vendor</code>.
     </div>
   </div>
-
-  <h3>api-origins.js — PWA Origins and API Addresses</h3>
-  <p>When the PWA URL changes (new deployment, custom domain), add the origin and its API address to <code>src/core/api-origins.js</code>, add the origin to the two lists in <code>manifests/manifest.json</code> (§05), and release a new version.</p>
 
   <h3>PWA Environment Variables</h3>
   <table>
@@ -887,8 +868,8 @@ npm run build</pre>
     <tbody>
       <tr>
         <td class="t-accent">VITE_TEST_CART_EXTENSION_ID<br>VITE_LIVE_CART_EXTENSION_ID</td>
-        <td>One per environment in the PWA's fixed environment map; Fill Cart uses the current environment's value. Presence check only. If it is empty, <code>startCartFill</code> logs an error and does nothing. Messages are not addressed by this ID: the PWA uses <code>window.postMessage</code>, and any installed copy of the extension answers. Deployed Test value: <code>mkkkjimbaeioecfkippbplnegmaebdel</code> (§11), the current extension, until the Test extension exists. Live: empty until Live exists</td>
-        <td><code>.env</code> or <code>.env.local</code> for dev. Deployed PWA: GitHub Actions secrets <code>VITE_TEST_CART_EXTENSION_ID</code> and <code>VITE_LIVE_CART_EXTENSION_ID</code>, passed to <code>npm run build</code> (build-time; a Static Web Apps environment variable has no effect)</td>
+        <td>One per environment in the PWA's fixed environment map. Every message to the extension carries the current environment's value as <code>targetExtensionId</code>, and only that extension answers (§05). Test: <code>olmhgecfkfjjleajendeonaeahcfalib</code> (the Test package). Live: not set until the Live environment exists. An empty value means no extension answers: Fill Cart shows the extension as not available</td>
+        <td>Deployed PWA: GitHub Actions secrets in <code>inventory_pwa</code>, passed to <code>npm run build</code> (build-time; a Static Web Apps environment variable has no effect). Changing one needs a PWA rebuild</td>
       </tr>
     </tbody>
   </table>
@@ -900,7 +881,7 @@ npm run build</pre>
     <span class="sn">09</span>
     <h2>Fox Parts — Platform Details</h2>
   </div>
-  <p>Fox Appliance Parts runs on the <strong style="color:var(--white)">Kodaris B2B e-commerce platform</strong>. All discoveries below were confirmed by live testing against an authenticated ATC session.</p>
+  <p>Fox Appliance Parts runs on the <strong style="color:var(--white)">Kodaris B2B e-commerce platform</strong>. All discoveries below were confirmed by live testing against an authenticated ATC session. This section applies to the Live package; in Test, the practice page stands in for Fox (§10).</p>
 
   <h3>Identity Detection</h3>
   <p>Kodaris exposes a <code>kd</code> global object on every page via an inline script block. It is not attached to <code>window</code> and must be accessed directly. Two fields are used for identity verification:</p>
@@ -944,10 +925,48 @@ kd.csrfToken                   // Required as X-CSRF-TOKEN header on mutating re
   <p>All Fox API calls require two things: session cookies (<code>sscaltoken</code> and <code>JSESSIONID</code> — HttpOnly, set by Fox on login, not accessible to JavaScript) and the CSRF token set as <code>X-CSRF-TOKEN</code> on all mutating requests. The <code>credentials: 'include'</code> fetch option handles cookie forwarding automatically.</p>
 </div>
 
-<!-- §10 ADDING A NEW VENDOR -->
+<!-- §10 PRACTICE VENDOR PAGE -->
 <div class="section" id="s10">
   <div class="section-header">
     <span class="sn">10</span>
+    <h2>Practice Vendor Page (Test)</h2>
+  </div>
+  <p>In the Test package, every vendor key opens <code>practice/practice.html?vendor=&lt;key&gt;</code> instead of the vendor's site. The page plays the role of the vendor site and its content script, so the background, the API and the PWA see the same sequence as on the real vendor. It uses the same overlay code as the Fox script, with the vendor's names from its config, so every pop-up reads exactly as on Fox.</p>
+
+  <h3>What the User Sees</h3>
+  <ul style="margin: 10px 0 14px 20px; color: var(--text); font-size: 13px; line-height: 2;">
+    <li>An amber <strong style="color:var(--white)">TEST ENVIRONMENT</strong> strip, the header <em>Practice cart · Fox Parts</em>, and a <strong style="color:var(--white)">LOGIN</strong> box at the top right</li>
+    <li><strong style="color:var(--white)">Not logged in:</strong> the cart area asks to log in, and the overlay shows the login banner. LOGIN sets the login for the rest of the browser session and reloads the page, which re-checks as a vendor login does</li>
+    <li><strong style="color:var(--white)">Cart tab:</strong> lines with part name (from the session's items; <em>Extra item</em> otherwise), code and quantity (+/−, Remove); <em>Add an extra item</em> (any code, quantity 1–999; the same code again adds to its line); <em>Empty cart</em></li>
+    <li><strong style="color:var(--white)">Checkout tab:</strong> the order number, the lines and <em>Place order</em>, which empties the practice cart. The user then clicks <strong style="color:var(--white)">I submitted the order</strong> on the overlay, as on Fox</li>
+  </ul>
+
+  <h3>Behavior Compared with Fox</h3>
+  <table>
+    <thead><tr><th>Item</th><th>Practice page</th></tr></thead>
+    <tbody>
+      <tr><td class="t-accent">Identity</td><td>The LOGIN flag in <code>chrome.storage.session</code> (<code>practice_logged_in:&lt;key&gt;</code>), cleared when the browser closes</td></tr>
+      <tr><td class="t-accent">Cart</td><td><code>chrome.storage.local</code> (<code>practice_cart:&lt;key&gt;</code>), kept until emptied, so leftover lines stop the next fill as on Fox. Practice order number <code>PRACTICE-…</code> created with the first line; line IDs never reused</td></tr>
+      <tr><td class="t-accent">Fill</td><td>Empty cart: items added, the page reloads on the Cart tab. Lines present: <code>cart_not_empty</code>, nothing changed</td></tr>
+      <tr><td class="t-accent">Moments</td><td>Cart tab shown: changes since the last save (no API call). Cart → Checkout: <code>checkout_entered</code>, reconcile, expiry reset</td></tr>
+      <tr><td class="t-accent">Extra codes</td><td>Any code is accepted. In the PWA, <em>Add as order</em> works only for a code that matches a Fox part in the Test database; any other code gets the API's "does not match exactly one part" message</td></tr>
+      <tr><td class="t-accent">Not simulated</td><td>Rejected codes, wrong account, the vendor login expiring during the fill</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Messaging and Security</h3>
+  <ul style="margin: 10px 0 14px 20px; color: var(--text); font-size: 13px; line-height: 2;">
+    <li>Answers <code>check_identity</code>, <code>fill</code>, <code>read_cart</code> and <code>session_changed</code> only from the background (this extension, no tab, the background's URL) and only when <code>target_tab_id</code> is its own tab. Other runtime messages it receives (the bridge's forwards, other pages) are ignored</li>
+    <li>Sends <code>get_session_view</code> on every load and <code>checkout_entered</code> on Cart → Checkout; the overlay sends <code>overlay_action</code>, <code>warning_shown</code> and <code>dismiss_session</code></li>
+    <li>Uses only its two storage keys; never reads the session record that holds the callback token</li>
+    <li>Script and styles from files only; all text through <code>textContent</code></li>
+  </ul>
+</div>
+
+<!-- §11 ADDING A NEW VENDOR -->
+<div class="section" id="s11">
+  <div class="section-header">
+    <span class="sn">11</span>
     <h2>Adding a New Vendor</h2>
   </div>
   <p>The background's session logic is vendor-neutral. A new vendor needs its own content scripts and configuration; the manifest entries are generated by the build.</p>
@@ -957,7 +976,7 @@ kd.csrfToken                   // Required as X-CSRF-TOKEN header on mutating re
       <div class="step-num">1</div>
       <div class="step-body">
         <div class="step-title">Create the vendor directory and config</div>
-        <div class="step-desc">Create <code>src/vendors/{vendorkey}/vendor.config.js</code> following the Fox pattern, with one named export. <code>vendor_key</code> must match <code>Vendors.Vendor_key</code>; <code>base_url</code> and <code>cart_page</code> are used by the build and the background.</div>
+        <div class="step-desc">Create <code>src/vendors/{vendorkey}/vendor.config.js</code> following the Fox pattern, with one named export. <code>vendor_key</code> must match <code>Vendors.Vendor_key</code>; <code>name</code> and <code>site_name</code> are the overlay's wording (also used on the practice page); <code>base_url</code> and <code>cart_page</code> are used by the build and the background.</div>
       </div>
     </div>
     <div class="step">
@@ -977,16 +996,15 @@ kd.csrfToken                   // Required as X-CSRF-TOKEN header on mutating re
     <div class="step">
       <div class="step-num">4</div>
       <div class="step-body">
-        <div class="step-title">Register in background.js and build.js</div>
+        <div class="step-title">Register in both packages</div>
         <div class="step-desc">
-          Add the config to <code>VENDOR_CONFIG</code> in background.js and the key to <code>ALL_VENDORS</code> in build.js:
-          <pre style="margin-top:10px">const VENDOR_CONFIG = {
-  fox: FOX_CONFIG,
-  newvendor: NEW_VENDOR_CONFIG,
-};
+          Add the vendor to <code>vendors</code> in both package definitions:
+          <pre style="margin-top:10px">// src/packages/live.js — the vendor's site
+newvendor: { kind: 'site', config: NEW_VENDOR_CONFIG },
 
-const ALL_VENDORS = ['fox', 'newvendor'];</pre>
-          The build adds the vendor's <code>host_permissions</code> and both content scripts from <code>base_url</code>; the base manifest does not change.
+// src/packages/test.js — the practice page (uses only the key and names)
+newvendor: { kind: 'page', config: NEW_VENDOR_CONFIG },</pre>
+          The build adds the vendor's <code>host_permissions</code> and both content scripts to the Live package from <code>base_url</code>; the Test package gets no vendor permission. Background and base manifest do not change.
         </div>
       </div>
     </div>
@@ -1001,7 +1019,7 @@ const ALL_VENDORS = ['fox', 'newvendor'];</pre>
       <div class="step-num">6</div>
       <div class="step-body">
         <div class="step-title">Build, release, test</div>
-        <div class="step-desc"><code>npm run build:combined</code>, release a new version (§11), and test from the PWA: login wait, stop on a non-empty cart, fill, checkout reconcile, I submitted the order, Release cart, countdown.</div>
+        <div class="step-desc"><code>npm run build</code>, release a new version (§12), and test from the PWA: in Test on the practice page, and on the real vendor through the Live package (<code>localhost</code> until the Live environment exists): login wait, stop on a non-empty cart, fill, checkout reconcile, I submitted the order, Release cart, countdown.</div>
       </div>
     </div>
   </div>
@@ -1014,36 +1032,40 @@ const ALL_VENDORS = ['fox', 'newvendor'];</pre>
   </div>
 </div>
 
-<!-- §11 DEPLOYMENT -->
-<div class="section" id="s11">
+<!-- §12 DEPLOYMENT -->
+<div class="section" id="s12">
   <div class="section-header">
-    <span class="sn">11</span>
+    <span class="sn">12</span>
     <h2>Deployment</h2>
   </div>
-  <p>A push to <code>main</code> builds, signs and publishes the extension to Azure Storage. An Intune device configuration policy force-installs it on every managed device, and Edge picks up new versions from the hosted update manifest. Users do not install it.</p>
+  <p>A push to <code>main</code> builds, signs and publishes both packages to Azure Storage. An Intune device configuration policy force-installs both on every managed device, and Edge picks up new versions from each package's hosted update manifest. Users do not install them.</p>
 
-  <h3>Release Pipeline — <code>.github/workflows/deploy.yml</code></h3>
-  <p>Runs on every push to <code>main</code>, and on demand (<strong style="color:var(--white)">Run workflow</strong>). One run at a time (a newer run waits). No approval step. A run <strong style="color:var(--white)">publishes only when the version is higher than the hosted one</strong>; otherwise it stops after the build.</p>
+  <h3>Release Pipeline — <code>deploy.yml</code> and <code>release-package.yml</code></h3>
+  <p><code>deploy.yml</code> runs on every push to <code>main</code>, and on demand (<strong style="color:var(--white)">Run workflow</strong>). One run at a time (a newer run waits). No approval step. It runs two jobs, each calling the reusable workflow <code>release-package.yml</code> with its package name and only its own signing key secret:</p>
+  <ul style="margin: 10px 0 14px 20px; color: var(--text); font-size: 13px; line-height: 2;">
+    <li><strong style="color:var(--white)">Release test</strong> first, then <strong style="color:var(--white)">Release live</strong>, which runs only after Test has succeeded. If Test fails, Live stays on its current version, so Live never moves ahead of a failed Test release</li>
+    <li>Each package <strong style="color:var(--white)">publishes only when the version is higher than its hosted one</strong>. If Test published and Live then failed, rerun the workflow: Test's gate skips (not higher) and Live publishes</li>
+  </ul>
   <table>
-    <thead><tr><th>Step</th><th>What it does</th></tr></thead>
+    <thead><tr><th>Step (per package)</th><th>What it does</th></tr></thead>
     <tbody>
-      <tr><td class="t-accent">Build</td><td>Node 24; <code>npm ci</code>; <code>npm run build:combined</code> → <code>dist/combined/</code> (all vendors, one merged manifest)</td></tr>
-      <tr><td class="t-accent">Release gate</td><td><code>node scripts/version-gate.mjs</code> reads the hosted <code>update_manifest.xml</code>. Built version higher, or nothing hosted → publish. Equal or lower → the remaining steps are skipped. Hosted manifest for a different extension ID, or any read error other than not found → the run fails</td></tr>
-      <tr><td class="t-accent">Signing key</td><td>Publish only. Secret <code>EXTENSION_SIGNING_KEY</code> (PKCS#1) converted to PKCS#8 in <code>/tmp</code>; deleted at the end of the job, also on failure</td></tr>
-      <tr><td class="t-accent">Pack</td><td>Publish only. <code>npx crx3</code> → <code>atc-inventory-extension.crx</code> and <code>update_manifest.xml</code>. Version from <code>dist/combined/manifest.json</code>; package URL fixed (below)</td></tr>
-      <tr><td class="t-accent">Check package</td><td>Publish only. <code>version-gate.mjs --check-package</code>: the generated <code>update_manifest.xml</code> must carry the expected extension ID and the built version. A package signed with a different key fails here, before upload</td></tr>
-      <tr><td class="t-accent">Azure login</td><td>Publish only. OIDC with secrets <code>AZURE_CLIENT_ID</code>, <code>AZURE_TENANT_ID</code>, <code>AZURE_SUBSCRIPTION_ID</code>: app registration <code>ATC-Github-Actions-Deployer</code>, federated credential <code>inventory-extension-main</code> (subject <code>ref:refs/heads/main</code>; no GitHub environment)</td></tr>
-      <tr><td class="t-accent">Upload</td><td>Publish only. CRX first, then the update manifest, so the manifest never points to a package that is not there yet. <code>az storage blob upload --overwrite</code> to storage account <code>atcextensionhost</code>, container <code>$web</code>: the CRX (<code>application/x-chrome-extension</code>) and <code>update_manifest.xml</code> (<code>application/xml</code>)</td></tr>
-      <tr><td class="t-accent">Verify hosted version</td><td>Publish only. <code>version-gate.mjs --verify</code>: the hosted manifest must now show the expected extension ID and the built version</td></tr>
+      <tr><td class="t-accent">Build</td><td>Node 24; <code>npm ci</code>; <code>node build.js --package=&lt;package&gt;</code></td></tr>
+      <tr><td class="t-accent">Release gate</td><td><code>node scripts/version-gate.mjs --package=&lt;package&gt;</code> takes the extension ID and hosted file names from the package definition and reads the hosted update manifest. Built version higher, or nothing hosted → publish. Equal or lower → the remaining steps are skipped. Missing or invalid extension ID, hosted manifest for a different ID, or any read error other than not found → the job fails. Passes the file names to the later steps</td></tr>
+      <tr><td class="t-accent">Signing key</td><td>Publish only. The job's key secret (PKCS#1) converted to PKCS#8 in <code>/tmp</code>; deleted at the end of the job, also on failure</td></tr>
+      <tr><td class="t-accent">Pack</td><td>Publish only. <code>npx crx3</code> → the package's CRX and update manifest; version from the built manifest</td></tr>
+      <tr><td class="t-accent">Check package</td><td>Publish only. <code>--check-package</code>: the generated update manifest must carry the expected extension ID and the built version. A package signed with the wrong key fails here, before upload</td></tr>
+      <tr><td class="t-accent">Azure login</td><td>Publish only. OIDC with secrets <code>AZURE_CLIENT_ID</code>, <code>AZURE_TENANT_ID</code>, <code>AZURE_SUBSCRIPTION_ID</code>: app registration <code>ATC-Github-Actions-Deployer</code>, federated credential <code>inventory-extension-main</code> (subject <code>ref:refs/heads/main</code>; no GitHub environment). The reusable workflow logs in with the calling workflow's subject</td></tr>
+      <tr><td class="t-accent">Upload</td><td>Publish only. CRX first, then the update manifest, so the manifest never points to a package that is not there yet. <code>az storage blob upload --overwrite</code> to storage account <code>atcextensionhost</code>, container <code>$web</code></td></tr>
+      <tr><td class="t-accent">Verify hosted version</td><td>Publish only. <code>--verify</code>: the hosted manifest must now show the expected extension ID and the built version</td></tr>
     </tbody>
   </table>
-  <p>The hosted URL and the extension ID are set once, at the top of <code>scripts/version-gate.mjs</code>.</p>
+  <p>Values reach the shell steps only through <code>env:</code>, never written into the scripts.</p>
 
   <h3>Versioning</h3>
   <div class="callout c-warn">
     <span class="icon">⚠️</span>
     <div class="body">
-      <strong>Edge installs an update only when the hosted version is higher than the installed one.</strong> The only version source is <code>package.json</code> (currently <code>1.3.1</code>). Versions compare as Edge compares them: dotted numbers, missing parts count as 0 (<code>1.0.0</code> equals <code>1.0</code>). A push without a version bump builds but publishes nothing, so a released version is never replaced by a different build.
+      <strong>Edge installs an update only when the hosted version is higher than the installed one.</strong> The only version source is <code>package.json</code> (currently <code>1.4.1</code>), shared by both packages: a version bump publishes both, no bump publishes neither. Versions compare as Edge compares them: dotted numbers, missing parts count as 0 (<code>1.0.0</code> equals <code>1.0</code>). A push without a version bump builds but publishes nothing, so a released version is never replaced by a different build.
     </div>
   </div>
 
@@ -1051,22 +1073,23 @@ const ALL_VENDORS = ['fox', 'newvendor'];</pre>
   <div class="pre-label">bash — on main, working tree clean</div>
   <pre>git commit -m "..."            # the change
 npm version patch               # or minor / major: bumps package.json and package-lock.json, commits, tags vX.Y.Z
-git push --follow-tags          # the workflow publishes</pre>
+git push --follow-tags          # the workflow publishes Test, then Live</pre>
   <p>Patch for fixes, minor for new capabilities, major for breaking changes to the PWA message protocol. Pre-release versions (<code>1.1.0-beta</code>) are not allowed: the build stops.</p>
 
   <h3>Hosting</h3>
   <table>
-    <thead><tr><th>Item</th><th>Value</th></tr></thead>
+    <thead><tr><th>Package</th><th>CRX</th><th>Update manifest</th><th>Signing key secret</th></tr></thead>
     <tbody>
-      <tr><td class="t-accent">Package</td><td><code>https://atcextensionhost.z13.web.core.windows.net/atc-inventory-extension.crx</code></td></tr>
-      <tr><td class="t-accent">Update manifest</td><td><code>https://atcextensionhost.z13.web.core.windows.net/update_manifest.xml</code></td></tr>
+      <tr><td class="t-accent">Live</td><td class="t-mono">atc-inventory-extension.crx</td><td class="t-mono">update_manifest.xml</td><td class="t-mono">EXTENSION_SIGNING_KEY</td></tr>
+      <tr><td class="t-accent">Test</td><td class="t-mono">atc-inventory-extension-test.crx</td><td class="t-mono">update_manifest_test.xml</td><td class="t-mono">EXTENSION_TEST_SIGNING_KEY</td></tr>
     </tbody>
   </table>
-  <div class="pre-label">update_manifest.xml — generated by crx3 at each release (1.3.1 shown)</div>
+  <p>Host: <code>https://atcextensionhost.z13.web.core.windows.net/</code>. Signing key secrets are in the <code>inventory_extension</code> repository.</p>
+  <div class="pre-label">update_manifest_test.xml — generated by crx3 at each release (1.4.1 shown)</div>
   <pre>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
 &lt;gupdate xmlns="http://www.google.com/update2/response" protocol="2.0"&gt;
-  &lt;app appid="mkkkjimbaeioecfkippbplnegmaebdel"&gt;
-    &lt;updatecheck codebase="https://atcextensionhost.z13.web.core.windows.net/atc-inventory-extension.crx" version="1.3.1" prodversionmin="64.0.3242" /&gt;
+  &lt;app appid="olmhgecfkfjjleajendeonaeahcfalib"&gt;
+    &lt;updatecheck codebase="https://atcextensionhost.z13.web.core.windows.net/atc-inventory-extension-test.crx" version="1.4.1" prodversionmin="64.0.3242" /&gt;
   &lt;/app&gt;
 &lt;/gupdate&gt;</pre>
 
@@ -1076,15 +1099,22 @@ git push --follow-tags          # the workflow publishes</pre>
     <tbody>
       <tr><td class="t-accent">Location</td><td>Intune admin center → Devices → Configuration → Policies → <strong style="color:var(--white)">Edge - ATC Inventory Extension</strong></td></tr>
       <tr><td class="t-accent">Setting</td><td><em>Extension/App IDs and update URLs to be silently installed (Device)</em> — Edge policy <code>ExtensionInstallForcelist</code></td></tr>
-      <tr><td class="t-accent">Value</td><td><code>mkkkjimbaeioecfkippbplnegmaebdel;https://atcextensionhost.z13.web.core.windows.net/update_manifest.xml</code></td></tr>
+      <tr><td class="t-accent">Value 1 (Live)</td><td><code>mkkkjimbaeioecfkippbplnegmaebdel;https://atcextensionhost.z13.web.core.windows.net/update_manifest.xml</code></td></tr>
+      <tr><td class="t-accent">Value 2 (Test)</td><td><code>olmhgecfkfjjleajendeonaeahcfalib;https://atcextensionhost.z13.web.core.windows.net/update_manifest_test.xml</code></td></tr>
       <tr><td class="t-accent">Scope</td><td>Device: applies to every Edge profile on the device</td></tr>
-      <tr><td class="t-accent">Assignment</td><td>Included: <strong style="color:var(--white)">All devices</strong>, no filter. Excluded: none. Local development needs an exclusion (§06)</td></tr>
+      <tr><td class="t-accent">Assignment</td><td>Included: <strong style="color:var(--white)">All devices</strong>, no filter. Excluded: none</td></tr>
     </tbody>
   </table>
+  <div class="callout c-warn">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>Each value on its own row, with no spaces before or after.</strong> Edge treats a leading space as part of the ID and skips that entry; <code>edge://policy</code> then shows <em>Invalid extension ID</em> for it (seen in November 2026 when the Test value was added). After any change to the policy, check <code>edge://policy</code> → <code>ExtensionInstallForcelist</code> on a synced device: one entry per value, no error in its status.
+    </div>
+  </div>
   <div class="callout c-danger">
     <span class="icon">⛔</span>
     <div class="body">
-      <strong>The extension ID comes from the signing key.</strong> A package signed with a different key has a different ID, which matches neither the Intune policy value nor the PWA's <code>VITE_TEST_CART_EXTENSION_ID</code>. Keep <code>EXTENSION_SIGNING_KEY</code> unchanged.
+      <strong>Each extension ID comes from its signing key.</strong> A package signed with a different key has a different ID, which matches neither the Intune value nor the PWA's extension ID setting. Keep <code>EXTENSION_SIGNING_KEY</code> and <code>EXTENSION_TEST_SIGNING_KEY</code> unchanged; GitHub secrets cannot be read back, so keep a backup of each key outside GitHub.
     </div>
   </div>
 
@@ -1096,10 +1126,10 @@ git push --follow-tags          # the workflow publishes</pre>
     <thead><tr><th>Check</th><th>How</th></tr></thead>
     <tbody>
       <tr><td class="t-accent2">Hosted version</td><td>The workflow's <strong style="color:var(--white)">Verify hosted version</strong> step passed (it checks the hosted manifest against the built version)</td></tr>
-      <tr><td class="t-accent2">Policy applied</td><td><code>edge://policy</code> lists <code>ExtensionInstallForcelist</code> with the value above</td></tr>
-      <tr><td class="t-accent2">Installed version</td><td><code>edge://extensions</code> on a managed device shows the extension (managed, no developer mode) at the new version. Edge checks for updates periodically, so a new version can take time to appear</td></tr>
-      <tr><td class="t-accent2">PWA detects extension</td><td>Vendor actions → the Fill Web Cart option is enabled. After an update, an open PWA tab shows "Extension not available" until it is reloaded</td></tr>
-      <tr><td class="t-accent2">PWA origins</td><td>Confirm the PWA URL and its API address are in <code>api-origins.js</code> and the manifest (§05) before a release for a new PWA URL</td></tr>
+      <tr><td class="t-accent2">Policy applied</td><td><code>edge://policy</code> lists <code>ExtensionInstallForcelist</code> with both values above and no error</td></tr>
+      <tr><td class="t-accent2">Installed version</td><td><code>edge://extensions</code> on a managed device shows both extensions (managed) at the new version. Edge checks for updates periodically, so a new version can take time to appear; Developer mode → <strong style="color:var(--white)">Update</strong> checks at once</td></tr>
+      <tr><td class="t-accent2">PWA detects extension</td><td>Deployed PWA (Test): Fill cart opens the practice page. After an update, an open PWA tab shows "Extension not available" until it is reloaded</td></tr>
+      <tr><td class="t-accent2">PWA origins</td><td>Before a release for a new PWA URL, confirm it is in the right package's API map (§08)</td></tr>
       <tr><td class="t-accent2">vendor_key matches DB</td><td>Confirm <code>Vendors.Vendor_key = 'fox'</code> for the Fox vendor record in production</td></tr>
     </tbody>
   </table>

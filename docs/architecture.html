@@ -642,6 +642,7 @@
 <div class="section" id="s11">
   <div class="section-header"><span class="sn">11</span><h2>Vendor Web Cart — Browser Extension</h2></div>
   <p>A fourth component, <code>inventory_extension</code> (Manifest V3 Edge extension), fills a vendor's web cart for an order list and keeps the API up to date while the user finishes the order on the vendor's site. First vendor: Fox Appliance Parts. It is force-installed on managed devices by Intune and hosted on <code>atcextensionhost</code> (see the <a href="extension_developer_guide.html">Extension Developer Guide</a>).</p>
+  <p>It is built as two packages from one source. <strong>Live</strong> works on the real vendor sites and, until the Live environment exists, serves only the PWA on <code>localhost</code>. <strong>Test</strong> serves the deployed PWA and opens a practice vendor page instead of the vendor's site, so Test sessions never reach the vendor. The PWA addresses every message to its environment's extension ID, and only that extension answers.</p>
 
   <h3>Flow</h3>
   <div class="pipeline">
@@ -659,7 +660,7 @@
       <tr><td class="t-muted">API is the source of truth</td><td>The extension reports what is in the vendor cart; the API decides order status</td></tr>
       <tr><td class="t-muted">Callback token</td><td>Scoped to one open session: update that session's orders, mark ordered, release. Cannot create records. Held only in the extension's background worker; the API stores its hash</td></tr>
       <tr><td class="t-muted">User sign-in calls</td><td>Preflight, abandon, my sessions, resolve and add as order go through the PWA with the user's token</td></tr>
-      <tr><td class="t-muted">API address</td><td>Built into the extension per PWA origin; the deployed PWA uses the Test API</td></tr>
+      <tr><td class="t-muted">API address</td><td>Built into each package per PWA origin; the deployed PWA is served by the Test package, which uses the Test API</td></tr>
     </tbody>
   </table>
   <p>Details: <a href="API_CONTRACT.html#vendor-cart">API_CONTRACT §9b</a> · <a href="Fox_Cart_Workflow_Annotated.html">Fox Cart — Annotated Extension Workflow</a>.</p>

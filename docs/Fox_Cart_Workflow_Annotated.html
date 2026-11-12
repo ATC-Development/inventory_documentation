@@ -355,7 +355,7 @@
 <!-- ── Header ───────────────────────────────────────────────────────────── -->
 <div class="doc-header">
   <div class="doc-title">Fox Cart — Annotated Extension Workflow</div>
-  <div class="doc-subtitle">inventory_pwa / inventory_api / inventory_extension · vendor cart v4 · extension 1.3.1 · PWA 1.1.8 · November 2026</div>
+  <div class="doc-subtitle">inventory_pwa / inventory_api / inventory_extension · vendor cart v4 · extension 1.4.1 · PWA 1.1.11 · November 2026</div>
   <div class="doc-meta">
     <span class="badge badge-blue">PWA: ExtensionCartProvider · CartFillPanel · CartExtrasPrompt · CartResolutionPopup</span>
     <span class="badge badge-purple">Extension: background.js · content-bridge.js · core/ (overlay.js shared by every vendor page)</span>
@@ -366,6 +366,21 @@
 
 <div class="callout callout-blue" style="margin:16px 24px;">
   The PWA starts the session (preflight) and can then be closed; the extension runs it on Fox and reports to the API with the session's callback token. Endpoint details: <a href="API_CONTRACT.html#vendor-cart" style="color:inherit;text-decoration:underline;">API_CONTRACT §9b</a>. Extension internals: <a href="extension_developer_guide.html" style="color:inherit;text-decoration:underline;">Extension Developer Guide</a>. Code excerpts are from the current source.
+</div>
+
+<div class="callout callout-amber" style="margin:16px 24px;">
+  <strong>Where this flow runs.</strong> This page follows the <strong>Live</strong> extension package on the real Fox site. Until the Live environment exists, Live serves only the PWA on <span class="mono">localhost:5173</span>. From the deployed PWA (Test environment), Fill Cart goes to the <strong>Test</strong> package, which opens its practice vendor page instead of Fox and runs the same sequence, with the same overlay, the same messages to the PWA and the same API calls (to the Test API). Fox is never contacted from Test.
+  <table class="status-table" style="margin-top:10px;">
+    <thead><tr><th>Item</th><th>Live (this page)</th><th>Test (practice page)</th></tr></thead>
+    <tbody>
+      <tr><td>Vendor tab</td><td>foxparts.com (home, then <span class="mono">/spcu/cart</span>)</td><td><span class="mono">practice/practice.html?vendor=fox</span> (then <span class="mono">&amp;tab=cart</span>)</td></tr>
+      <tr><td>Login</td><td>Fox login, read from the <span class="mono">kd</span> global</td><td>LOGIN box, once per browser session</td></tr>
+      <tr><td>Cart</td><td>Fox cart (<span class="mono">viewCart</span>, bulk add)</td><td>Practice cart kept in the extension until emptied</td></tr>
+      <tr><td>Checkout</td><td>Cart tab → tab 1 or 2</td><td>Cart tab → Checkout tab; <em>Place order</em> empties the cart</td></tr>
+      <tr><td>Not simulated</td><td>—</td><td>Rejected codes, wrong account, Fox login expiring during the fill</td></tr>
+    </tbody>
+  </table>
+  Details: <a href="extension_developer_guide.html#s10" style="color:inherit;text-decoration:underline;">Extension Developer Guide §10</a>.
 </div>
 
 <!-- ── Legend ───────────────────────────────────────────────────────────── -->
@@ -455,7 +470,7 @@
       </div>
     </div>
     <div class="step-body">
-      <div class="step-desc">The vendor key comes from preflight. Every message to the extension also carries <span class="mono">targetExtensionId</span>, the current environment's extension ID (<span class="mono">postToExtension</span>); extension 1.3.1 ignores it. If the extension refuses, or does not answer within 10 seconds (missing or too old), the provider releases the session through the API and shows why.</div>
+      <div class="step-desc">The vendor key comes from preflight. Every message to the extension also carries <span class="mono">targetExtensionId</span>, the current environment's extension ID (<span class="mono">postToExtension</span>); only the extension with that ID answers (the Test package in Test, the Live package in Live). If the extension refuses, or does not answer within 10 seconds (missing or too old), the provider releases the session through the API and shows why.</div>
       <div class="code-block">
         <div class="code-label">ExtensionCartProvider.tsx · start_fill</div>
         <pre>postToExtension({
@@ -497,7 +512,7 @@
       </div>
     </div>
     <div class="step-body">
-      <div class="step-desc">The sender must be an approved PWA origin; the API address comes from <span class="mono">api-origins.js</span> for that origin, never from the message. The payload is validated, and an unknown vendor key is refused (<span class="mono">unsupported_vendor</span>). One session per browser: a different active session is refused (<span class="mono">session_in_progress</span>); the same session again re-attaches the sending PWA tab. The session is stored in <span class="mono">chrome.storage.session</span>, the login and expiry alarms are set, and the reply is <span class="mono">accepted</span> before any vendor work starts.</div>
+      <div class="step-desc">The sender must be an approved PWA origin; the API address comes from the package's built-in map for that origin (<span class="mono">src/packages/</span>), never from the message. The payload is validated, and an unknown vendor key is refused (<span class="mono">unsupported_vendor</span>). One session per browser: a different active session is refused (<span class="mono">session_in_progress</span>); the same session again re-attaches the sending PWA tab. The session is stored in <span class="mono">chrome.storage.session</span>, the login and expiry alarms are set, and the reply is <span class="mono">accepted</span> before any vendor work starts.</div>
       <div class="code-block">
         <div class="code-label">background.js · the stored session (excerpt)</div>
         <pre>const created = await saveSession({
