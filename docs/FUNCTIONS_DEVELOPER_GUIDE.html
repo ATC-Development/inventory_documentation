@@ -148,7 +148,7 @@
     <div class="meta-cell"><span class="lbl">Runtime</span><span class="val">.NET 10 · Azure Functions v4 Isolated</span></div>
     <div class="meta-cell"><span class="lbl">Hosting</span><span class="val">Flex Consumption · Linux</span></div>
     <div class="meta-cell"><span class="lbl">Status</span><span class="val">Draft</span></div>
-    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">Oct 2026 (v1.0.0)</span></div>
+    <div class="meta-cell"><span class="lbl">Updated</span><span class="val">Nov 2026 (v1.1.0)</span></div>
   </div>
 </div>
 
@@ -476,7 +476,7 @@ if (!string.Equals(claims.Oid, request.RequestedByOid, StringComparison.OrdinalI
       <tr><td class="t-accent">part_trend</td><td>Consumption or quantity-on-hand trend for a single part across warehouses</td></tr>
       <tr><td class="t-accent">order_history</td><td>Order history filtered by warehouse, date range, status, category</td></tr>
       <tr><td class="t-accent">on_order</td><td>Open orders (<code>pending</code>, <code>cart_filled</code>, <code>ordered</code>) filtered by warehouse, in lifecycle order. PDF: separate Pending, Cart Filled and Ordered sections</td></tr>
-      <tr><td class="t-accent">parts_catalog</td><td>Parts catalog with supply levels</td></tr>
+      <tr><td class="t-accent">parts_catalog</td><td>Parts catalog with each part&#39;s own min/max (no warehouse; property levels not used)</td></tr>
       <tr><td class="t-accent">cross_reference</td><td>Cross-reference of parts to identifiers/barcodes</td></tr>
     </tbody>
   </table>
@@ -520,7 +520,7 @@ if (!string.Equals(claims.Oid, request.RequestedByOid, StringComparison.OrdinalI
       <tr><td class="t-accent">DailyChannelFailuresFunction</td><td>0 30 6 * * *</td><td>6:30 AM UTC, every day</td></tr>
     </tbody>
   </table>
-  <p><strong>Content:</strong> Daily posts each warehouse's pending orders — <code>pending</code> and <code>cart_filled</code> together, shown as pending (reminder only; the app shows the exact status). Weekly posts below-minimum items, pending (same rule) and ordered items; a below-minimum part with any open order is not listed as below minimum. Which warehouses are posted for is set by <code>NotificationTargetResolver</code> (Section 9). Errors are caught and logged, so a failed run still reports Succeeded (backlog).</p>
+  <p><strong>Content:</strong> Daily posts each warehouse's pending orders — <code>pending</code> and <code>cart_filled</code> together, shown as pending (reminder only; the app shows the exact status). Weekly posts below-minimum items, pending (same rule) and ordered items; a below-minimum part with any open order is not listed as below minimum. Below minimum means quantity at or below the effective minimum, <code>COALESCE(Supplies.Min_level, Parts.Min_level)</code> (the warehouse&#39;s own level, else the part default), the same rule as the API; <code>min_level</code> in the card is that effective value and <code>shortfall</code> is 0 for a part exactly at its minimum. Which warehouses are posted for is set by <code>NotificationTargetResolver</code> (Section 9). Errors are caught and logged, so a failed run still reports Succeeded (backlog).</p>
 
   <h3>Queue Function</h3>
   <p><strong>NotificationQueueFunction</strong> — Queue: <code>inventory-notifications</code>, Connection: <code>AzureWebJobsStorage</code>. Triggered by messages enqueued by <code>inventory_api</code> on inventory write events. See Section 9 for the full notification pipeline.</p>

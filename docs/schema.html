@@ -330,7 +330,7 @@
     <div class="col-row"><div class="col-name">Last_updated_dt</div><div class="col-type">datetime2</div><div class="col-notes">Quantity changes only</div></div>
   </div>
   <div class="callout c-info"><span class="icon">ℹ️</span><div class="body"><strong>Unique constraint:</strong> UNIQUE <code>(Part_id, Warehouse_id)</code> — one supply row per part per warehouse.</div></div>
-  <div class="callout c-info"><span class="icon">ℹ️</span><div class="body"><strong>Effective levels:</strong> effective Min = <code>COALESCE(Supplies.Min_level, Parts.Min_level)</code>; effective Max = <code>COALESCE(Supplies.Max_level, Parts.Max_level)</code>. Every API low-stock check (real-time alert, Below Minimum list, warehouse summary, <code>below_minimum</code> flag and filter) uses <code>Quantity &lt;= effective Min</code>, so a part with a minimum of 0 and 0 on hand counts as low stock. Property levels are set with <code>POST /supplies/levels</code> (DatabaseManager or the warehouse's <code>{propCode}_wh</code> role).</div></div>
+  <div class="callout c-info"><span class="icon">ℹ️</span><div class="body"><strong>Effective levels:</strong> effective Min = <code>COALESCE(Supplies.Min_level, Parts.Min_level)</code>; effective Max = <code>COALESCE(Supplies.Max_level, Parts.Max_level)</code>. Every low-stock check (API real-time alert, Below Minimum list, warehouse summary, <code>below_minimum</code> flag and filter, and the Functions weekly Teams section) uses <code>Quantity &lt;= effective Min</code>, so a part with a minimum of 0 and 0 on hand counts as low stock. Property levels are set with <code>POST /supplies/levels</code> (DatabaseManager or the warehouse's <code>{propCode}_wh</code> role).</div></div>
 </div>
 
 <!-- §09 TRANSACTIONS -->
