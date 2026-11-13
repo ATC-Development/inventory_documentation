@@ -1095,7 +1095,7 @@ Content-Type: application/json</pre>
 //   400 ATC_MASTER_NOT_ALLOWED &mdash; caller included ATC_MASTER in identifiers
 //   400 INVALID_ISSUE_UOM &middot; 400 INVALID_MULTIPLIER &middot; 400 INVALID_ID_VALUE
 //   400 INVALID_LEVEL_RANGE (negative level, or max_level below min_level)
-//   409 PART_NAME_ALREADY_EXISTS &middot; 409 PART_NAME_SIMILAR_EXISTS (unless allow_similar_name)
+//   409 PART_NAME_ALREADY_EXISTS &middot; 422 PART_NAME_SIMILAR_EXISTS (unless allow_similar_name)
 //   409 IDENTIFIER_ALREADY_EXISTS (supplied id_value already exists)
 //   409 ATC_MASTER_SEQUENCE_CONFLICT (concurrent creation race &mdash; safe to retry)</pre>
 
@@ -1127,7 +1127,7 @@ Content-Type: application/json</pre>
 <pre>// Response: 204 No Content
 // Side effects: SignalR part.updated &rarr; all clients, payload { partId }
 // Errors: 404 (no body) &middot; 400 INVALID_NAME &middot; 409 PART_NAME_ALREADY_EXISTS
-//         409 PART_NAME_SIMILAR_EXISTS (name change without force_name)
+//         422 PART_NAME_SIMILAR_EXISTS (name change without force_name)
 //         400 INVALID_LEVEL_RANGE &middot; 409 LEVEL_CONFLICT</pre>
 <div class="warn"><strong>Default changes are checked against every warehouse.</strong> Warehouses without their own level follow the part default. A change to <code>min_level</code> or <code>max_level</code> is rejected with <code>409 LEVEL_CONFLICT</code> if any warehouse would end up with an effective Max below its effective Min; nothing is saved. Correct those warehouses' levels (<code>POST /supplies/levels</code>) first. The check runs only when <code>min_level</code> or <code>max_level</code> changes, so name and category edits are never blocked by it.</div>
 <pre>// 409 LEVEL_CONFLICT body
@@ -2273,7 +2273,7 @@ Content-Type: application/json</pre>
   <tbody>
     <tr><td class="err-code">PART_NOT_FOUND</td><td class="err-http http-404">404 / 422</td><td>Part ID does not exist. 422 when used as a foreign key reference (e.g. order create).</td></tr>
     <tr><td class="err-code">PART_NAME_ALREADY_EXISTS</td><td class="err-http http-409">409</td><td>Part name uniqueness violation</td></tr>
-    <tr><td class="err-code">PART_NAME_SIMILAR_EXISTS</td><td class="err-http http-409">409</td><td>Part name is similar to an existing name; bypass with <code>allow_similar_name</code> (create) or <code>force_name</code> (update)</td></tr>
+    <tr><td class="err-code">PART_NAME_SIMILAR_EXISTS</td><td class="err-http http-422">422</td><td>Part name is similar to an existing name; bypass with <code>allow_similar_name</code> (create) or <code>force_name</code> (update)</td></tr>
     <tr><td class="err-code">ATC_MASTER_SEQUENCE_CONFLICT</td><td class="err-http http-409">409</td><td>Concurrent part creation race condition &mdash; safe to retry immediately</td></tr>
     <tr><td class="err-code">INVALID_LEVEL_RANGE</td><td class="err-http http-400">400</td><td>Default min or max is negative, or max is below min</td></tr>
     <tr><td class="err-code">LEVEL_CONFLICT</td><td class="err-http http-409">409</td><td>Default change would leave at least one warehouse with effective Max below effective Min. Body lists the warehouses.</td></tr>
