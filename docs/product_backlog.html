@@ -625,6 +625,24 @@
               <code>inventory_extension</code> uses esbuild 0.28.0, which has a low-severity advisory in its development server on Windows. The build never runs the development server, so the alert was dismissed in Dependabot as not used (November 2026). Update esbuild in its own patch release, then check that both packages build and work (practice page in Test, Fox through Live).
             </td>
           </tr>
+          <tr>
+            <td>B-23</td>
+            <td class="td-name">Collapsible sidebar</td>
+            <td><span class="badge badge-desktop">Desktop</span></td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td class="td-notes">
+              Requested November 2026; scheduled right after the PCR-1 PWA release. A &#9776; button at the top of the desktop sidebar switches between the full sidebar and a narrow icon rail, as in the Microsoft 365 admin center, giving pages more width. In the rail each icon shows its name on hover; section headings and the DB Manager tag are hidden; the active page stays highlighted. The choice is remembered on the device and kept through sign-out, like the dashboard layout. Desktop only. Today the sidebar is a fixed <code>w-56</code> in <code>AppShell.tsx</code>; every nav item already has an icon.
+            </td>
+          </tr>
+          <tr>
+            <td>B-24</td>
+            <td class="td-name">Unused <code>Transactions.WarehouseId</code> column</td>
+            <td><span class="badge badge-api">API</span></td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td class="td-notes">
+              Found in the <code>AddPropertyLevels</code> model snapshot (November 2026). <code>Warehouse.Transactions</code> is not tied to the configured <code>Transactions &rarr; Warehouse</code> relationship (<code>WithMany()</code>), so EF Core keeps a second, unused foreign key column <code>WarehouseId</code> beside <code>Warehouse_id</code>. It already exists in the database; no API code writes it (nothing adds transactions through <code>Warehouse.Transactions</code>). Fix: map the collection to the existing relationship, then drop the column in a migration.
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>
