@@ -377,7 +377,7 @@
 <!-- §25 SUPPLYLEVELCHANGES -->
 <div class="section" id="s25">
   <div class="section-header"><span class="sn">25</span><h2>SupplyLevelChanges</h2></div>
-  <p>Append-only history of property level changes (<code>Supplies.Min_level</code> / <code>Max_level</code>). One row per changed supply, written in the <strong>same transaction</strong> as the change, so a level never changes without its history row. Read by DatabaseManagers with <code>GET /supplies/level-changes</code>.</p>
+  <p>Append-only history of property level changes (<code>Supplies.Min_level</code> / <code>Max_level</code>). One row per changed supply, written in the <strong>same transaction</strong> as the change, so a level never changes without its history row. Read by DatabaseManagers with <code>GET /supplies/level-changes</code> (full history) and <code>GET /supplies/level-changes/summary</code> (one row per part + warehouse).</p>
   <div class="col-list">
     <div class="col-row pk"><div class="col-name">Id</div><div class="col-type">int, identity</div><div class="col-notes">PK</div></div>
     <div class="col-row fk"><div class="col-name">Part_id</div><div class="col-type">int, required</div><div class="col-notes">FK → Parts.Id, cascade delete (same as Transactions)</div></div>

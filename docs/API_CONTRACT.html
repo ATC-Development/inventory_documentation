@@ -88,7 +88,7 @@
 <div class="title-block">
   <h1>ATC Inventory API</h1>
   <div class="subtitle">Developer Contract — Full Endpoint Reference</div>
-  <div class="meta">Version: <strong>1.3</strong> &nbsp;&nbsp; Date: <strong>November 12, 2026</strong> &nbsp;&nbsp; Related: <strong>API_DEVELOPER_GUIDE.md</strong> &nbsp;&nbsp; Source: <strong>inventory_api snapshot 2026-05-17; vendor order methods, vendor cart and orders sections 2026-11-05; property levels (PCR-1, API 1.1.0) 2026-11-12</strong></div>
+  <div class="meta">Version: <strong>1.4</strong> &nbsp;&nbsp; Date: <strong>November 16, 2026</strong> &nbsp;&nbsp; Related: <strong>API_DEVELOPER_GUIDE.md</strong> &nbsp;&nbsp; Source: <strong>inventory_api snapshot 2026-05-17; vendor order methods, vendor cart and orders sections 2026-11-05; property levels (PCR-1, API 1.1.0) 2026-11-12; level change summary (API 1.2.0) 2026-11-16</strong></div>
 </div>
 
 <div class="toc">
@@ -395,6 +395,7 @@ Content-Type: application/json</pre>
     <tr><td class="ep-method m-get">GET</td><td class="ep-path">/supplies/lookup</td><td>Read-only barcode+warehouse lookup</td><td class="ep-auth a-auth">Authenticated</td></tr>
     <tr><td class="ep-method m-get">GET</td><td class="ep-path">/supplies/part-trend</td><td>Per-warehouse series for one part (DatabaseManager)</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
     <tr><td class="ep-method m-get">GET</td><td class="ep-path">/supplies/level-changes</td><td>Property level change history (read-only)</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
+    <tr><td class="ep-method m-get">GET</td><td class="ep-path">/supplies/level-changes/summary</td><td>Level change summary: one row per part + warehouse (read-only)</td><td class="ep-auth a-dm">DatabaseManager</td></tr>
     <tr><td class="ep-method m-post">POST</td><td class="ep-path">/supplies/levels</td><td>Set or clear property min/max for supplies in one warehouse (batch)</td><td class="ep-auth a-prop">DM or propCode_wh</td></tr>
     <tr><td class="ep-method m-post">POST</td><td class="ep-path">/supplies</td><td>Create supply record</td><td class="ep-auth a-prop">DM or propCode_wh</td></tr>
     <tr><td class="ep-method m-post">POST</td><td class="ep-path">/supplies/multiple</td><td>Bulk create supply records (role checked for every warehouse)</td><td class="ep-auth a-prop">DM or propCode_wh</td></tr>
@@ -1473,14 +1474,14 @@ Content-Type: application/json</pre>
 //         400 INVALID_LEVEL_RANGE (includes item index) &middot; 422 SUPPLY_NOT_IN_WAREHOUSE (includes item index)</pre>
 
 <h3>GET /supplies/level-changes <span class="auth-label auth-dm">DatabaseManager</span></h3>
-<p>Property level change history, newest first. Dates are Eastern business days; each date covers the whole day.</p>
+<p>Property level change history, newest first. Dates are Eastern business days; each date covers the whole day. Each date applies only when sent; with no dates, all history is returned.</p>
 <table class="field-table">
   <thead><tr><th>Query Param</th><th>Type</th><th>Default</th><th>Notes</th></tr></thead>
   <tbody>
     <tr><td class="f-name">warehouse_id</td><td class="f-type">int?</td><td class="f-req-n">&mdash;</td><td></td></tr>
     <tr><td class="f-name">part_id</td><td class="f-type">int?</td><td class="f-req-n">&mdash;</td><td></td></tr>
-    <tr><td class="f-name">date_from</td><td class="f-type">DateOnly?</td><td class="f-req-n">today &minus; 29 days</td><td>Inclusive. The default range is the last 30 days including today.</td></tr>
-    <tr><td class="f-name">date_to</td><td class="f-type">DateOnly?</td><td class="f-req-n">today</td><td>Inclusive.</td></tr>
+    <tr><td class="f-name">date_from</td><td class="f-type">DateOnly?</td><td class="f-req-n">&mdash;</td><td>Inclusive. No lower bound when not sent.</td></tr>
+    <tr><td class="f-name">date_to</td><td class="f-type">DateOnly?</td><td class="f-req-n">&mdash;</td><td>Inclusive. No upper bound when not sent.</td></tr>
     <tr><td class="f-name">page</td><td class="f-type">int?</td><td class="f-req-n">1</td><td></td></tr>
     <tr><td class="f-name">limit</td><td class="f-type">int?</td><td class="f-req-n">50</td><td></td></tr>
   </tbody>
@@ -1507,6 +1508,40 @@ Content-Type: application/json</pre>
   ]
 }
 // null in old_* / new_* = following the part default</pre>
+
+<h3>GET /supplies/level-changes/summary <span class="auth-label auth-dm">DatabaseManager</span></h3>
+<p>One row per part + warehouse that has level change history, most recent change first. Parts no longer stocked at the warehouse (no current supply row) are left out; their history is still returned by <code>GET /supplies/level-changes</code>. A row's full history: <code>GET /supplies/level-changes?warehouse_id=&amp;part_id=</code>.</p>
+<table class="field-table">
+  <thead><tr><th>Query Param</th><th>Type</th><th>Default</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="f-name">warehouse_id</td><td class="f-type">int?</td><td class="f-req-n">&mdash;</td><td></td></tr>
+    <tr><td class="f-name">search</td><td class="f-type">string?</td><td class="f-req-n">&mdash;</td><td>Part name contains, case-insensitive</td></tr>
+    <tr><td class="f-name">page</td><td class="f-type">int?</td><td class="f-req-n">1</td><td></td></tr>
+    <tr><td class="f-name">limit</td><td class="f-type">int?</td><td class="f-req-n">50</td><td></td></tr>
+  </tbody>
+</table>
+<pre>// Response: 200 OK &mdash; total = number of part + warehouse rows
+{
+  "total": 4,
+  "page": 1,
+  "limit": 50,
+  "data": [
+    {
+      "part_id": 5,
+      "part_name": "HVAC Filter 16x20",
+      "warehouse_id": 3,
+      "warehouse_name": "Barrington",
+      "property_min_level": 6,
+      "property_max_level": null,
+      "default_min_level": 2,
+      "default_max_level": 10,
+      "change_count": 3,
+      "last_changed_dt": "2026-11-12T20:41:00Z",
+      "last_changed_by_email": "user@domain.com"
+    }
+  ]
+}
+// property_* null = following the part default (default_*)</pre>
 
 <h2 id="transactions">13. Transactions</h2>
 <div class="note">Transactions are an append-only immutable ledger. There are no write endpoints. Rows are created automatically as side effects of supply-changing operations.</div>
