@@ -88,7 +88,7 @@
 <div class="title-block">
   <h1>ATC Inventory API</h1>
   <div class="subtitle">Developer Contract — Full Endpoint Reference</div>
-  <div class="meta">Version: <strong>1.4</strong> &nbsp;&nbsp; Date: <strong>November 16, 2026</strong> &nbsp;&nbsp; Related: <strong>API_DEVELOPER_GUIDE.md</strong> &nbsp;&nbsp; Source: <strong>inventory_api snapshot 2026-05-17; vendor order methods, vendor cart and orders sections 2026-11-05; property levels (PCR-1, API 1.1.0) 2026-11-12; level change summary (API 1.2.0) 2026-11-16</strong></div>
+  <div class="meta">Version: <strong>1.5</strong> &nbsp;&nbsp; Date: <strong>November 17, 2026</strong> &nbsp;&nbsp; Related: <strong>API_DEVELOPER_GUIDE.md</strong> &nbsp;&nbsp; Source: <strong>inventory_api snapshot 2026-05-17; vendor order methods, vendor cart and orders sections 2026-11-05; property levels (PCR-1, API 1.1.0) 2026-11-12; level change summary (API 1.2.0) 2026-11-16; parts stocking and levels on supply create (API 1.3.0) 2026-11-17</strong></div>
 </div>
 
 <div class="toc">
@@ -987,6 +987,8 @@ Content-Type: application/json</pre>
     <tr><td class="f-name">search</td><td class="f-type">string?</td><td class="f-req-n">&mdash;</td><td>Substring on part name, primary or secondary category name</td></tr>
     <tr><td class="f-name">category_id</td><td class="f-type">int?</td><td class="f-req-n">&mdash;</td><td>Filter by primary category</td></tr>
     <tr><td class="f-name">excludeWarehouseId</td><td class="f-type">int?</td><td class="f-req-n">&mdash;</td><td>Exclude parts already stocked at this warehouse (used when adding to a new warehouse)</td></tr>
+    <tr><td class="f-name">stocked_at</td><td class="f-type">int[]?</td><td class="f-req-n">&mdash;</td><td>Repeated: <code>?stocked_at=3&amp;stocked_at=7</code>. Only parts stocked at <strong>any</strong> listed warehouse; <code>total</code> and paging apply after the filter. Unknown IDs match nothing; a non-numeric value returns <code>400</code></td></tr>
+    <tr><td class="f-name">include_stocked</td><td class="f-type">bool?</td><td class="f-req-n">false</td><td><code>true</code> adds <code>stocked_warehouses</code> to each part (see below)</td></tr>
     <tr><td class="f-name">page</td><td class="f-type">int?</td><td class="f-req-n">1</td><td></td></tr>
     <tr><td class="f-name">limit</td><td class="f-type">int?</td><td class="f-req-n">50</td><td></td></tr>
     <tr><td class="f-name">sort_by</td><td class="f-type">string?</td><td class="f-req-n">name</td><td><code>name</code> &middot; <code>primary_category_name</code> &middot; <code>min_level</code> (part default)</td></tr>
@@ -1036,6 +1038,12 @@ Content-Type: application/json</pre>
     }
   ]
 }</pre>
+<pre>// With include_stocked=true each part also carries every warehouse that stocks it, sorted by prop_code
+"stocked_warehouses": [
+  { "warehouse_id": 4, "warehouse_name": "The Augustan", "prop_code": "aug" },
+  { "warehouse_id": 2, "warehouse_name": "Helena Springs", "prop_code": "hs" }
+]
+// Empty list when the part is stocked nowhere. Field absent when include_stocked is not true.</pre>
 
 <h3>GET /parts/search <span class="auth-label auth-auth">Authenticated</span></h3>
 <p>Name similarity search (threshold 0.85). Powers the debounced duplicate-check in the new part form. Must be registered before <code>GET /parts/{id}</code> to avoid route conflict.</p>
@@ -1343,11 +1351,14 @@ Content-Type: application/json</pre>
     <tr><td class="f-name">part_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td></td></tr>
     <tr><td class="f-name">warehouse_id</td><td class="f-type">int</td><td class="f-req-y">Yes</td><td></td></tr>
     <tr><td class="f-name">quantity</td><td class="f-type">int</td><td class="f-req-n">No</td><td>Initial quantity. Defaults to 0.</td></tr>
+    <tr><td class="f-name">min_level</td><td class="f-type">int?</td><td class="f-req-n">No</td><td>Property min for this warehouse. At least 1. Omit to follow the part default</td></tr>
+    <tr><td class="f-name">max_level</td><td class="f-type">int?</td><td class="f-req-n">No</td><td>Property max for this warehouse. Not negative; max in use not below min in use (sent value, else part default). Omit to follow the part default</td></tr>
   </tbody>
 </table>
+<p>Level rules are the same as <code>POST /supplies/levels</code>. When either level is sent, one <code>SupplyLevelChanges</code> row (old null/null &rarr; new values) is saved in the same transaction as the supply.</p>
 <pre>// Response: 201 Created &mdash; SuppliesEnrichedReadDto
-// Side effects: Transaction INITIAL_STOCK &middot; SignalR supply.updated &middot; supply.low_stock if qty &le; effective min_level
-// Errors: 400 INVALID_QUANTITY &middot; 409 SUPPLY_ALREADY_EXISTS &middot; 422 PART_MISSING_ATC_MASTER</pre>
+// Side effects: Transaction "New Part in Warehouse" &middot; SupplyLevelChanges row when levels sent &middot; SignalR supply.updated &middot; supply.low_stock if qty &le; effective min_level
+// Errors: 400 INVALID_QUANTITY &middot; 400 INVALID_LEVEL_RANGE &middot; 409 SUPPLY_ALREADY_EXISTS &middot; 422 PART_MISSING_ATC_MASTER</pre>
 
 <h3>POST /supplies/adjust <span class="auth-label auth-prop">DM or propCode_wh</span></h3>
 <p>Adjust quantity by natural key (part_id + warehouse_id). Positive delta adds; negative removes.</p>
@@ -1415,9 +1426,9 @@ Content-Type: application/json</pre>
 <pre>// Response: 204 &middot; Errors: 404</pre>
 
 <h3>POST /supplies/multiple <span class="auth-label auth-prop">DM or propCode_wh</span></h3>
-<p>Array of objects with <code>part_id</code>, <code>warehouse_id</code>, <code>quantity</code>. Items may target different warehouses. Unless the caller is DatabaseManager, every warehouse in the request must match one of the caller's <code>{propCode}_wh</code> roles; otherwise the whole request returns <code>403</code> and nothing is written. A <code>warehouse_id</code> that does not exist is skipped per item (<code>WAREHOUSE_NOT_FOUND</code>).</p>
+<p>Array of objects with <code>part_id</code>, <code>warehouse_id</code>, <code>quantity</code>, and optional <code>min_level</code> / <code>max_level</code> (same rules as <code>POST /supplies</code>; an item with levels gets a <code>SupplyLevelChanges</code> row in the same save). Items may target different warehouses. Unless the caller is DatabaseManager, every warehouse in the request must match one of the caller's <code>{propCode}_wh</code> roles; otherwise the whole request returns <code>403</code> and nothing is written. A <code>warehouse_id</code> that does not exist is skipped per item (<code>WAREHOUSE_NOT_FOUND</code>).</p>
 <pre>// Response 200: { created_count, skipped_count, created[], skipped[{ index, error, message }] }
-// Skipped per item: INVALID_PART_ID &middot; INVALID_WAREHOUSE_ID &middot; NEGATIVE_INVENTORY_NOT_ALLOWED &middot; PART_NOT_FOUND &middot; PART_MISSING_ATC_MASTER &middot; WAREHOUSE_NOT_FOUND
+// Skipped per item: INVALID_PART_ID &middot; INVALID_WAREHOUSE_ID &middot; NEGATIVE_INVENTORY_NOT_ALLOWED &middot; PART_NOT_FOUND &middot; PART_MISSING_ATC_MASTER &middot; WAREHOUSE_NOT_FOUND &middot; INVALID_LEVEL_RANGE
 // Side effects: Transaction per supply &middot; SignalR supply.updated per warehouse group &middot; DM notification bulk_supplies_created
 // Errors: 400 EMPTY_LIST &middot; 403 any warehouse not permitted &middot; 409 INVENTORY_CONFLICT (a row already exists; nothing written)</pre>
 
