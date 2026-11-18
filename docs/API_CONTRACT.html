@@ -578,6 +578,11 @@ Content-Type: application/json</pre>
     <p>Vendor created, updated, or deleted. No payload.</p>
   </div>
   <div class="event-card">
+    <div class="ev-name">vendorparts.changed</div>
+    <div class="ev-scope">&rarr; Clients.All</div>
+    <p>Vendor part link created (<code>POST /vendorparts</code>) or deleted (<code>DELETE /vendorparts/{id}</code>). Not sent by the bulk create. No payload.</p>
+  </div>
+  <div class="event-card">
     <div class="ev-name">equipment.changed</div>
     <div class="ev-scope">&rarr; Clients.All</div>
     <p>Any equipment lifecycle event: create, update, delete, check-out, check-in, location update. No payload.</p>
@@ -1037,7 +1042,9 @@ Content-Type: application/json</pre>
       ]
     }
   ]
-}</pre>
+}
+// The example shows the full PartReadDto shape. In this list, "identifiers" and "vendorParts"
+// are always empty arrays (they are not loaded); GET /parts/{id} returns them filled.</pre>
 <pre>// With include_stocked=true each part also carries every warehouse that stocks it, sorted by prop_code
 "stocked_warehouses": [
   { "warehouse_id": 4, "warehouse_name": "The Augustan", "prop_code": "aug" },
@@ -1056,8 +1063,8 @@ Content-Type: application/json</pre>
 <pre>// Response: 200 OK &mdash; Array of PartReadDto. Empty array if no matches above threshold.</pre>
 
 <h3>GET /parts/{id} <span class="auth-label auth-auth">Authenticated</span></h3>
-<pre>// Response: 200 OK &mdash; PartReadDto (same shape as list item)
-// Errors: 404 PART_NOT_FOUND</pre>
+<pre>// Response: 200 OK &mdash; PartReadDto (same shape as list item, with identifiers and vendorParts filled)
+// Errors: 404 (no body)</pre>
 
 <h3>POST /parts <span class="auth-label auth-auth">Authenticated</span></h3>
 <p>Atomically creates the part, auto-generates the ATC_MASTER identifier, and links any caller-supplied identifiers and vendor parts. If any component fails, the entire operation rolls back.</p>
@@ -1358,7 +1365,8 @@ Content-Type: application/json</pre>
 <p>Level rules are the same as <code>POST /supplies/levels</code>. When either level is sent, one <code>SupplyLevelChanges</code> row (old null/null &rarr; new values) is saved in the same transaction as the supply.</p>
 <pre>// Response: 201 Created &mdash; SuppliesEnrichedReadDto
 // Side effects: Transaction "New Part in Warehouse" &middot; SupplyLevelChanges row when levels sent &middot; SignalR supply.updated &middot; supply.low_stock if qty &le; effective min_level
-// Errors: 400 INVALID_QUANTITY &middot; 400 INVALID_LEVEL_RANGE &middot; 409 SUPPLY_ALREADY_EXISTS &middot; 422 PART_MISSING_ATC_MASTER</pre>
+// Errors: 400 NEGATIVE_INVENTORY_NOT_ALLOWED (quantity below 0) &middot; 400 PART_NOT_FOUND &middot; 400 WAREHOUSE_NOT_FOUND &middot;
+//         400 INVALID_LEVEL_RANGE &middot; 403 (no role for the warehouse) &middot; 409 SUPPLY_ALREADY_EXISTS &middot; 422 PART_MISSING_ATC_MASTER</pre>
 
 <h3>POST /supplies/adjust <span class="auth-label auth-prop">DM or propCode_wh</span></h3>
 <p>Adjust quantity by natural key (part_id + warehouse_id). Positive delta adds; negative removes.</p>

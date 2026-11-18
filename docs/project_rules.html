@@ -275,11 +275,12 @@
   <table>
     <thead><tr><th>Event</th><th>Scope</th><th>Trigger</th></tr></thead>
     <tbody>
-      <tr><td class="t-accent">supply.updated</td><td>Warehouse group</td><td>Any supply write — consume, stock-in, adjust, create, batch</td></tr>
-      <tr><td class="t-accent">supply.low_stock</td><td>Warehouse group</td><td>Supply write where quantity_after ≤ min_level</td></tr>
+      <tr><td class="t-accent">supply.updated</td><td>Warehouse group</td><td>Any supply write — consume, stock-in, adjust, create, batch, and a property min/max save (one event per save)</td></tr>
+      <tr><td class="t-accent">supply.low_stock</td><td>Warehouse group</td><td>Quantity change that leaves the quantity at or below the effective minimum (the property’s own level, else the part default). Not sent by property min/max saves</td></tr>
       <tr><td class="t-accent">part.created</td><td>All clients</td><td>Single part created or bulk batch complete</td></tr>
       <tr><td class="t-accent">part.updated</td><td>All clients</td><td>Part updated or deleted</td></tr>
       <tr><td class="t-accent">warehouses.changed</td><td>All clients</td><td>Warehouse create, update, or delete</td></tr>
+      <tr><td class="t-accent">vendorparts.changed</td><td>All clients</td><td>Vendor part link created or deleted (single create and delete; not sent by the bulk create)</td></tr>
       <tr><td class="t-accent">categories.changed</td><td>All clients</td><td>Category create, update, or delete</td></tr>
       <tr><td class="t-accent">vendors.changed</td><td>All clients</td><td>Vendor create, update, or delete</td></tr>
       <tr><td class="t-accent">equipment.changed</td><td>All clients</td><td>Any equipment write</td></tr>
@@ -426,7 +427,7 @@
 <!-- ── FOOTER ── -->
 <div class="doc-footer">
   <span>ATC Inventory Application</span>
-  <span>Project Rules · May 2026</span>
+  <span>Project Rules · November 2026</span>
   <span>All Repos · Internal Use Only</span>
 </div>
 

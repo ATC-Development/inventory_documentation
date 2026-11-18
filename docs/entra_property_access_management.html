@@ -308,7 +308,7 @@
   </div>
   <table>
     <thead>
-      <tr><th>Tier</th><th>Who</th><th>Inventory Search</th><th>Scan Out (Consume)</th><th>Stock-In / Add Part</th></tr>
+      <tr><th>Tier</th><th>Who</th><th>Inventory Search</th><th>Scan Out (Consume)</th><th>Stock-In / Add Part / Set Min/Max</th></tr>
     </thead>
     <tbody>
       <tr>
@@ -345,6 +345,14 @@
     <span class="icon">ℹ️</span>
     <div class="body">
       <strong>inventoryApp is a prerequisite for all write access.</strong> A user must be in the <code>InvApp_Users</code> group (or be a DatabaseManager) before any write operations are enabled — regardless of whether they also hold a property role. This gate is enforced in the PWA and is intended to prevent untrained users from modifying live data.
+    </div>
+  </div>
+  <div class="callout c-info">
+    <span class="icon">ℹ️</span>
+    <div class="body">
+      <strong>What a property role covers.</strong> At its own property a property role allows stock-in, manual adjustments, adding a part to the property (with or without the property's own Min/Max), setting the property's Min/Max on parts it stocks, creating orders, and marking orders ordered, received or cancelled. The API enforces the same role (<code>{propCode}_wh</code> or DatabaseManager) for each of these except creating an order, which only the app gates.<br><br>
+      <strong>What a user sees.</strong> A user's property roles also decide which properties are listed for them in the Parts Catalog (Stocked At column and filter) and in the mobile Add Part to Warehouse property list: only their own active properties. A DatabaseManager sees every active property. This is display only.<br><br>
+      <strong>DatabaseManager only.</strong> The Level Changes page (history of property Min/Max changes) and its data are available to DatabaseManagers only.
     </div>
   </div>
   <div class="callout c-warn">
@@ -495,7 +503,7 @@
     <span class="sn">08</span>
     <h2>Managing the InvApp_Users Role</h2>
   </div>
-  <p>The <code>inventoryApp</code> App Role is the write-access gate for the Inventory Application. It must be assigned to any user who needs to perform write operations (scan out, stock-in, add parts, adjustments, equipment actions). DatabaseManagers bypass this gate automatically.</p>
+  <p>The <code>inventoryApp</code> App Role is the write-access gate for the Inventory Application. It must be assigned to any user who needs to perform write operations (scan out, stock-in, add parts, setting property Min/Max, adjustments, equipment actions). DatabaseManagers bypass this gate automatically.</p>
   <p>This role is assigned by adding users to the <code>InvApp_Users</code> M365 group, which is assigned to the <code>inventoryApp</code> App Role in Enterprise Applications.</p>
 
   <h3>Grant Write Access (After Training)</h3>
@@ -631,6 +639,16 @@
         <td class="t-muted">Add to property M365 group</td>
       </tr>
       <tr>
+        <td>User cannot set Min/Max at a property (the button is disabled)</td>
+        <td class="t-warn">Not assigned to that property's group, not in <code>InvApp_Users</code> (Live), or All Properties is selected</td>
+        <td class="t-muted">Add to the property M365 group and to <code>InvApp_Users</code>; select the one property first</td>
+      </tr>
+      <tr>
+        <td>A property is missing from the user's Stocked At filter or mobile property list</td>
+        <td class="t-warn">Not assigned to that property's group, or the warehouse is inactive</td>
+        <td class="t-muted">Add to the property M365 group; the user logs out and back in</td>
+      </tr>
+      <tr>
         <td>DatabaseManager role not working</td>
         <td class="t-warn">Assignment missing in Enterprise Applications</td>
         <td class="t-muted">Verify <code>Inventory-DatabaseManagers</code> group is assigned to <code>DatabaseManager</code> role in <code>ATC_InventoryAPI</code> enterprise app</td>
@@ -668,7 +686,7 @@ Microsoft Teams → Team membership</pre>
 <!-- ── FOOTER ── -->
 <div class="doc-footer">
   <span>ATC Inventory Application</span>
-  <span>Entra Property Access Management · October 2026</span>
+  <span>Entra Property Access Management · November 2026</span>
   <span>Access Management · Internal Use Only</span>
 </div>
 
