@@ -1416,7 +1416,7 @@ Content-Type: application/json</pre>
 // Side effects: Transaction SCAN_IN (or "New Part in Warehouse" if auto-created)
 //              SignalR supply.updated &middot; supply.low_stock if qty &le; effective min_level
 //              Azure Functions notification queue message if supply was auto-created
-// Errors: 404 IDENTIFIER_NOT_FOUND &middot; 422 PART_MISSING_ATC_MASTER</pre>
+// Errors: 404 IDENTIFIER_NOT_FOUND &middot; 400 INVALID_UNIT_MULTIPLIER (the identifier's multiplier is not above 0) &middot; 422 PART_MISSING_ATC_MASTER</pre>
 
 <h3>PUT /supplies/{supplyId} <span class="auth-label auth-auth">Authenticated</span></h3>
 <table class="field-table">
@@ -1431,7 +1431,7 @@ Content-Type: application/json</pre>
 // Errors: 404 supply not found &middot; 422 NEGATIVE_INVENTORY</pre>
 
 <h3>DELETE /supplies/{supplyId} <span class="auth-label auth-dm">DatabaseManager</span></h3>
-<pre>// Response: 204 &middot; Errors: 404</pre>
+<pre>// Response: 204 &middot; Errors: 404 &middot; 409 DELETE_CONFLICT (the delete could not be saved; retry)</pre>
 
 <h3>POST /supplies/multiple <span class="auth-label auth-prop">DM or propCode_wh</span></h3>
 <p>Array of objects with <code>part_id</code>, <code>warehouse_id</code>, <code>quantity</code>, and optional <code>min_level</code> / <code>max_level</code> (same rules as <code>POST /supplies</code>; an item with levels gets a <code>SupplyLevelChanges</code> row in the same save). Items may target different warehouses. Unless the caller is DatabaseManager, every warehouse in the request must match one of the caller's <code>{propCode}_wh</code> roles; otherwise the whole request returns <code>403</code> and nothing is written. A <code>warehouse_id</code> that does not exist is skipped per item (<code>WAREHOUSE_NOT_FOUND</code>).</p>
