@@ -215,7 +215,7 @@
 
   <div class="callout c-info">
     <span class="icon">ℹ️</span>
-    <div class="body"><strong>This guide covers:</strong> local setup, build, MSAL auth, role-based UI, warehouse context, TanStack Query, SignalR, PWA service worker, dual desktop/mobile architecture, scanner workflow, page families, testing, troubleshooting, and change impact procedures.<br><br><strong>This guide does not cover:</strong> full API endpoint contracts (<code>API_CONTRACT.html</code>), API business rule implementation (<code>API_DEVELOPER_GUIDE.html</code>), Azure Functions internals (<code>FUNCTIONS_DEVELOPER_GUIDE.html</code>), or end-user task instructions (<code>public/guide/index.html</code>).</div>
+    <div class="body"><strong>This guide covers:</strong> local setup, build, MSAL auth, role-based UI, warehouse context, TanStack Query, SignalR, PWA service worker, dual desktop/mobile architecture, scanner workflow, page families, testing, troubleshooting, and change impact procedures.<br><br><strong>This guide does not cover:</strong> full API endpoint contracts (<code>API_CONTRACT.html</code>), API business rule implementation (<code>API_DEVELOPER_GUIDE.html</code>), Azure Functions internals (<code>FUNCTIONS_DEVELOPER_GUIDE.html</code>), or end-user task instructions (the in-app Quick Task Guide, <code>src/pages/Guide/QuickTaskGuidePage.tsx</code>, opened as an overlay from the Help button).</div>
   </div>
 </div>
 
@@ -340,7 +340,7 @@ npm run dev</pre>
 
   <div class="callout c-info">
     <span class="icon">ℹ️</span>
-    <div class="body"><strong>Camera and HTTPS note:</strong> Camera APIs require <code>localhost</code> or a secure origin. Local scanner testing should use <code>localhost</code> or HTTPS. The project includes <code>@vitejs/plugin-basic-ssl</code> as a development dependency — verify whether it is currently enabled in <code>vite.config.ts</code> before relying on it.</div>
+    <div class="body"><strong>Camera and HTTPS note:</strong> Camera APIs require <code>localhost</code> or a secure origin. Local scanner testing should use <code>localhost</code> or HTTPS. The project includes <code>@vitejs/plugin-basic-ssl</code> as a development dependency, but it is commented out in <code>vite.config.ts</code> (import and plugin). <code>localhost</code> works without it; enable it only when a phone on the network needs the camera against the dev server.</div>
   </div>
 </div>
 
@@ -365,7 +365,7 @@ npm run dev</pre>
   <p><code>staticwebapp.config.json</code> controls SPA routing fallback and HTTP headers. Expected concerns: SPA fallback to <code>index.html</code>, service worker and Workbox files not over-cached, <code>version.json</code> network-fresh, and security headers must not break MSAL redirect or iframe-based token flows.</p>
   <div class="callout c-warn">
     <span class="icon">⚠️</span>
-    <div class="body"><strong>Verification note:</strong> During final review, verify the exact <code>staticwebapp.config.json</code> that Azure Static Web Apps consumes. If multiple config files exist, document which one is active and reconcile the others.</div>
+    <div class="body"><strong>One config file:</strong> the repository has a single <code>public/staticwebapp.config.json</code>, copied into the build output. Do not add a second one.</div>
   </div>
 </div>
 
@@ -385,10 +385,10 @@ npm run dev</pre>
     <thead><tr><th>Resource Type</th><th>Intended Behavior</th></tr></thead>
     <tbody>
       <tr><td>App shell and static assets</td><td>Can be cached for faster startup and offline shell availability</td></tr>
-      <tr><td class="t-warn">version.json</td><td>Must be network-fresh; do not precache stale version metadata</td></tr>
-      <tr><td class="t-danger">Microsoft identity endpoints</td><td>Must not be intercepted by app caching logic</td></tr>
-      <tr><td>API requests</td><td>May use network-first caching only when implemented; writes require network</td></tr>
-      <tr><td>User guide static assets</td><td>Can tolerate longer caching than auth/version metadata</td></tr>
+      <tr><td class="t-warn">version.json</td><td>Must be network-fresh: excluded from the precache (<code>globIgnores</code>) and from the navigation fallback</td></tr>
+      <tr><td class="t-danger">Microsoft identity endpoints</td><td><code>NetworkOnly</code> for <code>login.microsoftonline.com</code> and <code>sts.windows.net</code>; never cached</td></tr>
+      <tr><td>API requests</td><td>Workbox <code>NetworkFirst</code>, cache <code>api-cache</code> (10-second network timeout, 50 entries, 5 minutes): served only when the network fails. Writes require the network. Sign-out clears this cache</td></tr>
+      <tr><td>Images and fonts outside the precache (including the Quick Task Guide images under <code>guide/img</code>)</td><td>Workbox <code>CacheFirst</code>, cache <code>static-assets</code> (60 entries, 30 days)</td></tr>
     </tbody>
   </table>
 
@@ -500,12 +500,14 @@ npm run dev</pre>
   <table>
     <thead><tr><th>UI Area</th><th>Rendering Rule</th></tr></thead>
     <tbody>
-      <tr><td>Manage pages</td><td class="t-warn">DatabaseManager only</td></tr>
-      <tr><td>Bulk operations</td><td class="t-warn">DatabaseManager only, except Add to Warehouse for several parts on the Parts page (warehouses the user can write to)</td></tr>
+      <tr><td>Manage menu and Bulk Import</td><td class="t-warn">DatabaseManager only (<code>dmOnly</code> groups in <code>DesktopNav</code>). Bulk Import and Level Changes also check the role inside the page; the other Manage pages rely on the menu and the API</td></tr>
+      <tr><td>Level Changes</td><td class="t-warn">DatabaseManager only; checked before the page content mounts, so no request is sent without the role</td></tr>
       <tr><td>Part delete</td><td class="t-warn">DatabaseManager only</td></tr>
-      <tr><td>Warehouse/category/vendor management</td><td class="t-warn">DatabaseManager only</td></tr>
-      <tr><td>Scan out / consume</td><td>Authenticated flow; final write access enforced by API and property rules</td></tr>
-      <tr><td>Stock in / add to warehouse</td><td>Requires matching property role or DatabaseManager</td></tr>
+      <tr><td>Scan out / consume; equipment check out, check in, location</td><td>App access (<code>hasAppAccess</code>); the API allows any authenticated user</td></tr>
+      <tr><td>Stock in, manual adjust, Add to Warehouse (single, bulk, mobile)</td><td>Matching property role or DatabaseManager. Warehouse choices list only warehouses the user can write to</td></tr>
+      <tr><td>Set Min/Max and Create Orders (Inventory selection actions)</td><td>App access and write access to the selected property; disabled under All Properties. Set Min/Max is also disabled above 100 rows</td></tr>
+      <tr><td>Print Labels (Parts Catalog, Inventory)</td><td>App access only; works under All Properties</td></tr>
+      <tr><td>Parts Catalog Stocked At column and filter</td><td>Shows only the user’s own active properties (<code>useMyWarehouses</code>); a DatabaseManager sees every active warehouse. Display scoping only</td></tr>
       <tr><td>901 / ATC Office writes</td><td>Same as every property: <code>901_wh</code> or DatabaseManager</td></tr>
     </tbody>
   </table>
@@ -533,8 +535,8 @@ npm run dev</pre>
 
   <h3>Query Client Defaults</h3>
   <ul>
-    <li>Operational data defaults to finite stale time, commonly 5 minutes</li>
-    <li>Retry count is low, commonly 1</li>
+    <li>Default stale time is 5 minutes (<code>src/main.tsx</code>); individual queries may set their own</li>
+    <li>Retry count is 1</li>
     <li>Reference data may override stale time to <code>Infinity</code></li>
     <li>SignalR and explicit mutation handlers invalidate stale caches</li>
   </ul>
@@ -579,11 +581,13 @@ npm run dev</pre>
       <tr><td>Scan out / consume</td><td>supplies, transactions, usage/report data</td></tr>
       <tr><td>Part create/update</td><td>parts, identifiers, vendor cross-reference data, supplies if warehouse assignment changed</td></tr>
       <tr><td>Identifier add/relink</td><td>part detail, identifier lookup/cache, scan lookup assumptions</td></tr>
-      <tr><td>Warehouse create/update/delete</td><td>warehouses reference data and warehouse-scoped views</td></tr>
+      <tr><td>Warehouse create/update</td><td>warehouses reference data and warehouse-scoped views</td></tr>
       <tr><td>Category create/update/delete</td><td>categories reference data and part/catalog views</td></tr>
-      <tr><td>Vendor create/update/delete</td><td>vendors reference data and vendor cross-reference views</td></tr>
+      <tr><td>Vendor create/update</td><td>vendors reference data and vendor cross-reference views</td></tr>
       <tr><td>Order update</td><td>orders, order history, supplies if stock-in receive occurred</td></tr>
       <tr><td>Equipment movement</td><td>equipment list/detail, equipment transactions</td></tr>
+      <tr><td>Add to Warehouse (single, bulk, mobile)</td><td>supplies and parts (Stocked At); levelChanges when Min/Max were sent</td></tr>
+      <tr><td>Set Min/Max</td><td>No invalidation: the rows returned by <code>POST /supplies/levels</code> are written into the cached inventory list (<code>replaceSavedRows</code>). This is the deliberate exception to the rule below</td></tr>
     </tbody>
   </table>
 
@@ -636,7 +640,7 @@ npm run dev</pre>
         <li>Filters, bulk actions, modals</li>
         <li>DesktopPageHeader + filter/action bar</li>
         <li>TableCard + loading/error/empty states</li>
-        <li>SelectionActionBar for multi-select</li>
+        <li>DesktopFilterSection: filters plus selection actions (renders SelectionActionBar)</li>
         <li>Keyboard and scanner-friendly flows</li>
         <li>DatabaseManager actions clearly separated</li>
       </ul>
@@ -746,9 +750,30 @@ npm run dev</pre>
 
   <h3>Inventory / Search Inventory</h3>
   <p>Display warehouse-scoped or all-property inventory state; search/filter supplies and parts; surface low-stock state. Warehouse context affects query keys. All-properties mode must not be used as mutation target. SignalR <code>supply.updated</code> should invalidate visible inventory data.</p>
+  <p>The desktop table has three selection actions (<code>useRowSelection</code>, passed to <code>DesktopFilterSection</code>): <strong>Create Orders</strong>, <strong>Set Min/Max</strong> and <strong>Print Labels</strong>. Print Labels opens <code>LabelCopiesModal</code> with one entry per part (<code>uniquePartLabelItems</code> in <code>src/utils/labelItems.ts</code>), so a part selected in several warehouses under All Properties prints once.</p>
+
+  <h3>Property Min/Max (levels)</h3>
+  <p>A part has default min/max levels; a property can set its own for a part it stocks. The API returns the effective levels on each supply row (<code>min_level</code>, <code>max_level</code>) together with <code>property_min_level</code>, <code>property_max_level</code> (null = follows the default) and the part defaults.</p>
+  <table>
+    <thead><tr><th>Piece</th><th>File</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td>Rules</td><td><code>src/components/SupplyLevels/levelForm.ts</code></td><td>The one rule set for every place levels are typed: whole numbers, Min at least 1, Max not below Min (checked against the part default when a field is empty). <code>validateLevels</code>, <code>createLevels</code> (leaves empty fields out), <code>validateEntry</code>, <code>isChanged</code>, <code>MAX_LEVEL_ROWS</code> (100). The API applies the same rules (<code>INVALID_LEVEL_RANGE</code>)</td></tr>
+      <tr><td>Display</td><td><code>src/components/table/LevelCell.tsx</code></td><td>A level set for the property is dark and semibold; a part default is muted. The hover text names the source</td></tr>
+      <tr><td>Set Min/Max</td><td><code>SupplyLevels/SetLevelsModal.tsx</code></td><td>One line per selected Inventory row of one warehouse; the default shows as the placeholder; an empty field follows the default. Save is disabled until every line is valid; only changed lines are sent in one <code>POST /supplies/levels</code>. A server error names the row when the API returns <code>supply_id</code></td></tr>
+      <tr><td>Add to Warehouse, desktop single</td><td><code>components/AddToWarehouseModal</code></td><td>Parts Catalog, Manage Parts, New Part. Optional Min/Max under the quantity; the caller passes the part defaults (<code>defaultLevels</code>)</td></tr>
+      <tr><td>Add to Warehouse, desktop bulk</td><td><code>components/BulkAddToWarehouseModal</code></td><td>Parts Catalog only. Min and Max per addable row; an invalid row shows its reason and disables Add; typed levels clear when another warehouse is picked. Holds the part list it was opened with, so the availability check (one request per part) runs once</td></tr>
+      <tr><td>Add to Warehouse, mobile</td><td><code>pages/AddPartToWarehouse</code></td><td>Its own modal in phone styling with the same rules. Pick Warehouse lists only the user’s own active properties. An existing part chosen from “Part Not in List” is loaded with <code>GET /parts/{id}</code> for its real defaults</td></tr>
+      <tr><td>Below Minimum</td><td><code>pages/BelowMinimum</code></td><td>Lists rows at or below the effective minimum; a row exactly at its minimum shows “At minimum” in the shortfall column</td></tr>
+    </tbody>
+  </table>
 
   <h3>Parts Catalog</h3>
-  <p>Master catalog of parts regardless of whether stocked at selected warehouse; part detail review; create/edit where authorized; identifier and vendor cross-reference subflows; label printing where implemented. Do not confuse catalog existence with warehouse supply existence.</p>
+  <p>The complete catalog of every part, wherever it is stocked; its main job is letting a property add a part to its own inventory. It is not tied to the property selector. Columns: Part, Category, Default Stock Range (the part defaults), Stocked At, Actions. Do not confuse catalog existence with warehouse supply existence.</p>
+  <div class="rules-list">
+    <div class="rule-item"><div class="rule-dot"></div><span>The list is requested with <code>include_stocked=true</code>; Stocked At shows property codes for the user’s own properties only (<code>useMyWarehouses</code>), with the full name on hover, and a red pill when the part is not stocked anywhere or not at the user’s properties</span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>The Stocked at filter (<code>pages/Parts/StockedAtFilter.tsx</code>) is a tick-box list of the user’s own properties, any-of, applied by the API through repeated <code>stocked_at</code></span></div>
+    <div class="rule-item"><div class="rule-dot"></div><span>Selection actions: Add to Warehouse (single or bulk, by how many parts are selected) and Print Label(s)</span></div>
+  </div>
 
   <h3>Transactions</h3>
   <p>Read-only view of inventory ledger activity. Transactions are append-only from the API perspective — the PWA should not offer edit/delete transaction actions unless the API contract changes. <code>supply.updated</code> often implies transaction queries should be invalidated.</p>
@@ -784,6 +809,12 @@ npm run dev</pre>
 
   <h3>Manage Invoice Aliases</h3>
   <p>Maintain vendor alias mappings used by invoice reconciliation. Alias changes affect future invoice matching. Do not silently remap ambiguous invoice descriptions without clear user confirmation.</p>
+
+  <h3>Manage Identifiers and Order Methods</h3>
+  <p><code>/manage/identifiers</code> adds, relinks and deletes part identifiers. <code>/manage/vendor-order-methods</code> maintains each vendor’s order methods, which Create Orders reads.</p>
+
+  <h3>Level Changes</h3>
+  <p><code>/manage/level-changes</code> (<code>pages/LevelChanges</code>) is a read-only history of property Min/Max changes. The list has one row per part and warehouse, newest change first, with a part-name search and paging (<code>GET /supplies/level-changes/summary</code>); parts no longer stocked at the warehouse are not listed. Opening a row loads its history 50 entries at a time with Show more (<code>GET /supplies/level-changes</code>). The summary uses <code>staleTime: 0</code> because <code>supply.updated</code> does not refresh this namespace; a row’s history is cached under its last change time, so it reloads only after a new change.</p>
 </div>
 
 <!-- §17 ORDERS & INVOICE -->
@@ -864,7 +895,7 @@ npm run dev</pre>
   <div class="rules-list">
     <div class="rule-item"><div class="rule-dot green"></div><span>Collect filter criteria and build export payloads</span></div>
     <div class="rule-item"><div class="rule-dot green"></div><span>Include requested-by identity where implemented</span></div>
-    <div class="rule-item"><div class="rule-dot green"></div><span>Call the correct Functions or API endpoint; trigger browser download or display result</span></div>
+    <div class="rule-item"><div class="rule-dot green"></div><span>Call the Functions report endpoint through <code>triggerExport</code> (<code>src/utils/exportReport.ts</code>): <code>/api/reports/tabular</code>, <code>/api/reports/order-form</code> or <code>/api/reports/labels</code>, chosen by the payload’s <code>report_type</code>; the response is downloaded as a file</span></div>
     <div class="rule-item"><div class="rule-dot green"></div><span>Show useful errors distinguishing API failure from Functions failure</span></div>
   </div>
 
@@ -919,6 +950,7 @@ npm run dev</pre>
     <li>Mutation invalidation behavior</li>
     <li>SignalR event invalidation mapping</li>
     <li>Barcode normalization</li>
+    <li>Property level rules (<code>levelForm</code>) and the places that use them: Set Min/Max, the three Add to Warehouse flows</li>
     <li>Scan duplicate-submit prevention</li>
     <li>Mobile vs desktop route redirection</li>
     <li>Modal save/cancel/delete flows</li>
@@ -1029,10 +1061,13 @@ npm run dev</pre>
   <div class="section-header"><span class="sn">24</span><h2>Implementation Notes and Follow-Ups</h2></div>
 
   <h3>VITE_REDIRECT_URI</h3>
-  <p>Environment files include <code>VITE_REDIRECT_URI</code>, but current MSAL behavior derives redirect URI from the app origin and Vite base URL rather than directly consuming <code>VITE_REDIRECT_URI</code>. If a future developer changes <code>msalConfig.ts</code> to use it, update this section and retest redirect-loop hardening behavior.</p>
+  <p><code>VITE_REDIRECT_URI</code> appears in the deploy workflow and the README, but nothing under <code>src</code> reads it: MSAL derives the redirect URI from the app origin and Vite base URL. If a future developer changes <code>msalConfig.ts</code> to use it, update this section and retest redirect-loop hardening behavior.</p>
 
-  <h3>Static Web App Config Verification</h3>
-  <p>During final review, verify the exact <code>staticwebapp.config.json</code> used by Azure Static Web Apps. If more than one exists, reconcile them.</p>
+  <h3>Static Web App Config</h3>
+  <p>There is one file, <code>public/staticwebapp.config.json</code>. Keep it that way.</p>
+
+  <h3>In-App User Guide Is Behind</h3>
+  <p>The Quick Task Guide does not yet cover Set Min/Max, Level Changes, the Parts Catalog columns and filter, or Print Labels on Inventory, and some screenshots predate these changes. A full check or rebuild of the guide is planned as its own change request.</p>
 
   <h3>version.json Must Stay Network-Fresh</h3>
   <p>The app update flow depends on fetching fresh version metadata. Do not precache <code>version.json</code> or configure long-lived caching for it.</p>
@@ -1119,26 +1154,43 @@ npm run dev</pre>
     <table>
       <thead><tr><th>Route / Area</th><th>Mode</th><th>Access</th><th>Purpose / Status</th></tr></thead>
       <tbody>
-        <tr><td class="t-accent">/</td><td>shared</td><td>authenticated</td><td>Redirect to mobile or desktop landing based on device mode</td></tr>
-        <tr><td class="t-accent">/login</td><td>shared</td><td>anonymous/auth transition</td><td>Login entry point</td></tr>
-        <tr><td class="t-accent">/about</td><td>shared</td><td>authenticated</td><td>Version/about information where implemented</td></tr>
-        <tr><td class="t-accent">/inventory</td><td>desktop</td><td>authenticated</td><td>Inventory search/table view</td></tr>
-        <tr><td class="t-muted">/inventory/:id</td><td>desktop</td><td>authenticated</td><td class="t-warn">Placeholder — verify before building on this route</td></tr>
-        <tr><td class="t-accent">/scan</td><td>mobile</td><td>authenticated</td><td>Mobile scan landing / scan workflow entry</td></tr>
-        <tr><td class="t-muted">/scan/transfer</td><td>mobile</td><td>authenticated/write gated</td><td class="t-warn">Placeholder or future transfer flow — verify before documenting as live</td></tr>
-        <tr><td class="t-accent">/parts</td><td>desktop</td><td>authenticated, with gated actions</td><td>Parts catalog</td></tr>
-        <tr><td class="t-muted">/parts/:id</td><td>desktop</td><td>authenticated</td><td class="t-warn">Placeholder — verify before building on this route</td></tr>
-        <tr><td class="t-accent">/transactions</td><td>desktop</td><td>authenticated</td><td>Transaction ledger view</td></tr>
-        <tr><td class="t-accent">/orders</td><td>desktop</td><td>authenticated, write gated</td><td>Active order workflows</td></tr>
-        <tr><td class="t-accent">/order-history</td><td>desktop</td><td>authenticated</td><td>Order history/reporting</td></tr>
-        <tr><td class="t-accent">/reports</td><td>desktop</td><td>authenticated</td><td>Reporting hub</td></tr>
-        <tr><td class="t-accent">/equipment</td><td>desktop/mobile depending implementation</td><td>authenticated, write gated</td><td>Equipment/tool tracking</td></tr>
-        <tr><td class="t-accent">/manage/parts</td><td>desktop</td><td class="t-warn">DatabaseManager</td><td>Administrative part maintenance</td></tr>
-        <tr><td class="t-accent">/manage/warehouses</td><td>desktop</td><td class="t-warn">DatabaseManager</td><td>Warehouse maintenance</td></tr>
+        <tr><td class="t-accent">/</td><td>shared</td><td>authenticated</td><td>Redirects to <code>/home</code> (mobile) or <code>/dashboard</code> (desktop)</td></tr>
+        <tr><td class="t-accent">/login</td><td>shared</td><td>anonymous</td><td>Sign in to Test or Live</td></tr>
+        <tr><td class="t-accent">/home</td><td>mobile</td><td>authenticated</td><td>Mobile action tiles</td></tr>
+        <tr><td class="t-accent">/dashboard</td><td>desktop</td><td>authenticated</td><td>Dashboard</td></tr>
+        <tr><td class="t-accent">/scan/consume</td><td>mobile</td><td>app access</td><td>Scan part out</td></tr>
+        <tr><td class="t-accent">/scan/stockin</td><td>mobile</td><td>property write</td><td>Scan part in</td></tr>
+        <tr><td class="t-accent">/scan/lookup</td><td>mobile</td><td>authenticated</td><td>Barcode lookup</td></tr>
+        <tr><td class="t-accent">/scan/invoice</td><td>mobile and desktop</td><td>app access</td><td>Scan invoice</td></tr>
+        <tr><td class="t-accent">/inventory</td><td>mobile and desktop</td><td>authenticated; selection actions gated</td><td>Search Inventory; desktop selection actions Create Orders, Set Min/Max, Print Labels</td></tr>
+        <tr><td class="t-accent">/on-order</td><td>desktop</td><td>authenticated; actions gated</td><td>Active orders</td></tr>
+        <tr><td class="t-accent">/parts</td><td>desktop</td><td>authenticated; actions gated</td><td>Parts Catalog</td></tr>
+        <tr><td class="t-accent">/parts/new</td><td>shared</td><td>app access</td><td>New part</td></tr>
+        <tr><td class="t-accent">/parts/add-to-warehouse</td><td>mobile</td><td>property write</td><td>Add Part to Warehouse (reached from the Database Manager menu)</td></tr>
+        <tr><td class="t-accent">/crossref</td><td>desktop</td><td>authenticated; writes gated</td><td>Vendor cross-reference</td></tr>
+        <tr><td class="t-accent">/reports/below-min</td><td>desktop</td><td>authenticated; Create Orders gated</td><td>Below Minimum report</td></tr>
+        <tr><td class="t-accent">/reports/most-used</td><td>desktop</td><td>authenticated</td><td>Most Used report</td></tr>
+        <tr><td class="t-accent">/reports/transactions</td><td>desktop</td><td>authenticated</td><td>Transaction ledger</td></tr>
+        <tr><td class="t-accent">/reports/part-trend</td><td>desktop</td><td>authenticated</td><td>Part trend</td></tr>
+        <tr><td class="t-accent">/orders/history</td><td>desktop</td><td>authenticated</td><td>Order history</td></tr>
+        <tr><td class="t-accent">/manage/parts</td><td>desktop</td><td class="t-warn">DatabaseManager</td><td>Part maintenance</td></tr>
+        <tr><td class="t-accent">/manage/warehouses</td><td>desktop</td><td class="t-warn">DatabaseManager</td><td>Warehouses, notification channels, managed properties</td></tr>
         <tr><td class="t-accent">/manage/categories</td><td>desktop</td><td class="t-warn">DatabaseManager</td><td>Category maintenance</td></tr>
         <tr><td class="t-accent">/manage/vendors</td><td>desktop</td><td class="t-warn">DatabaseManager</td><td>Vendor maintenance</td></tr>
-        <tr><td class="t-accent">/manage/invoice-aliases</td><td>desktop</td><td class="t-warn">DatabaseManager or API-defined access</td><td>Invoice alias maintenance</td></tr>
-        <tr><td class="t-accent">/help</td><td>shared</td><td>authenticated or public depending route config</td><td>In-app user guide launcher/full guide</td></tr>
+        <tr><td class="t-accent">/manage/identifiers</td><td>desktop</td><td class="t-warn">DatabaseManager</td><td>Identifier maintenance</td></tr>
+        <tr><td class="t-accent">/manage/invoice-aliases</td><td>desktop</td><td class="t-warn">DatabaseManager</td><td>Invoice alias maintenance</td></tr>
+        <tr><td class="t-accent">/manage/vendor-order-methods</td><td>desktop</td><td class="t-warn">DatabaseManager</td><td>Vendor order methods</td></tr>
+        <tr><td class="t-accent">/manage/level-changes</td><td>desktop</td><td class="t-warn">DatabaseManager (checked in the page)</td><td>Property Min/Max change history</td></tr>
+        <tr><td class="t-accent">/import</td><td>desktop</td><td class="t-warn">DatabaseManager (checked in the page)</td><td>Bulk Import</td></tr>
+        <tr><td class="t-accent">/equipment</td><td>mobile and desktop</td><td>authenticated</td><td>Equipment list (desktop) or tools menu (mobile)</td></tr>
+        <tr><td class="t-accent">/equipment/mobiletoolshome</td><td>mobile</td><td>authenticated</td><td>Tools menu</td></tr>
+        <tr><td class="t-accent">/equipment/search</td><td>mobile</td><td>app access for actions</td><td>Find a tool; check out, check in, location</td></tr>
+        <tr><td class="t-accent">/equipment/scan</td><td>mobile</td><td>app access for actions</td><td>Scan a tool</td></tr>
+        <tr><td class="t-accent">/equipment/:id</td><td>shared</td><td>authenticated; edit DatabaseManager</td><td>Equipment detail and history</td></tr>
+        <tr><td class="t-accent">/dm</td><td>mobile</td><td class="t-warn">DatabaseManager (tile shown to DatabaseManager)</td><td>Database Manager menu</td></tr>
+        <tr><td class="t-accent">/dm/add-identifier</td><td>mobile</td><td class="t-warn">DatabaseManager menu</td><td>Add a barcode to a part</td></tr>
+        <tr><td class="t-muted">/scan/transfer, /inventory/:id, /parts/:id, /about</td><td>—</td><td>authenticated</td><td class="t-warn">Placeholder routes that render a stub; do not build on them without replacing the stub</td></tr>
+        <tr><td class="t-muted">Help (no route)</td><td>shared</td><td>authenticated</td><td>The Quick Task Guide opens as an overlay from the Help button; there is no <code>/help</code> or <code>/guide</code> route</td></tr>
       </tbody>
     </table>
   </div>
@@ -1152,10 +1204,10 @@ npm run dev</pre>
     <tbody>
       <tr><td class="t-accent">VITE_ENTRA_CLIENT_ID</td><td class="t-accent2">Yes</td><td>MSAL</td><td>PWA client app registration ID</td></tr>
       <tr><td class="t-accent">VITE_ENTRA_TENANT_ID</td><td class="t-accent2">Yes</td><td>MSAL</td><td>Entra tenant ID</td></tr>
-      <tr><td class="t-accent">VITE_REDIRECT_URI</td><td class="t-muted">Present in templates</td><td>Implementation note</td><td>In env files; current MSAL config may derive redirect URI instead — see Section 24</td></tr>
+      <tr><td class="t-accent">VITE_REDIRECT_URI</td><td class="t-muted">Not read by the app</td><td>Deploy workflow, README</td><td>Nothing under <code>src</code> reads it; MSAL derives the redirect URI — see Section 24</td></tr>
       <tr><td class="t-accent">VITE_API_SCOPE</td><td class="t-accent2">Yes</td><td>MSAL token acquisition</td><td>API access scope</td></tr>
-      <tr><td class="t-accent">VITE_DM_GROUP_ID</td><td class="t-muted">Optional — verify</td><td>Permissions legacy/config</td><td>Present in env files and README; verify whether current permission hooks consume it or if it is vestigial</td></tr>
-      <tr><td class="t-accent">VITE_APP_VERSION</td><td class="t-accent2">Yes at build/runtime</td><td>Version display/check</td><td>Current app version from package/build</td></tr>
+      <tr><td class="t-accent">VITE_DM_GROUP_ID</td><td class="t-muted">Not read by the app</td><td>README only</td><td>Left over: permissions come from the access token’s <code>roles</code> claim (<code>useUserPermissions</code>), not from a group ID</td></tr>
+      <tr><td class="t-accent">VITE_APP_VERSION</td><td class="t-muted">Set by the build</td><td>Version display and <code>useVersionCheck</code></td><td>Injected by <code>vite.config.ts</code> from <code>package.json</code>; not set in env files or secrets</td></tr>
       <tr><td class="t-accent">VITE_TEST_API_BASE_URL</td><td class="t-accent2">Yes</td><td>Environment map (Test)</td><td>Test API base URL; also the SignalR hub host. Local API when developing</td></tr>
       <tr><td class="t-accent">VITE_TEST_FUNCTIONS_BASE_URL</td><td class="t-accent2">Yes</td><td>Environment map (Test)</td><td>Test Functions base URL (exports, invoice analysis)</td></tr>
       <tr><td class="t-accent">VITE_TEST_CART_EXTENSION_ID</td><td class="t-accent2">Yes for Fill Cart</td><td>Environment map (Test)</td><td>Cart extension ID used in Test: the Test extension, <code>olmhgecfkfjjleajendeonaeahcfalib</code>. Messages are addressed to it</td></tr>
@@ -1169,20 +1221,21 @@ npm run dev</pre>
 <!-- APPENDIX C — PROVIDER TREE -->
 <div class="section" id="sc">
   <div class="section-header"><span class="sn">C</span><h2>Appendix C — Provider Tree</h2></div>
-  <p>Confirmed conceptual provider order from the PWA bootstrap and shell structure.</p>
+  <p>Provider order from <code>src/main.tsx</code> and the shell components.</p>
   <div class="provider-tree">
     <span class="pt-highlight">MSAL initialization before render</span><br>
     └─ React root<br>
     &nbsp;&nbsp;&nbsp;└─ <span class="pt-highlight">MsalProvider</span><br>
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ QueryClientProvider<br>
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ WarehouseProvider<br>
-    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ App<br>
-    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ <span class="pt-auth">AuthShell</span><br>
-    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ <span class="pt-auth">AuthenticatedShell</span><br>
-    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ UserPermissionsProvider<br>
-    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ AppShell<br>
-    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ <span class="pt-highlight">SignalRProvider</span><br>
-    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ Routes / Layouts / Pages
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ ExtensionCartProvider<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ App<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ <span class="pt-auth">AuthShell</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ <span class="pt-auth">AuthenticatedShell</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ UserPermissionsProvider<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ AppShell<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ <span class="pt-highlight">SignalRProvider</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ Routes / Layouts / Pages
   </div>
   <div class="rules-list" style="margin-top:16px;">
     <div class="rule-item"><div class="rule-dot danger"></div><span>MSAL must initialize before rendering protected app routes</span></div>
@@ -1213,7 +1266,7 @@ npm run dev</pre>
     <div class="check-item"><div class="check-box"></div><span>Uses <code>TableCard</code> for table shell with sticky/sortable headers where table is large</span></div>
     <div class="check-item"><div class="check-box"></div><span>Handles loading state, error state, and empty state</span></div>
     <div class="check-item"><div class="check-box"></div><span>Uses pagination where result sets can grow</span></div>
-    <div class="check-item"><div class="check-box"></div><span>Uses <code>SelectionActionBar</code> for multi-select actions where relevant</span></div>
+    <div class="check-item"><div class="check-box"></div><span>Uses <code>DesktopFilterSection</code> with <code>selectionActions</code> and <code>useRowSelection</code> for multi-select actions where relevant</span></div>
     <div class="check-item"><div class="check-box"></div><span>Uses modal for create/edit/detail actions; confirms destructive actions</span></div>
     <div class="check-item"><div class="check-box"></div><span>Uses query key factory; invalidates affected queries after mutation</span></div>
     <div class="check-item"><div class="check-box"></div><span>Handles API <code>403</code> gracefully; tests role-gated actions</span></div>
