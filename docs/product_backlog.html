@@ -627,11 +627,11 @@
           </tr>
           <tr>
             <td>B-23</td>
-            <td class="td-name">Collapsible sidebar</td>
+            <td class="td-name">Desktop shell and list pages</td>
             <td><span class="badge badge-desktop">Desktop</span></td>
-            <td><span class="badge badge-open">Open</span></td>
+            <td><span class="badge badge-partial">Partial</span></td>
             <td class="td-notes">
-              Requested November 2026; scheduled right after the PCR-1 PWA release. A &#9776; button at the top of the desktop sidebar switches between the full sidebar and a narrow icon rail, as in the Microsoft 365 admin center, giving pages more width. In the rail each icon shows its name on hover; section headings and the DB Manager tag are hidden; the active page stays highlighted. The choice is remembered on the device and kept through sign-out, like the dashboard layout. Desktop only. Today the sidebar is a fixed <code>w-56</code> in <code>AppShell.tsx</code>; every nav item already has an icon.
+              Requested November 2026 as a collapsible sidebar; widened the same month into the desktop visual rework. <strong>Shell:</strong> a button switches the sidebar between the full width and a narrow icon rail (each icon shows its page name on hover; the choice is remembered per user on the device); a slim top bar carries the page title, a count and, while rows are ticked, the row actions, with the property selector on the right. <strong>List pages:</strong> the header card and filter card on all 20 list pages are replaced by one toolbar row (search, filters, exports, paging); tighter table rows; 25 rows per page on desktop. Inter typeface app wide. Mobile screens keep their layout. Also in this item: the Part Trend page becomes a part list beside a trend panel, and Manage Identifiers becomes a part list beside an identifier panel (needs API 1.4.0). Built with B-25 on PWA branch <code>desktop-rework</code>; one release, PWA 1.3.0. Spec: <code>Desktop_Visual_Rework_Spec.md</code>. Before Live.
             </td>
           </tr>
           <tr>
@@ -641,6 +641,15 @@
             <td><span class="badge badge-open">Open</span></td>
             <td class="td-notes">
               Found in the <code>AddPropertyLevels</code> model snapshot (November 2026). <code>Warehouse.Transactions</code> is not tied to the configured <code>Transactions &rarr; Warehouse</code> relationship (<code>WithMany()</code>), so EF Core keeps a second, unused foreign key column <code>WarehouseId</code> beside <code>Warehouse_id</code>. It already exists in the database; no API code writes it (nothing adds transactions through <code>Warehouse.Transactions</code>). Fix: map the collection to the existing relationship, then drop the column in a migration.
+            </td>
+          </tr>
+          <tr>
+            <td>B-25</td>
+            <td class="td-name">Dashboard rebuild</td>
+            <td><span class="badge badge-desktop">Desktop</span></td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td class="td-notes">
+              Designed November 2026; built after B-23 on the same branch and released with it. The Dashboard is rebuilt around what needs action: a one-sentence summary; Stock health (share of stocked parts at or above minimum; whole portfolio under All Properties); Orders in progress by stage, with a warning for requests waiting over 3 days and orders not received after 14 days; Tools in use, with tools out more than 7 days; an Order now list with Create Orders; Most used parts; Recent stock movements. No API change: it uses existing endpoints. Spec: <code>Desktop_Visual_Rework_Spec.md</code> section 8. Before Live.
             </td>
           </tr>
         </tbody>
