@@ -652,6 +652,15 @@
               Designed November 2026; built after B-23 on the same branch and released with it. The Dashboard is rebuilt around what needs action: a one-sentence summary; Stock health (share of stocked parts at or above minimum; whole portfolio under All Properties); Orders in progress by stage, with a warning for requests waiting over 3 days and orders not received after 14 days; Tools in use, with tools out more than 7 days; an Order now list with Create Orders; Most used parts; Recent stock movements. No API change: it uses existing endpoints. Spec: <code>Desktop_Visual_Rework_Spec.md</code> section 8. Before Live.
             </td>
           </tr>
+          <tr>
+            <td>B-26</td>
+            <td class="td-name">Cross-Reference export by part</td>
+            <td><span class="badge badge-functions">Functions</span></td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td class="td-notes">
+              Recorded November 2026 with the Cross-Reference redesign (B-23). The page gains a By part view (one row per part, one column per vendor), but Excel and PDF still produce the existing file from both views: one row per vendor-and-part link, built by the Functions app (<code>cross_reference</code> report). A by-part file needs a new pivoted layout in the Functions report and a Functions release. Deferred: the Functions app is not changed in the desktop rework release. Until then the existing Excel file can be sorted or pivoted by part.
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>
